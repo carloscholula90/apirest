@@ -1,0 +1,15 @@
+<fontExtensions xmlns="http://jasperreports.sourceforge.net/jasperreports-fonts"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports-fonts
+                                     http://jasperreports.sourceforge.net/jasperreports-fonts/fonts.xsd">
+    <fontExtension>
+        <fontFamilies>
+            <fontFamily name="TitilliumWeb">
+                <normal><![CDATA[app/public/fonts/TitilliumWeb-Regular.ttf]]></normal>
+                <bold><![CDATA[app/public/fonts/TitilliumWeb-Bold.ttf]]></bold>
+                <italic><![CDATA[app/public/fonts/TitilliumWeb-Italic.ttf]]></italic>
+                <bolditalic><![CDATA[app/public/fonts/TitilliumWeb-BoldItalic.ttf]]></bolditalic>
+        </fontFamily>
+      </fontFamilies>
+    </fontExtension>
+</fontExtensions>

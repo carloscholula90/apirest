@@ -1,0 +1,48 @@
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\serviciosGenerales\reporteController;
+
+/* Validar conexión a la BD http://127.0.0.1:8000/api/test-db*/
+Route::get('/test-db', function () {
+    try {
+        DB::connection()->getPdo();
+        
+        $databaseName = DB::select('SELECT DATABASE() AS db_name');
+        
+        // Ejecutar una consulta SQL para obtener la versión de MySQL
+        $version = DB::select('SELECT VERSION() AS version');
+        
+        return response()->json([
+            'message' => 'Conexión a la base de datos exitosa!',
+            'database' => $databaseName[0]->db_name,
+            'version' => $version[0]->version,
+        ]);
+    } catch (\Exception $e) {
+        return 'No se puede conectar a la base de datos. Error: ' . $e->getMessage();
+    }
+});
+
+
+Route::prefix('asentamientos')->group(function () {
+    require base_path('routes/general/asentamientos.php');
+});
+
+Route::prefix('usuarios')->group(function () {
+    require base_path('routes/general/usuarios.php');
+});
+
+Route::prefix('personas')->group(function () {
+    require base_path('routes/general/personas.php');
+});
+
+Route::prefix('modulos')->group(function () {
+    require base_path('routes/seguridad/modulos.php');
+});
+
+Route::prefix('rolesseguridad')->group(function () {
+    require base_path('routes/seguridad/rolesseguridad.php');
+});
+  
+Route::post('/generate-report', [reporteController::class, 'generateReport']);

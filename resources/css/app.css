@@ -1,0 +1,16 @@
+@font-face {
+    font-family: 'TitilliumWeb';
+    src:    url('/fonts/TitilliumWeb/TitilliumWeb-Black.tf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-Bold.ttf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-BoldItalic.ttf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-ExtraLight.ttf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-ExtraLightItalic.ttf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-Italic.ttf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-Light.ttf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-LightItalic.ttf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-Regular.ttf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-SemiBold.ttf') format('ttf'),
+            url('/fonts/TitilliumWeb/TitilliumWeb-SemiBoldItalic.ttf') format('ttf');    
+    font-weight: normal;
+    font-style: normal;
+}

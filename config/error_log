@@ -1,0 +1,4 @@
+[15-Jul-2024 11:27:05 America/Mexico_City] PHP Fatal error:  Uncaught Error: Call to undefined function env() in /home1/magentad/api.siaweb.com.mx/config/database.php:19
+Stack trace:
+#0 {main}
+  thrown in /home1/magentad/api.siaweb.com.mx/config/database.php on line 19

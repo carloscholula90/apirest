@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.21.3.final using JasperReports Library version 6.21.3-4a3078d20785ebe464f18037d738d12fc98c13cf  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="reporteBase" pageWidth="595" pageHeight="842" columnWidth="545" leftMargin="25" rightMargin="25" topMargin="25" bottomMargin="0" isTitleNewPage="true" uuid="a00051ce-6195-4426-bf2c-abf9a19c1bdd">
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+	<property name="com.jaspersoft.studio.unit." value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageHeight" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.topMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.bottomMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.leftMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.rightMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnSpacing" value="pixel"/>
+	<parameter name="Titulo" class="java.lang.String"/>
+	<parameter name="SubTitulo" class="java.lang.String"/>
+	<parameter name="SubTitulo2" class="java.lang.String"/>
+	<parameter name="REPORT_IMAGE" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<pageHeader>
+		<band height="141" splitType="Stretch">
+			<property name="com.jaspersoft.studio.layout" value="com.jaspersoft.studio.editor.layout.FreeLayout"/>
+			<line direction="BottomUp">
+				<reportElement mode="Opaque" x="141" y="-52" width="435" height="75" forecolor="#CAAB56" backcolor="#CAAB56" uuid="465423c2-fd03-4b87-be4f-9baa18335b1c"/>
+				<graphicElement>
+					<pen lineWidth="50.0" lineColor="#CAAB56"/>
+				</graphicElement>
+			</line>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="26" width="545" height="20" isRemoveLineWhenBlank="true" uuid="b484b142-3ebe-4ba4-a06b-81fee676f510">
+					<property name="com.jaspersoft.studio.unit.tabStopWidth" value="px"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="TitilliumWeb" size="15"/>
+					<paragraph tabStopWidth="20"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{Titulo}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="48" width="545" height="20" isRemoveLineWhenBlank="true" uuid="e3ecc579-3b4c-426c-8a13-d6619ac61f89">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="TitilliumWeb" size="13"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{SubTitulo}]]></textFieldExpression>
+			</textField>
+			<image hAlign="Center" vAlign="Middle">
+				<reportElement x="1" y="0" width="95" height="65" isRemoveLineWhenBlank="true" uuid="f469c979-965c-4b2d-bcc8-7d5952b41ab9">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<imageExpression><![CDATA[$P{REPORT_IMAGE}]]></imageExpression>
+			</image>
+			<line direction="BottomUp">
+				<reportElement x="132" y="-96" width="340" height="102" uuid="36dbd393-2538-4898-99ea-73ef9befdc7a"/>
+				<graphicElement>
+					<pen lineWidth="88.0" lineColor="#146836"/>
+				</graphicElement>
+			</line>
+			<line>
+				<reportElement x="376" y="70" width="170" height="1" uuid="fa795d90-e210-4e15-9d29-e8fa18e1044c">
+					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+				</reportElement>
+				<graphicElement>
+					<pen lineColor="#B0ABAB"/>
+				</graphicElement>
+			</line>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band height="43" splitType="Stretch"/>
+	</columnHeader>
+	<detail>
+		<band height="172" splitType="Stretch"/>
+	</detail>
+	<pageFooter>
+		<band height="45" splitType="Stretch">
+			<textField pattern="MMM d, yyyy h:mm:ss a">
+				<reportElement x="400" y="7" width="145" height="20" uuid="8be1b95f-720e-4225-9d33-22d63e21f106"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="TitilliumWeb" size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="20" y="6" width="20" height="20" isRemoveLineWhenBlank="true" uuid="cda91763-6dc1-4730-8a2f-575b76725049"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="TitilliumWeb" size="10"/>
+				</textElement>
+				<text><![CDATA[de]]></text>
+			</staticText>
+			<textField evaluationTime="Report">
+				<reportElement x="40" y="6" width="20" height="20" uuid="06b6a674-83c5-4f7e-86b5-22357d3c94e7"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="TitilliumWeb" size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="6" width="20" height="20" uuid="276bc649-2053-4cf7-940f-0944f16577ca"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="TitilliumWeb" size="10"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+</jasperReport>
