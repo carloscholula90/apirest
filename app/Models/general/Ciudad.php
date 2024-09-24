@@ -9,5 +9,5 @@ class Ciudad extends Model
 {
     use HasFactory;
     // alvarito
-    // probando
+    
 }
