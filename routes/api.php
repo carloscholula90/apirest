@@ -15,4 +15,4 @@ Route::put('/students/{id}', [studentController::class, 'update']);
 
 Route::patch('/students/{id}', [studentController::class, 'updatePartial']);
 
-Route::delete('/students/{id}', [studentController::class, 'destroy']);
+Route::delete('/students/{id}', [studentController::class, 'destroy']);      
