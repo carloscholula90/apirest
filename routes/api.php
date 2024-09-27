@@ -22,7 +22,7 @@ Route::get('/test-db', function () {
     } catch (\Exception $e) {
         return 'No se puede conectar a la base de datos. Error: ' . $e->getMessage();
     }
-});
+});  
 
 
 Route::prefix('asentamientos')->group(function () {
