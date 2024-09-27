@@ -10,6 +10,10 @@ class RolSeg extends Model
     use HasFactory;
 
     protected $table = 'rolesseg';
+    protected $primaryKey = 'idRol';
+    public $incrementing = true;
+    protected $keyType = 'int';
+    public $timestamps = false;
 
     protected $fillable = [
         'idRol',

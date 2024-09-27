@@ -10,6 +10,10 @@ class Asentamiento extends Model
     use HasFactory;
 
     protected $table = 'asentamiento';
+    protected $primaryKey = 'idAsentamiento';
+    public $incrementing = true;
+    protected $keyType = 'int';
+    public $timestamps = false;
 
     protected $fillable = [
         'idAsentamiento',

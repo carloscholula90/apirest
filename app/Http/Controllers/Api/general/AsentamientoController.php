@@ -6,10 +6,10 @@ use App\Models\general\Asentamiento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class AsentamientoController extends Controller
-{
-    public function index()
-    {
+class AsentamientoController extends Controller{
+
+    public function index(){
+       
         $asentamientos = Asentamiento::all();
 
         $data = [
@@ -59,29 +59,29 @@ class AsentamientoController extends Controller
 
     }
 
-    public function show($id)
-    {
-        $asentamiento = Asentamiento::find($id);
-
-        if (!$Asentamiento) {
+    public function show($idAsentamiento){
+        try {
+            // Busca el asentamiento por ID y lanza una excepción si no se encuentra
+            $asentamiento = Asentamiento::findOrFail($idAsentamiento);
+    
+            // Retorna el asentamiento con estado 200
+            $data = [
+                'asentamiento' => $asentamiento,
+                'status' => 200
+            ];
+            return response()->json($data, 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // Si el asentamiento no se encuentra, retorna un mensaje de error con estado 404
             $data = [
                 'message' => 'Asentamiento no encontrado',
                 'status' => 404
             ];
             return response()->json($data, 404);
         }
-
-        $data = [
-            'asentamiento' => $asentamiento,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
     }
-
-    public function destroy($id)
-    {
-        $asentamiento = Asentamiento::find($id);
+    
+    public function destroy($idAsentamiento){
+        $asentamiento = Asentamiento::find($idAsentamiento);
 
         if (!$asentamiento) {
             $data = [
@@ -101,10 +101,9 @@ class AsentamientoController extends Controller
         return response()->json($data, 200);
     }
 
-    public function update(Request $request, $id)
-    {
-        $asentamiento = Asentamiento::find($id);
+    public function update(Request $request, $idAsentamiento){
 
+        $asentamiento = Asentamiento::find($idAsentamiento);
         if (!$asentamiento) {
             $data = [
                 'message' => 'Asentamiento no encontrado',
@@ -114,38 +113,34 @@ class AsentamientoController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'idAsentamiento' => 'required|numeric|max:255',
-            'descripcion' => 'required|max:255'
+                    'idAsentamiento' => 'required|numeric|max:255',
+                    'descripcion' => 'required|max:255'
         ]);
 
         if ($validator->fails()) {
             $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
+                    'message' => 'Error en la validación de los datos',
+                    'errors' => $validator->errors(),
+                    'status' => 400
             ];
             return response()->json($data, 400);
         }
 
         $asentamiento->idAsentamiento = $request->idAsentamiento;
         $asentamiento->descripcion = $request->descripcion;
-
         $asentamiento->save();
 
         $data = [
-            'message' => 'Asentamiento actualizado',
-            'asentamiento' => $asentamiento,
-            'status' => 200
+                'message' => 'Asentamiento actualizado',
+                'asentamiento' => $asentamiento,
+                'status' => 200
         ];
-
         return response()->json($data, 200);
-
     }
 
-    public function updatePartial(Request $request, $id)
-    {
-        $asentamiento = Asentamiento::find($id);
+    public function updatePartial(Request $request, $idAsentamiento){
 
+        $asentamiento = Asentamiento::find($idAsentamiento);
         if (!$asentamiento) {
             $data = [
                 'message' => 'Asentamiento no encontrado',
@@ -155,8 +150,8 @@ class AsentamientoController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-           'idAsentamiento' => 'required|numeric|max:255',
-            'descripcion' => 'required|max:255'
+                    'idAsentamiento' => 'required|numeric|max:255',
+                        'descripcion' => 'required|max:255'
         ]);
 
         if ($validator->fails()) {

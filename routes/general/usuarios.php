@@ -4,10 +4,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
 Route::get('/', [UsuarioController::class, 'index']);
-Route::get('/{id}', [UsuarioController::class, 'show']);
+Route::get('/{id}/{pasw}', [UsuarioController::class, 'show']);
 Route::post('/create', [UsuarioController::class, 'store']);
-Route::put('/usuarios/{id}', [UsuarioController::class, 'update']);
-Route::patch('/usuarios/{id}', [UsuarioController::class, 'updatePartial']);
-Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
+Route::put('/{id}', [UsuarioController::class, 'update']);
+Route::patch('/{id}', [UsuarioController::class, 'updatePartial']);
+Route::delete('/{id}', [UsuarioController::class, 'destroy']);
 /*Route::get('/{id}/{slug?}', [UsuarioController::class, 'show']); parametros opcionales*/
   

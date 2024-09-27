@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Models\general;
+namespace App\Models\escolar;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Ciudad extends Model
+class Calificaciones extends Model
 {
     use HasFactory;
 }

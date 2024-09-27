@@ -24,7 +24,6 @@ class ModuloController extends Controller
     {
 
         $validator = Validator::make($request->all(), [
-            'idModulo' => 'required|numeric|max:255',
             'descripcion' => 'required|max:255'
         ]);
 
@@ -37,8 +36,11 @@ class ModuloController extends Controller
             return response()->json($data, 400);
         }
 
+        $maxId = Modulo::max('idModulo');
+        $newId = $maxId ? $maxId+ 1 : 1;
+
         $modulos = Modulo::create([
-            'idModulo' => $request->idModulo,
+            'idModulo' => $newId,
             'descripcion' => $request->descripcion
         ]);
 
@@ -49,21 +51,19 @@ class ModuloController extends Controller
             ];
             return response()->json($data, 500);
         }
-
+        $modulos = Modulo::findOrFail($newId);
         $data = [
             'modulos' => $modulos,
             'status' => 201
         ];
-
         return response()->json($data, 201);
-
     }
 
     public function show($id)
     {
         $modulos = Modulo::find($id);
 
-        if (!$Modulos) {
+        if (!$modulos) {
             $data = [
                 'message' => 'Modulos no encontrado',
                 'status' => 404
@@ -141,49 +141,4 @@ class ModuloController extends Controller
         return response()->json($data, 200);
 
     }
-
-    public function updatePartial(Request $request, $id)
-    {
-        $modulos = Modulo::find($id);
-
-        if (!$modulos) {
-            $data = [
-                'message' => 'Modulos no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-           'idModulo' => 'required|numeric|max:255',
-            'descripcion' => 'required|max:255'
-        ]);
-
-        if ($validator->fails()) {
-            $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ];
-            return response()->json($data, 400);
-        }
-        if ($request->has('idModulo')) {
-            $modulos->idModulo = $request->idModulo;
-        }
-
-        if ($request->has('descripcion')) {
-            $modulos->descripcion = $request->descripcion;
-        }
-
-        $modulos->save();
-
-        $data = [
-            'message' => 'Modulos actualizado',
-            'asentamiento' => $modulos,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
-    }
-
 }

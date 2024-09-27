@@ -49,9 +49,9 @@ class PersonaController extends Controller{
         ], 201);
     }
 
-   
-     // Muestra una persona por ID
-     public function show($uid){
+    // Muestra una persona por ID
+    public function recovery($uid)
+    {
         Log::info('Entra a buscar el contacto: '.$uid);
         $tipo = 1; // Tipo de contacto oficial correo electrónico
     
@@ -97,7 +97,43 @@ class PersonaController extends Controller{
                                 'correo' =>$contacto->dato
             ],
         'status' => 200
-        ], 200);      
+        ], 200);
+    }    
+
+     // Muestra una persona por ID
+     public function show($uid){
+        $persona = Persona::find($uid);
+
+        if (!$persona) {
+            return response()->json([
+                'message' => 'Persona no encontrada.',
+                'status' => 404
+            ], 404);
+        }
+
+        return response()->json([
+            'persona' => $persona,
+            'status' => 200
+        ], 200);
+    }
+
+    // Elimina una persona por ID
+    public function destroy($uid){
+        $persona = Persona::find($uid);
+
+        if (!$persona) {
+            return response()->json([
+                'message' => 'Persona no encontrada.',
+                'status' => 404
+            ], 404);
+        }
+
+        $persona->delete();
+
+        return response()->json([
+            'message' => 'Persona eliminada exitosamente.',
+            'status' => 200
+        ], 200);
     }
 
     // Actualiza una persona por ID

@@ -60,7 +60,7 @@ class UsuarioController extends Controller{
 
         $usuario = Usuario::find($id,$pasw);
 
-        if (!$Usuario) {
+        if (!$usuario) {
             $data = [
                 'message' => 'Usuario no encontrado',
                 'status' => 404
