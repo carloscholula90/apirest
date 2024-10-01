@@ -11,7 +11,41 @@ class EdoCivilController extends Controller
      */
     public function index()
     {
-        //
+        $edocivil = EdoCivil::all();
+
+        $data = [
+            'edocivil' => $edocivil,
+            'status' => 200
+        ];
+
+        return response()->json($data, 200);
+        
+        public function store(Request $request)
+           {
+
+            $validator = Validator::make($request->all(), [
+                'descripcion' => 'required|max:255'
+            ]);
+
+            if ($validator->fails()) {
+                $data = [
+                    'message' => 'Error en la validación de los datos',
+                    'errors' => $validator->errors(),
+                    'status' => 400
+                ];
+                return response()->json($data, 400);
+            }
+    
+            $maxIdEdoCivil = EdoCivil::max('idEdoCivil');
+            $newIdEdoCivil = $maxIdEdoCivil ? $maxIdEdoCivil + 1 : 1;
+            $edocivil = EdoCivil::create([
+                'idEdoCivil' => $newIdEdoCivil,
+                'descripcion' => $request->descripcion
+            ]);
+    
+    
+           }
+
     }
 
     /**
