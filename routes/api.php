@@ -65,6 +65,10 @@ Route::prefix('personas')->group(function () {
     require base_path('routes/general/personas.php');
 });
 
+Route::prefix('puestos')->group(function () {
+    require base_path('routes/general/puestos.php');
+});
+
 Route::prefix('rolesseguridad')->group(function () {
     require base_path('routes/seguridad/rolesseguridad.php');
 });
