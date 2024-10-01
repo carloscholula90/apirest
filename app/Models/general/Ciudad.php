@@ -9,6 +9,6 @@ class Ciudad extends Model
 {
     use HasFactory;
     // alvarito
-    // hola alv
-    //incredulos
+    
+  
 }
