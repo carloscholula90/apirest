@@ -1,11 +1,11 @@
 <?php
-use App\Http\Controllers\Api\general\MedioController;
+use App\Http\Controllers\Api\general\EdoCivilController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
-Route::get('/', [MedioController::class, 'index']);
-Route::get('/{idEdoCivil}', [MedioController::class, 'show']);
-Route::post('/create', [MedioController::class, 'store']);  
-Route::put('/{idEdoCivil}', [MedioController::class, 'update']);
-Route::delete('/{idEdoCivil}', [MedioController::class, 'destroy']);
+Route::get('/', [EdoCivilController::class, 'index']);
+Route::get('/{idEdoCivil}', [EdoCivilController::class, 'show']);
+Route::post('/create', [EdoCivilController::class, 'store']);  
+Route::put('/{idEdoCivil}', [EdoCivilController::class, 'update']);
+Route::delete('/{idEdoCivil}', [EdoCivilController::class, 'destroy']);
   

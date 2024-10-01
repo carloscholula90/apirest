@@ -1,99 +1,142 @@
 <?php
 
-namespace App\Http\Controllers\Api\general; 
-
+namespace App\Http\Controllers\Api\general;  
+use App\Http\Controllers\Controller;
+use App\Models\general\EdoCivil;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class EdoCivilController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        $edocivil = EdoCivil::all();
+    public function index(){
+       
+       
+        $edoCiviles = EdoCivil::all();
 
         $data = [
-            'edocivil' => $edocivil,
+            'edoCiviles' => $edoCiviles,
             'status' => 200
         ];
 
         return response()->json($data, 200);
+    }
+
+    public function store(Request $request)
+    {
         
-        public function store(Request $request)
-           {
+        $validator = Validator::make($request->all(), [
+            'descripcion' => 'required|max:255'
+        ]);
 
-            $validator = Validator::make($request->all(), [
+        if ($validator->fails()) {
+            $data = [
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ];
+            return response()->json($data, 400);
+        }
+
+        $maxIdEdoCivil = EdoCivil::max('idEdoCivil');
+        $newIdEdoCivil = $maxIdEdoCivil ? $maxIdEdoCivil + 1 : 1;
+        $edoCiviles = EdoCivil::create([
+            'idEdoCivil' => $newIdEdoCivil,
+            'descripcion' => $request->descripcion
+        ]);
+
+        if (!$edoCiviles) {
+            $data = [
+                'message' => 'Error al crear el estado Civil',
+                'status' => 500
+            ];
+            return response()->json($data, 500);
+        }
+        $edoCiviles = EdoCivil::findOrFail($newIdEdoCivil);
+    
+        $data = [
+            'edoCivil' => $edoCiviles,
+            'status' => 201
+        ];
+
+        return response()->json($data, 201);
+
+    }
+
+    public function show($idEdoCivil){
+        try {
+            // Busca el estado civil por ID y lanza una excepción si no se encuentra
+            $edoCiviles = EdoCivil::findOrFail($idEdoCivil);
+    
+            // Retorna el medio con estado 200
+            $data = [
+                'medio' => $edoCiviles,
+                'status' => 200
+            ];
+            return response()->json($data, 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // Si el estado civil no se encuentra, retorna un mensaje de error con estado 404
+            $data = [
+                'message' => 'Estado Civil no encontrado',
+                'status' => 404
+            ];
+            return response()->json($data, 404);
+        }
+    }
+    
+    public function destroy($idEdoCivil){
+        $edoCiviles = EdoCivil::find($idEdoCivil);
+
+        if (!$edoCiviles) {
+            $data = [
+                'message' => 'Estado Civil no encontrado',
+                'status' => 404
+            ];
+            return response()->json($data, 404);
+        }
+        
+        $edoCiviles->delete();
+
+        $data = [
+            'message' => 'Estado Civil eliminado',
+            'status' => 200
+        ];
+
+        return response()->json($data, 200);
+    }
+
+    public function update(Request $request, $idEdoCivil){
+
+        $edoCiviles = EdoCivil::find($idEdoCivil);
+        if (!$edoCiviles) {
+            $data = [
+                'message' => 'Estado Civil no encontrado',
+                'status' => 404
+            ];
+            return response()->json($data, 404);
+        }
+
+        $validator = Validator::make($request->all(), [
                 'descripcion' => 'required|max:255'
-            ]);
+        ]);
 
-            if ($validator->fails()) {
-                $data = [
+        if ($validator->fails()) {
+            $data = [
                     'message' => 'Error en la validación de los datos',
                     'errors' => $validator->errors(),
                     'status' => 400
-                ];
-                return response()->json($data, 400);
-            }
-    
-            $maxIdEdoCivil = EdoCivil::max('idEdoCivil');
-            $newIdEdoCivil = $maxIdEdoCivil ? $maxIdEdoCivil + 1 : 1;
-            $edocivil = EdoCivil::create([
-                'idEdoCivil' => $newIdEdoCivil,
-                'descripcion' => $request->descripcion
-            ]);
-    
-    
-           }
+            ];
+            return response()->json($data, 400);
+        }
 
+        $edoCiviles->idEdoCivil = $request->idEdoCivil;
+        $edoCiviles->descripcion = $request->descripcion;
+        $edoCiviles->save();
+
+        $data = [
+                'message' => 'Estado Civil actualizado',
+                'edoCivil' => $edoCiviles,
+                'status' => 200
+        ];
+        return response()->json($data, 200);
     }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
-    }
-
 }
