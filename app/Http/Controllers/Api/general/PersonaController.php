@@ -14,7 +14,10 @@ class PersonaController extends Controller{
 
     // Retorna todas las personas
     public function index(){
+        
         $personas = Persona::all();
+      ///  $personas = Persona::with(['pais'])->get();
+
 
         if ($personas->isEmpty()) {
             return response()->json([
