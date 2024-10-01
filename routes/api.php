@@ -70,3 +70,5 @@ Route::prefix('medios')->group(function () {
 });
 
 Route::post('/generate-report', [reporteController::class, 'generateReport']);
+
+#Este es un comentario para probar el fech y el pull
