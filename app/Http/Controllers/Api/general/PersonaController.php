@@ -9,15 +9,39 @@ use Illuminate\Support\Facades\Log;
 
 class PersonaController extends Controller{
     
-    private $campos = ['uid','curp','nombre','primerApellido','segundoApellido','fechaNacimiento','sexo',
-                        'idPais','idEstado','idCiudad','idEdoCivil','rfc'];
-
     // Retorna todas las personas
     public function index(){
         
-        $personas = Persona::all();
-      ///  $personas = Persona::with(['pais'])->get();
-
+      //  $personas = Persona::all();
+      $personas = Persona::leftJoin('pais', 'persona.idPais', '=', 'pais.idPais')
+                            ->leftJoin('edoCivil', 'persona.idEdoCivil', '=', 'edoCivil.idEdoCivil')
+                            ->leftJoin('estado', function($join) {
+                                $join->on('persona.idPais', '=', 'estado.idPais')
+                                     ->on('persona.idEstado', '=', 'estado.idEstado');
+                            })
+                            ->leftJoin('ciudad', function($join) {
+                                $join->on('persona.idPais', '=', 'estado.idPais')
+                                     ->on('persona.idEstado', '=', 'estado.idEstado')
+                                     ->on('persona.idCiudad', '=', 'ciudad.idCiudad');
+                            })
+                            ->select(
+                                        'persona.uid', 
+                                        'persona.curp', 
+                                        'persona.nombre', 
+                                        'persona.primerApellido', 
+                                        'persona.segundoApellido', 
+                                        'persona.fechaNacimiento', 
+                                        'persona.sexo',                                         
+                                        'edoCivil.idEdoCivil', 
+                                        'edoCivil.descripcion as descripcionEdoCivil', 
+                                        'pais.idPais',
+                                        'pais.descripcion as paisDescripcion',
+                                        'estado.idEstado',
+                                        'estado.descripcion as estadoDescripcion',
+                                        'ciudad.idCiudad',
+                                        'ciudad.descripcion'
+                            )
+                            ->get();
 
         if ($personas->isEmpty()) {
             return response()->json([

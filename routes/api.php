@@ -37,8 +37,16 @@ Route::prefix('carreras')->group(function () {
     require base_path('routes/escolar/carreras.php');
 });
 
+Route::prefix('ciudades')->group(function () {
+    require base_path('routes/general/ciudades.php');
+});
+
 Route::prefix('edocivil')->group(function () {
     require base_path('routes/general/edocivil.php');
+});
+
+Route::prefix('estados')->group(function () {
+    require base_path('routes/general/estados.php');
 });
 
 Route::prefix('medios')->group(function () {
