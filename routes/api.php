@@ -33,6 +33,10 @@ Route::prefix('asentamientos')->group(function () {
     require base_path('routes/general/asentamientos.php');
 });
 
+Route::prefix('avisosPrivacidad')->group(function () {
+    require base_path('routes/general/avisosPrivacidad.php');
+});
+
 Route::prefix('carreras')->group(function () {
     require base_path('routes/escolar/carreras.php');
 });
