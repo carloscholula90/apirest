@@ -2,7 +2,12 @@
 
 namespace App\Http\Controllers\Api\general; 
 
+namespace App\Http\Controllers\Api\general;  
+use App\Http\Controllers\Controller;
+use App\Models\general\Ciudad;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
 
 class CiudadController extends Controller
 {
