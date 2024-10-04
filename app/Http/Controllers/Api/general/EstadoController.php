@@ -27,48 +27,47 @@ class EstadoController extends Controller{
 
     public function store(Request $request)
     {
-        
         $validator = Validator::make($request->all(), [
-            'descripcion' => 'required|max:255'
+                                'idPais' => 'required|numeric|max:255',
+                                'descripcion' => 'required|max:255'
         ]);
 
         if ($validator->fails()) {
             $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
+                        'message' => 'Error en la validación de los datos',
+                        'errors' => $validator->errors(),
+                        'status' => 400
             ];
             return response()->json($data, 400);
         }
 
-        $maxIdMedio = Estado::max('idEstado');
-        $newIdMedio = $maxIdMedio ? $maxIdMedio + 1 : 1;
+        $maxId = Estado::max($request->idPais);
+        $newId = $maxId ? $maxId + 1 : 1;
         $estados = Estado::create([
-            'idEstado' => $newIdMedio,
-            'descripcion' => $request->descripcion
+                    'idPais' => $request->idPais,
+                    'idEstado'=> $newId,
+                    'descripcion' => $request->descripcion
         ]);
-
+        
         if (!$estados) {
             $data = [
-                'message' => 'Error al crear el medio',
+                'message' => 'Error al crear el estado',
                 'status' => 500
             ];
             return response()->json($data, 500);
         }
-        $estados = Estado::findOrFail($newIdMedio);
-    
+        
         $data = [
-            'estado' => $estados,
-            'status' => 201
+            'estados' => $estados,
+            'status' => 200
         ];
-
-        return response()->json($data, 201);
+        return response()->json($data, 200);
 
     }
 
     public function show($idPais,$idEstado){
         try {
-            // Busca el medio por ID y lanza una excepción si no se encuentra
+            // Busca el  por ID y lanza una excepción si no se encuentra
             $estados = Estado::join('pais', 'estado.idPais', '=', 'pais.idPais')
                                     ->select( 'pais.idPais',
                                             'pais.descripcion as paisDescripcion',
@@ -79,14 +78,14 @@ class EstadoController extends Controller{
                                     ->where('estado.idEstado', '=', $idEstado)
                                     ->get();
     
-            // Retorna el medio con estado 200
+            // Retorna el  con estado 200
             $data = [
-                'estado' => $estados,
+                'estados' => $estados,
                 'status' => 200
             ];
             return response()->json($data, 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            // Si el medio no se encuentra, retorna un mensaje de error con estado 404
+            // Si el  no se encuentra, retorna un mensaje de error con estado 404
             $data = [
                 'message' => 'Estado no encontrado',
                 'status' => 404
@@ -117,8 +116,8 @@ class EstadoController extends Controller{
     }
 
     public function update(Request $request){
-
-        $estados = Estado::find($request->$idPais,$request->$idEstado);
+      
+        $estados = Estado::find($request->idPais,$request->idEstado);
         if (!$estados) {
             $data = [
                 'message' => 'Estado no encontrado',
@@ -126,12 +125,12 @@ class EstadoController extends Controller{
             ];
             return response()->json($data, 404);
         }
-
+       
         $validator = Validator::make($request->all(), [
-                                'idEstado' => 'required|numeric|max:255',
                                 'idPais' => 'required|numeric|max:255',
+                                'idEstado' => 'required|numeric|max:255',                                
                                 'descripcion' => 'required|max:255'
-        ]);
+        ]);   
 
         if ($validator->fails()) {
             $data = [
@@ -141,17 +140,26 @@ class EstadoController extends Controller{
             ];
             return response()->json($data, 400);
         }
+        \Log::info('Datos de usuario procesados 1');
 
-        $estados->idEstado = $request->idEstado;
-        $estados->idPais =   $request->idPais;
-        $estados->descripcion = $request->descripcion;
-        $estados->save();
+        $estados = Estado::where('idPais', $request->idPais)
+                 ->where('idEstado', $request->idEstado)
+                 ->first();
+                 \Log::info('Datos de usuario procesados 2');
 
-        $data = [
+        if ($estados) {
+            $estados->descripcion = $request->descripcion;
+            $estados->save();
+            $data = [
                 'message' => 'Estado actualizado',
-                'estado' => $estados,
+                'estados' => $estados,
                 'status' => 200
-        ];
+            ];
         return response()->json($data, 200);
+        } else {
+            return response()->json(['error' => 'Estado no encontrado'], 404);
+        }   
+       
+       
     }
 }

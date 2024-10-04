@@ -2,9 +2,9 @@
 
 namespace App\Models\general;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Database\Eloquent\Builder; // Asegúrate de importar la clase Builder
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Estado extends Model
 {
@@ -12,17 +12,21 @@ class Estado extends Model
 
     protected $table = 'estado';    
     protected $primaryKey = ['idPais', 'idEstado'];
+    protected $fillable = ['idPais', 'idEstado', 'descripcion'];
     public $incrementing = false;
     protected $keyType = 'int';
     public $timestamps = false;
 
-    // Sobrescribir getKeyName() para retornar el array de claves primarias
-    public function getKeyName()
-    {  
-        return $this->primaryKey;
+    // Sobrescribir el método para manejar claves compuestas en la consulta
+    protected function setKeysForSaveQuery($query) // Elimina la especificación de tipo
+    {
+        $query->where('idPais', '=', $this->getAttribute('idPais'))
+              ->where('idEstado', '=', $this->getAttribute('idEstado'));
+
+        return $query;
     }
 
-    // Sobrescribir find() para buscar usando múltiples columnas de clave primaria
+    // No necesitas sobrescribir getKeyName()
     public static function find($idPais, $idEstado)
     {
         return static::where('idPais', $idPais)
@@ -30,6 +34,11 @@ class Estado extends Model
                      ->first();
     }
 
+    public static function max($idPais)
+    {
+        return static::where('idPais', $idPais)
+                     ->max('idEstado');
+    }
 
     public function pais()
     {
