@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Log;
 class DireccionController extends Controller
 {
     public function index(){    
-          
         $direcciones = Direccion::join('pais', 'direcciones.idPais', '=', 'pais.idPais')
                             ->join('estado', 'direcciones.idEstado', '=', 'estado.idEstado')
                             ->join('ciudad', 'direcciones.idCiudad', '=', 'ciudad.idCiudad')
@@ -37,7 +36,6 @@ class DireccionController extends Controller
                                      'asentamiento.descripcion as asentamientoDescripcion'
                                    )   
                                    ->get();
-                                   Log::info('Consulta SQL: sale ');
        $data = [
                 'direcciones' => $direcciones,
                 'status' => 200
@@ -47,71 +45,41 @@ class DireccionController extends Controller
 
    public function store(Request $request)
    {
-       $validator = Validator::make($request->all(), [
-                               'idPais' => 'required|numeric|max:255',
-                               'descripcion' => 'required|max:255'
-       ]);
-
-       if ($validator->fails()) {
-           $data = [
-                       'message' => 'Error en la validación de los datos',
-                       'errors' => $validator->errors(),
-                       'status' => 400
-           ];
-           return response()->json($data, 400);
-       }
-
-       $maxId = Estado::max($request->idPais);
-       $newId = $maxId ? $maxId + 1 : 1;
-       $estados = Estado::create([
-                   'idPais' => $request->idPais,
-                   'idEstado'=> $newId,
-                   'descripcion' => $request->descripcion
-       ]);
-       
-       if (!$estados) {
-           $data = [
-               'message' => 'Error al crear el estado',
-               'status' => 500
-           ];
-           return response()->json($data, 500);
-       }
-       
-       $data = [
-           'estados' => $estados,
-           'status' => 200
-       ];
-       return response()->json($data, 200);
-
+   
    }
 
-   public function show($idPais,$idEstado){
-       try {
-           // Busca el  por ID y lanza una excepción si no se encuentra
-           $estados = Estado::join('pais', 'estado.idPais', '=', 'pais.idPais')
-                                   ->select( 'pais.idPais',
-                                           'pais.descripcion as paisDescripcion',
-                                           'estado.idEstado',
-                                           'estado.descripcion as estadoDescripcion'
-                                   )
-                                   ->where('estado.idPais', '=', $idPais)
-                                   ->where('estado.idEstado', '=', $idEstado)
-                                   ->get();
-   
-           // Retorna el  con estado 200
-           $data = [
-               'estados' => $estados,
-               'status' => 200
-           ];
-           return response()->json($data, 200);
-       } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-           // Si el  no se encuentra, retorna un mensaje de error con estado 404
-           $data = [
-               'message' => 'Estado no encontrado',
-               'status' => 404
-           ];
-           return response()->json($data, 404);
-       }
+   public function show($uid,$idParentesco){
+                    $direcciones = Direccion::join('pais', 'direcciones.idPais', '=', 'pais.idPais')
+                                    ->join('estado', 'direcciones.idEstado', '=', 'estado.idEstado')
+                                    ->join('ciudad', 'direcciones.idCiudad', '=', 'ciudad.idCiudad')
+                                    ->join('parentesco', 'direcciones.idParentesco', '=', 'parentesco.idParentesco')
+                                    ->join('codigoPostal', function($join) {
+                                                        $join->on('direcciones.idPais', '=', 'codigoPostal.idPais')
+                                                             ->on('direcciones.idEstado', '=', 'codigoPostal.idEstado')
+                                                             ->on('direcciones.idCiudad', '=', 'codigoPostal.idCiudad')
+                                                             ->on('direcciones.idCp', '=', 'codigoPostal.idCp'); 
+                                            })
+                                    ->join('asentamiento', 'codigoPostal.idAsentamiento', '=', 'asentamiento.idAsentamiento') 
+                                    ->select('pais.idPais',
+                                            'pais.descripcion as paisDescripcion',
+                                            'estado.idEstado',
+                                            'estado.descripcion as estadoDescripcion',
+                                            'ciudad.idCiudad',
+                                            'ciudad.descripcion as ciudadDescripcion',
+                                            'direcciones.noExterior',
+                                            'direcciones.noInterior',   
+                                            'codigoPostal.cp',   
+                                            'codigoPostal.descripcion',
+                                            'asentamiento.descripcion as asentamientoDescripcion'
+                                        ) 
+                                    ->where('parentesco.idParentesco', '=', $idParentesco)
+                                    ->where('direcciones.uid', '=', $uid)        
+                        ->get();
+        $data = [
+                'direcciones' => $direcciones,
+                'status' => 200
+        ];
+        return response()->json($data, 200);
    }
    
    public function destroy($idPais,$idEstado){
