@@ -3,39 +3,39 @@
 namespace App\Http\Controllers\Api\general;
 
 use App\Http\Controllers\Controller;
-use App\Models\general\Direccion;
+use App\Models\general\Direccion;   
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class DireccionController extends Controller
 {
     public function index(){    
-        
-        Log::info('Consulta SQL: 2---> ');
-        $direcciones = Direccion::join('pais', 'direccion.idPais', '=', 'pais.idPais')
-                            ->join('estado', 'direccion.idEstado', '=', 'estado.idEstado')
-                            ->join('ciudad', 'direccion.idCiudad', '=', 'ciudad.idCiudad')
-                            ->join('parentesco', 'direccion.idParentesco', '=', 'parentesco.idParentesco')
-                            ->join('codigopostal', function($join) {
-                                                   $join->on('direccion.idPais', '=', 'codigopostal.idPais')
-                                                        ->on('direccion.idEstado', '=', 'codigopostal.idEstado')
-                                                        ->on('direccion.idCiudad', '=', 'codigopostal.idCiudad')
-                                                        ->on('direccion.idCp', '=', 'codigopostal.idCp'); 
+          
+        $direcciones = Direccion::join('pais', 'direcciones.idPais', '=', 'pais.idPais')
+                            ->join('estado', 'direcciones.idEstado', '=', 'estado.idEstado')
+                            ->join('ciudad', 'direcciones.idCiudad', '=', 'ciudad.idCiudad')
+                            ->join('parentesco', 'direcciones.idParentesco', '=', 'parentesco.idParentesco')
+                            ->join('codigoPostal', function($join) {
+                                                   $join->on('direcciones.idPais', '=', 'codigoPostal.idPais')
+                                                        ->on('direcciones.idEstado', '=', 'codigoPostal.idEstado')
+                                                        ->on('direcciones.idCiudad', '=', 'codigoPostal.idCiudad')
+                                                        ->on('direcciones.idCp', '=', 'codigoPostal.idCp'); 
                                                     }
                                     )
-                            ->join('asentamiento', 'codigopostal.idAsentamiento', '=', 'asentamiento.idAsentamieto') 
+                            ->join('asentamiento', 'codigoPostal.idAsentamiento', '=', 'asentamiento.idAsentamiento') 
                             ->select('pais.idPais',
                                      'pais.descripcion as paisDescripcion',
                                      'estado.idEstado',
                                      'estado.descripcion as estadoDescripcion',
                                      'ciudad.idCiudad',
                                      'ciudad.descripcion as ciudadDescripcion',
-                                     'direccion.noExterior',
-                                     'direccion.noInterior',
-                                     'codigopostal.cp',
-                                     'codigopostal.descripcion',
+                                     'direcciones.noExterior',
+                                     'direcciones.noInterior',   
+                                     'codigoPostal.cp',   
+                                     'codigoPostal.descripcion',
                                      'asentamiento.descripcion as asentamientoDescripcion'
-                                   )
+                                   )   
                                    ->get();
                                    Log::info('Consulta SQL: sale ');
        $data = [
