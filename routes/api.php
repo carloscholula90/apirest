@@ -45,6 +45,10 @@ Route::prefix('ciudades')->group(function () {
     require base_path('routes/general/ciudades.php');
 });
 
+Route::prefix('direcciones')->group(function () {
+    require base_path('routes/general/direcciones.php');
+});
+
 Route::prefix('edocivil')->group(function () {
     require base_path('routes/general/edocivil.php');
 });
