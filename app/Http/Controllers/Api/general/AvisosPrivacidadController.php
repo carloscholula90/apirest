@@ -65,17 +65,17 @@ class AvisosPrivacidadController extends Controller
 
     public function show($idAviso){
         try {
-            // Busca el medio por ID y lanza una excepción si no se encuentra
+            // Busca el aviso de privacidad por ID y lanza una excepción si no se encuentra
             $avisos = AvisosPrivacidad::findOrFail($idAviso);
     
-            // Retorna el medio con estado 200
+            // Retorna el aviso de privacidad con estado 200
             $data = [
                 'Avisos de Privacidad' => $avisos,
                 'status' => 200
             ];
             return response()->json($data, 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            // Si el medio no se encuentra, retorna un mensaje de error con estado 404
+            // Si el aviso de privacidad no se encuentra, retorna un mensaje de error con estado 404
             $data = [
                 'message' => 'Aviso de privacidad no encontrado',
                 'status' => 404
@@ -117,8 +117,8 @@ class AvisosPrivacidadController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-                    'idAviso' => 'required|numeric|max:255',
-                    'descripcion' => 'required|max:255'
+                    'descripcion' => 'required|max:255',
+                    'activo' => 'required|max:255'
         ]);
 
         if ($validator->fails()) {
@@ -132,6 +132,7 @@ class AvisosPrivacidadController extends Controller
 
         $avisos->idAviso = $request->idAviso;
         $avisos->descripcion = $request->descripcion;
+        $avisos->activo = $request->activo;
         $avisos->save();
 
         $data = [
