@@ -20,8 +20,8 @@ class PersonaController extends Controller{
                                      ->on('persona.idEstado', '=', 'estado.idEstado');
                             })
                             ->leftJoin('ciudad', function($join) {
-                                $join->on('persona.idPais', '=', 'estado.idPais')
-                                     ->on('persona.idEstado', '=', 'estado.idEstado')
+                                $join->on('persona.idPais', '=', 'ciudad.idPais')
+                                     ->on('persona.idEstado', '=', 'ciudad.idEstado')
                                      ->on('persona.idCiudad', '=', 'ciudad.idCiudad');
                             })
                             ->select(

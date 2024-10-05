@@ -3,7 +3,7 @@
 namespace App\Models\general;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder; // Asegúrate de importar la clase Builder
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Estado extends Model
@@ -38,10 +38,5 @@ class Estado extends Model
     {
         return static::where('idPais', $idPais)
                      ->max('idEstado');
-    }
-
-    public function pais()
-    {
-        return $this->belongsTo(Pais::class, 'idPais', 'idPais');
     }
 }

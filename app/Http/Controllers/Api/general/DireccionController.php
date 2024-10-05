@@ -1,65 +1,163 @@
 <?php
 
-namespace App\Http\Controllers\Api\general; 
+namespace App\Http\Controllers\Api\general;
 
+use App\Http\Controllers\Controller;
+use App\Models\general\Direccion;   
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class DireccionController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+    public function index(){    
+        $direcciones = Direccion::join('pais', 'direcciones.idPais', '=', 'pais.idPais')
+        ->join('estado', function($join) {
+            // Eliminar el operador "->" antes de "on()"
+            $join->on('direcciones.idEstado', '=', 'estado.idEstado')
+                 ->on('direcciones.idPais', '=', 'estado.idPais'); 
+        })
+        ->join('ciudad', function($join) {
+            $join->on('direcciones.idEstado', '=', 'ciudad.idEstado')
+                 ->on('direcciones.idPais', '=', 'ciudad.idPais')
+                 ->on('direcciones.idCiudad', '=', 'ciudad.idCiudad'); 
+        })
+        ->join('parentesco', 'direcciones.idParentesco', '=', 'parentesco.idParentesco')
+        ->join('codigoPostal', function($join) {
+            $join->on('direcciones.idPais', '=', 'codigoPostal.idPais')
+                 ->on('direcciones.idEstado', '=', 'codigoPostal.idEstado')
+                 ->on('direcciones.idCiudad', '=', 'codigoPostal.idCiudad')
+                 ->on('direcciones.idCp', '=', 'codigoPostal.idCp'); 
+        })
+        ->join('asentamiento', 'codigoPostal.idAsentamiento', '=', 'asentamiento.idAsentamiento')
+        ->select(
+            'pais.idPais',
+            'pais.descripcion as paisDescripcion',
+            'estado.idEstado',
+            'estado.descripcion as estadoDescripcion',
+            'ciudad.idCiudad',
+            'ciudad.descripcion as ciudadDescripcion',
+            'direcciones.noExterior',
+            'direcciones.noInterior',
+            'codigoPostal.cp',
+            'codigoPostal.descripcion',
+            'asentamiento.descripcion as asentamientoDescripcion'
+        )
+        ->get();
+    
+        $data = [
+            'direcciones' => $direcciones,
+            'status' => 200
+        ];
+        
+        return response()->json($data, 200);  
+   }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+   public function store(Request $request)
+   {
+   
+   }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+   public function show($uid,$idParentesco){
+                    $direcciones = Direccion::join('pais', 'direcciones.idPais', '=', 'pais.idPais')
+                                    ->join('estado', 'direcciones.idEstado', '=', 'estado.idEstado')
+                                    ->join('ciudad', 'direcciones.idCiudad', '=', 'ciudad.idCiudad')
+                                    ->join('parentesco', 'direcciones.idParentesco', '=', 'parentesco.idParentesco')
+                                    ->join('codigoPostal', function($join) {
+                                                        $join->on('direcciones.idPais', '=', 'codigoPostal.idPais')
+                                                             ->on('direcciones.idEstado', '=', 'codigoPostal.idEstado')
+                                                             ->on('direcciones.idCiudad', '=', 'codigoPostal.idCiudad')
+                                                             ->on('direcciones.idCp', '=', 'codigoPostal.idCp'); 
+                                            })
+                                    ->join('asentamiento', 'codigoPostal.idAsentamiento', '=', 'asentamiento.idAsentamiento') 
+                                    ->select('pais.idPais',
+                                            'pais.descripcion as paisDescripcion',
+                                            'estado.idEstado',
+                                            'estado.descripcion as estadoDescripcion',
+                                            'ciudad.idCiudad',
+                                            'ciudad.descripcion as ciudadDescripcion',
+                                            'direcciones.noExterior',
+                                            'direcciones.noInterior',   
+                                            'codigoPostal.cp',   
+                                            'codigoPostal.descripcion',
+                                            'asentamiento.descripcion as asentamientoDescripcion'
+                                        ) 
+                                    ->where('parentesco.idParentesco', '=', $idParentesco)
+                                    ->where('direcciones.uid', '=', $uid)        
+                        ->get();
+        $data = [
+                'direcciones' => $direcciones,
+                'status' => 200
+        ];
+        return response()->json($data, 200);
+   }
+   
+   public function destroy($idPais,$idEstado){
+       $estados = Estado::find($idPais,$idEstado);
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
+       if (!$estados) {
+           $data = [
+               'message' => 'Estado no encontrado',
+               'status' => 404
+           ];
+           return response()->json($data, 404);
+       }
+       
+       $estados->delete();
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
+       $data = [
+           'message' => 'Estado eliminado',
+           'status' => 200
+       ];
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
+       return response()->json($data, 200);
+   }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
-    }
+   public function update(Request $request){
+     
+       $estados = Estado::find($request->idPais,$request->idEstado);
+       if (!$estados) {
+           $data = [
+               'message' => 'Estado no encontrado',
+               'status' => 404
+           ];
+           return response()->json($data, 404);
+       }
+      
+       $validator = Validator::make($request->all(), [
+                               'idPais' => 'required|numeric|max:255',
+                               'idEstado' => 'required|numeric|max:255',                                
+                               'descripcion' => 'required|max:255'
+       ]);   
 
+       if ($validator->fails()) {
+           $data = [
+                   'message' => 'Error en la validación de los datos',
+                   'errors' => $validator->errors(),
+                   'status' => 400
+           ];
+           return response()->json($data, 400);
+       }
+       \Log::info('Datos de usuario procesados 1');
+
+       $estados = Estado::where('idPais', $request->idPais)
+                ->where('idEstado', $request->idEstado)
+                ->first();
+                \Log::info('Datos de usuario procesados 2');
+
+       if ($estados) {
+           $estados->descripcion = $request->descripcion;
+           $estados->save();
+           $data = [
+               'message' => 'Estado actualizado',
+               'estados' => $estados,
+               'status' => 200
+           ];
+       return response()->json($data, 200);
+       } else {
+           return response()->json(['error' => 'Estado no encontrado'], 404);
+       }   
+      
+      
+   }
 }
