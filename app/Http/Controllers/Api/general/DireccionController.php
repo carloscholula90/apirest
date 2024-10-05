@@ -12,35 +12,45 @@ class DireccionController extends Controller
 {
     public function index(){    
         $direcciones = Direccion::join('pais', 'direcciones.idPais', '=', 'pais.idPais')
-                            ->join('estado', 'direcciones.idEstado', '=', 'estado.idEstado')
-                            ->join('ciudad', 'direcciones.idCiudad', '=', 'ciudad.idCiudad')
-                            ->join('parentesco', 'direcciones.idParentesco', '=', 'parentesco.idParentesco')
-                            ->join('codigoPostal', function($join) {
-                                                   $join->on('direcciones.idPais', '=', 'codigoPostal.idPais')
-                                                        ->on('direcciones.idEstado', '=', 'codigoPostal.idEstado')
-                                                        ->on('direcciones.idCiudad', '=', 'codigoPostal.idCiudad')
-                                                        ->on('direcciones.idCp', '=', 'codigoPostal.idCp'); 
-                                                    }
-                                    )
-                            ->join('asentamiento', 'codigoPostal.idAsentamiento', '=', 'asentamiento.idAsentamiento') 
-                            ->select('pais.idPais',
-                                     'pais.descripcion as paisDescripcion',
-                                     'estado.idEstado',
-                                     'estado.descripcion as estadoDescripcion',
-                                     'ciudad.idCiudad',
-                                     'ciudad.descripcion as ciudadDescripcion',
-                                     'direcciones.noExterior',
-                                     'direcciones.noInterior',   
-                                     'codigoPostal.cp',   
-                                     'codigoPostal.descripcion',
-                                     'asentamiento.descripcion as asentamientoDescripcion'
-                                   )   
-                                   ->get();
-       $data = [
-                'direcciones' => $direcciones,
-                'status' => 200
-       ];
-       return response()->json($data, 200);
+        ->join('estado', function($join) {
+            // Eliminar el operador "->" antes de "on()"
+            $join->on('direcciones.idEstado', '=', 'estado.idEstado')
+                 ->on('direcciones.idPais', '=', 'estado.idPais'); 
+        })
+        ->join('ciudad', function($join) {
+            $join->on('direcciones.idEstado', '=', 'ciudad.idEstado')
+                 ->on('direcciones.idPais', '=', 'ciudad.idPais')
+                 ->on('direcciones.idCiudad', '=', 'ciudad.idCiudad'); 
+        })
+        ->join('parentesco', 'direcciones.idParentesco', '=', 'parentesco.idParentesco')
+        ->join('codigoPostal', function($join) {
+            $join->on('direcciones.idPais', '=', 'codigoPostal.idPais')
+                 ->on('direcciones.idEstado', '=', 'codigoPostal.idEstado')
+                 ->on('direcciones.idCiudad', '=', 'codigoPostal.idCiudad')
+                 ->on('direcciones.idCp', '=', 'codigoPostal.idCp'); 
+        })
+        ->join('asentamiento', 'codigoPostal.idAsentamiento', '=', 'asentamiento.idAsentamiento')
+        ->select(
+            'pais.idPais',
+            'pais.descripcion as paisDescripcion',
+            'estado.idEstado',
+            'estado.descripcion as estadoDescripcion',
+            'ciudad.idCiudad',
+            'ciudad.descripcion as ciudadDescripcion',
+            'direcciones.noExterior',
+            'direcciones.noInterior',
+            'codigoPostal.cp',
+            'codigoPostal.descripcion',
+            'asentamiento.descripcion as asentamientoDescripcion'
+        )
+        ->get();
+    
+        $data = [
+            'direcciones' => $direcciones,
+            'status' => 200
+        ];
+        
+        return response()->json($data, 200);  
    }
 
    public function store(Request $request)

@@ -2,13 +2,15 @@
 
 namespace App\Models\general;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;  
 use Illuminate\Database\Eloquent\Model;
-
-class direccion extends Model    
+   
+class Direccion extends Model    
 {
+
+    use HasFactory;  
     protected $table = 'direcciones';    
-    protected $primaryKey = ['uid', 'idParentesco','idTipoDireccion','consecutivo'];
     protected $fillable = ['uid', 'idParentesco','idTipoDireccion','consecutivo',
                            'idPais', 'idEstado', 'idCiudad','idCp','noExterior','noInterior'];
     public $timestamps = false;    
@@ -34,7 +36,7 @@ class direccion extends Model
     {
         return $this->hasMany(Pais::class, 'idPais', 'idPais');
     }
-    
+
     public function ciudad()
     {
         return $this->hasMany(Ciudad::class, 'idCiudad', 'idCiudad');
