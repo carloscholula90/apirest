@@ -73,6 +73,10 @@ Route::prefix('pais')->group(function () {
     require base_path('routes/general/pais.php');
 });
 
+Route::prefix('parentesco')->group(function () {
+    require base_path('routes/general/parentesco.php');
+});
+
 Route::prefix('personas')->group(function () {
     require base_path('routes/general/personas.php');
 });
