@@ -31,134 +31,86 @@ class DireccionController extends Controller
         })
         ->join('asentamiento', 'codigoPostal.idAsentamiento', '=', 'asentamiento.idAsentamiento')
         ->select(
-            'pais.idPais',
-            'pais.descripcion as paisDescripcion',
-            'estado.idEstado',
-            'estado.descripcion as estadoDescripcion',
-            'ciudad.idCiudad',
-            'ciudad.descripcion as ciudadDescripcion',
-            'direcciones.noExterior',
-            'direcciones.noInterior',
-            'codigoPostal.cp',
-            'codigoPostal.descripcion',
-            'direcciones.calle',
-            'asentamiento.descripcion as asentamientoDescripcion'
-        )
-        ->get();
-    
-        $data = [
-            'direcciones' => $direcciones,
-            'status' => 200
-        ];
-        
-        return response()->json($data, 200);  
+                    'direcciones.uid',
+                    'pais.idPais',
+                    'pais.descripcion as paisDescripcion',
+                    'estado.idEstado',
+                    'estado.descripcion as estadoDescripcion',
+                    'ciudad.idCiudad',
+                    'ciudad.descripcion as ciudadDescripcion',
+                    'direcciones.noExterior',
+                    'direcciones.noInterior',
+                    'codigoPostal.cp',
+                    'codigoPostal.descripcion',
+                    'direcciones.calle',
+                    'direcciones.consecutivo',
+                    'asentamiento.descripcion as asentamientoDescripcion'
+                )
+                ->get();  
+        return $this->returnData('direcciones',$direcciones,200);
+   }
+
+   public function show($uid,$idParentesco){
+    $direcciones = Direccion::join('pais', 'direcciones.idPais', '=', 'pais.idPais')
+                                ->join('estado', function($join) {
+                                    // Eliminar el operador "->" antes de "on()"
+                                    $join->on('direcciones.idEstado', '=', 'estado.idEstado')
+                                        ->on('direcciones.idPais', '=', 'estado.idPais'); 
+                                })
+                                ->join('ciudad', function($join) {
+                                    $join->on('direcciones.idEstado', '=', 'ciudad.idEstado')
+                                        ->on('direcciones.idPais', '=', 'ciudad.idPais')
+                                        ->on('direcciones.idCiudad', '=', 'ciudad.idCiudad'); 
+                                })
+                                ->join('parentesco', 'direcciones.idParentesco', '=', 'parentesco.idParentesco')
+                                ->join('codigoPostal', function($join) {
+                                    $join->on('direcciones.idPais', '=', 'codigoPostal.idPais')
+                                        ->on('direcciones.idEstado', '=', 'codigoPostal.idEstado')
+                                        ->on('direcciones.idCiudad', '=', 'codigoPostal.idCiudad')
+                                        ->on('direcciones.idCp', '=', 'codigoPostal.idCp'); 
+                                })
+                                ->join('asentamiento', 'codigoPostal.idAsentamiento', '=', 'asentamiento.idAsentamiento')
+                                ->select(
+                                    'direcciones.uid',
+                                    'pais.idPais',
+                                    'pais.descripcion as paisDescripcion',
+                                    'estado.idEstado',
+                                    'estado.descripcion as estadoDescripcion',
+                                    'ciudad.idCiudad',
+                                    'ciudad.descripcion as ciudadDescripcion',
+                                    'direcciones.noExterior',
+                                    'direcciones.noInterior',
+                                    'codigoPostal.cp',
+                                    'codigoPostal.descripcion',
+                                    'direcciones.calle',
+                                    'direcciones.consecutivo',
+                                    'asentamiento.descripcion as asentamientoDescripcion'
+                                )
+                                    ->where('parentesco.idParentesco', '=', $idParentesco)
+                                    ->where('direcciones.uid', '=', $uid)          
+                        ->get();
+            
+        return $this->returnData('direcciones',$direcciones,200);
+   }
+   
+   public function destroy($uid,$consecutivo){            
+            $direcciones = Direccion::find($uid, $consecutivo);
+                            
+            if (!$direcciones)     
+                return $this->returnEstatus('Dirección no encontrada',400,null); 
+            
+            $direcciones->delete();
+            return $this->returnEstatus('Dirección eliminada',200,null); 
+   }
+  
+   public function update(Request $request){
+     
+             
    }
 
    public function store(Request $request)
    {
-   
-   }
-
-   public function show($uid,$idParentesco){
-                    $direcciones = Direccion::join('pais', 'direcciones.idPais', '=', 'pais.idPais')
-                                    ->join('estado', 'direcciones.idEstado', '=', 'estado.idEstado')
-                                    ->join('ciudad', 'direcciones.idCiudad', '=', 'ciudad.idCiudad')
-                                    ->join('parentesco', 'direcciones.idParentesco', '=', 'parentesco.idParentesco')
-                                    ->join('codigoPostal', function($join) {
-                                                        $join->on('direcciones.idPais', '=', 'codigoPostal.idPais')
-                                                             ->on('direcciones.idEstado', '=', 'codigoPostal.idEstado')
-                                                             ->on('direcciones.idCiudad', '=', 'codigoPostal.idCiudad')
-                                                             ->on('direcciones.idCp', '=', 'codigoPostal.idCp'); 
-                                            })
-                                    ->join('asentamiento', 'codigoPostal.idAsentamiento', '=', 'asentamiento.idAsentamiento') 
-                                    ->select('pais.idPais',
-                                            'pais.descripcion as paisDescripcion',
-                                            'estado.idEstado',
-                                            'estado.descripcion as estadoDescripcion',
-                                            'ciudad.idCiudad',
-                                            'ciudad.descripcion as ciudadDescripcion',
-                                            'direcciones.noExterior',
-                                            'direcciones.noInterior',   
-                                            'codigoPostal.cp',   
-                                            'codigoPostal.descripcion',
-                                            'asentamiento.descripcion as asentamientoDescripcion'
-                                        ) 
-                                    ->where('parentesco.idParentesco', '=', $idParentesco)
-                                    ->where('direcciones.uid', '=', $uid)        
-                        ->get();
-        $data = [
-                'direcciones' => $direcciones,
-                'status' => 200
-        ];
-        return response()->json($data, 200);
-   }
-   
-   public function destroy($idPais,$idEstado){
-       $estados = Estado::find($idPais,$idEstado);
-
-       if (!$estados) {
-           $data = [
-               'message' => 'Estado no encontrado',
-               'status' => 404
-           ];
-           return response()->json($data, 404);
-       }
-       
-       $estados->delete();
-
-       $data = [
-           'message' => 'Estado eliminado',
-           'status' => 200
-       ];
-
-       return response()->json($data, 200);
-   }
-
-   public function update(Request $request){
-     
-       $estados = Estado::find($request->idPais,$request->idEstado);
-       if (!$estados) {
-           $data = [
-               'message' => 'Estado no encontrado',
-               'status' => 404
-           ];
-           return response()->json($data, 404);
-       }
-      
-       $validator = Validator::make($request->all(), [
-                               'idPais' => 'required|numeric|max:255',
-                               'idEstado' => 'required|numeric|max:255',                                
-                               'descripcion' => 'required|max:255'
-       ]);   
-
-       if ($validator->fails()) {
-           $data = [
-                   'message' => 'Error en la validación de los datos',
-                   'errors' => $validator->errors(),
-                   'status' => 400
-           ];
-           return response()->json($data, 400);
-       }
-       \Log::info('Datos de usuario procesados 1');
-
-       $estados = Estado::where('idPais', $request->idPais)
-                ->where('idEstado', $request->idEstado)
-                ->first();
-                \Log::info('Datos de usuario procesados 2');
-
-       if ($estados) {
-           $estados->descripcion = $request->descripcion;
-           $estados->save();
-           $data = [
-               'message' => 'Estado actualizado',
-               'estados' => $estados,
-               'status' => 200
-           ];
-       return response()->json($data, 200);
-       } else {
-           return response()->json(['error' => 'Estado no encontrado'], 404);
-       }   
-      
       
    }
+  
 }

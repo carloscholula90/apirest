@@ -8,26 +8,41 @@ use Illuminate\Database\Eloquent\Model;
    
 class Direccion extends Model    
 {
-
     use HasFactory;  
     protected $table = 'direcciones';    
     protected $fillable = ['uid', 'idParentesco','idTipoDireccion','consecutivo',
                            'idPais', 'idEstado', 'idCiudad','idCp','noExterior','noInterior'];
-    public $timestamps = false;    
+    public $timestamps = false; 
+    public $incrementing = false;
+    protected $primaryKey = null;
 
-     // Sobrescribir find() para buscar usando múltiples columnas de clave primaria
-     public static function find($idPais, $idEstado,$idCiudad,$idParentesco,$idTipoDireccion,$consecutivo)
-     {
-         return static::where('idPais', $idPais)
-                      ->where('idEstado', $idEstado)   
-                      ->where('idCiudad',$idCiudad)
-                      ->where('idParentesco',$idParentesco)
-                      ->where('idTipoDireccion',$idTipoDireccion)
-                      ->where('consecutivo',$consecutivo)
-                      ->first();
-     }
+    protected function getKeyForSaveQuery()
+    {
+        $query = $this->newQueryWithoutScopes();
 
-     public function estado()
+        // Añade todas las claves compuestas a la consulta
+        $keys = ['uid', 'consecutivo']; // Aquí defines tus claves
+
+        foreach ($keys as $key) {
+            $query->where($key, '=', $this->getAttribute($key));
+        }
+
+        return $query;
+    }  
+
+    public static function find($uid, $consecutivo)
+    {
+        return static::where('uid', $uid)
+                     ->where('consecutivo', $consecutivo)
+                     ->first();
+    }
+
+    public function delete()
+    {
+        return $this->getKeyForSaveQuery()->delete();
+    }
+  
+    public function estado()
     {
         return $this->hasMany(Estado::class, 'idEstado', 'idEstado');
     }
