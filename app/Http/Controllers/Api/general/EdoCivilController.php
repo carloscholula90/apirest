@@ -129,7 +129,7 @@ class EdoCivilController extends Controller
         }
 
         $edoCiviles->idEdoCivil = $request->idEdoCivil;
-        $edoCiviles->descripcion = $request->descripcion;
+        $edoCiviles->descripcion = strtoupper(trim($request->descripcion));
         $edoCiviles->save();
 
         $data = [

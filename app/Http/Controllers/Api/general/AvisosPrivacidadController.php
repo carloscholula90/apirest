@@ -131,7 +131,7 @@ class AvisosPrivacidadController extends Controller
         }
 
         $avisos->idAviso = $request->idAviso;
-        $avisos->descripcion = $request->descripcion;
+        $avisos->descripcion = strtoupper(trim($request->descripcion));
         $avisos->activo = $request->activo;
         $avisos->save();
 

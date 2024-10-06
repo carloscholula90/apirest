@@ -129,7 +129,7 @@ class ParentescoController extends Controller
         }
 
         $parentesco->idParentesco = $request->idParentesco;
-        $parentesco->descripcion = $request->descripcion;
+        $parentesco->descripcion = strtoupper(trim($request->descripcion));
         $parentesco->save();
 
         $data = [

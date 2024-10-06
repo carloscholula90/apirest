@@ -129,7 +129,7 @@ class PuestoController extends Controller
         }
 
         $puestos->idPuesto = $request->idPuesto;
-        $puestos->descripcion = $request->descripcion;
+        $puestos->descripcion = strtoupper(trim($request->descripcion));
         $puestos->save();
 
         $data = [
