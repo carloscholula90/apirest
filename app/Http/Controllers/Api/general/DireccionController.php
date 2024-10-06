@@ -41,6 +41,7 @@ class DireccionController extends Controller
             'direcciones.noInterior',
             'codigoPostal.cp',
             'codigoPostal.descripcion',
+            'direcciones.calle',
             'asentamiento.descripcion as asentamientoDescripcion'
         )
         ->get();

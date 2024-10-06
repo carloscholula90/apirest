@@ -6,42 +6,52 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\general\Persona;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Api\serviciosGenerales\reporteController;
 
 class PersonaController extends Controller{
+
+
+    public function getPersonas()
+    {
+        // Realizar la consulta y devolver los resultados
+        $personas = Persona::leftJoin('pais', 'persona.idPais', '=', 'pais.idPais')
+            ->leftJoin('edoCivil', 'persona.idEdoCivil', '=', 'edoCivil.idEdoCivil')
+            ->leftJoin('estado', function($join) {
+                $join->on('persona.idPais', '=', 'estado.idPais')
+                     ->on('persona.idEstado', '=', 'estado.idEstado');
+            })
+            ->leftJoin('ciudad', function($join) {
+                $join->on('persona.idPais', '=', 'ciudad.idPais')
+                     ->on('persona.idEstado', '=', 'ciudad.idEstado')
+                     ->on('persona.idCiudad', '=', 'ciudad.idCiudad');
+            })
+            ->select(
+                'persona.uid',
+                'persona.curp',
+                'persona.nombre',
+                'persona.primerApellido',
+                'persona.segundoApellido',
+                'persona.fechaNacimiento',
+                'persona.sexo',
+                'edoCivil.idEdoCivil',
+                'edoCivil.descripcion as descripcionEdoCivil',
+                'pais.idPais',
+                'pais.descripcion as paisDescripcion',
+                'estado.idEstado',
+                'estado.descripcion as estadoDescripcion',
+                'ciudad.idCiudad',
+                'ciudad.descripcion'
+            )
+            ->get();
+
+        return $personas;
+    }
+
     
     // Retorna todas las personas
     public function index(){
-        
-      //  $personas = Persona::all();
-      $personas = Persona::leftJoin('pais', 'persona.idPais', '=', 'pais.idPais')
-                            ->leftJoin('edoCivil', 'persona.idEdoCivil', '=', 'edoCivil.idEdoCivil')
-                            ->leftJoin('estado', function($join) {
-                                $join->on('persona.idPais', '=', 'estado.idPais')
-                                     ->on('persona.idEstado', '=', 'estado.idEstado');
-                            })
-                            ->leftJoin('ciudad', function($join) {
-                                $join->on('persona.idPais', '=', 'ciudad.idPais')
-                                     ->on('persona.idEstado', '=', 'ciudad.idEstado')
-                                     ->on('persona.idCiudad', '=', 'ciudad.idCiudad');
-                            })
-                            ->select(
-                                        'persona.uid', 
-                                        'persona.curp', 
-                                        'persona.nombre', 
-                                        'persona.primerApellido', 
-                                        'persona.segundoApellido', 
-                                        'persona.fechaNacimiento', 
-                                        'persona.sexo',                                         
-                                        'edoCivil.idEdoCivil', 
-                                        'edoCivil.descripcion as descripcionEdoCivil', 
-                                        'pais.idPais',
-                                        'pais.descripcion as paisDescripcion',
-                                        'estado.idEstado',
-                                        'estado.descripcion as estadoDescripcion',
-                                        'ciudad.idCiudad',
-                                        'ciudad.descripcion'
-                            )
-                            ->get();
+    
+        $personas = getPersonas();
 
         if ($personas->isEmpty()) {
             return response()->json([
@@ -210,4 +220,35 @@ class PersonaController extends Controller{
                                         'rfc' => 'required|max:255'
         ]);
     }
+
+      // Función para generar el reporte de personas
+        public function generaReportePersonas()
+        {
+            // Obtener las personas a través del método getPersonas()
+            $reporteController = new reporteController();  
+            $personas = $this->getPersonas();
+    
+            // Si no hay personas, devolver un mensaje de error
+            if ($personas->isEmpty()) {
+                return response()->json([
+                    'message' => 'No se encontraron personas para generar el reporte.',
+                    'status' => 404
+                ], 404);
+            }
+    
+            // Crear una solicitud simulada (Request) para el reporte
+            $request = new Request([
+                'report_path' => 'general/', // Ruta del archivo .jrxml
+                'params' => [
+                    'titulo' => 'CATÁLOGO DE PERSONAS',
+                    'fecha' => 'FECHA DE IMPRESIÓN '.now()->format('dd/MM/YYYY') // Genera la fecha actual automáticamente
+                ],
+                'name_report'=>'catalogo.jrxml',     
+                'data' => $personas->toArray(), // Los datos de las personas
+                'format' => 'pdf' // El formato del reporte
+            ]);   
+    
+            // Llamar al método de generación de reporte
+            return $reporteController->generateReport($request);
+        }
 }
