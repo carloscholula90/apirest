@@ -41,7 +41,7 @@ class ParentescoController extends Controller
         $newIdParentesco = $maxIdParentesco ? $maxIdParentesco + 1 : 1;
         $parentesco = Parentesco::create([
             'idParentesco' => $newIdParentesco,
-            'descripcion' => $request->descripcion
+            'descripcion' => strtoupper(trim($request->descripcion))
         ]);
 
         if (!$parentesco) {
@@ -108,11 +108,7 @@ class ParentescoController extends Controller
 
         $parentesco = Parentesco::find($idParentesco);
         if (!$parentesco) {
-            $data = [
-                'message' => 'Parentesco no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
+            return response()->json(['message' => 'Parentesco no encontrado', 'status' => 404], 404);
         }
 
         $validator = Validator::make($request->all(), [
@@ -120,23 +116,21 @@ class ParentescoController extends Controller
         ]);
 
         if ($validator->fails()) {
-            $data = [
-                    'message' => 'Error en la validación de los datos',
-                    'errors' => $validator->errors(),
-                    'status' => 400
-            ];
-            return response()->json($data, 400);
+            return response()->json([
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ], 400);
         }
 
         $parentesco->idParentesco = $request->idParentesco;
         $parentesco->descripcion = strtoupper(trim($request->descripcion));
         $parentesco->save();
 
-        $data = [
-                'message' => 'Parentesco actualizado',
-                'medio' => $parentesco,
-                'status' => 200
-        ];
-        return response()->json($data, 200);
+        return response()->json([
+            'message' => 'Parentesco actualizado',
+            'parentesco' => $avisos,
+            'status' => 200,
+        ], 200);
     }
 }
