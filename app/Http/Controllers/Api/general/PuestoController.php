@@ -41,7 +41,7 @@ class PuestoController extends Controller
         $newIdPuesto = $maxIdPuesto ? $maxIdPuesto + 1 : 1;
         $puestos = Puestos::create([
             'idPuesto' => $newIdPuesto,
-            'descripcion' => $request->descripcion
+            'descripcion' => strtoupper(trim($request->descripcion))
         ]);
 
         if (!$puestos) {
@@ -104,39 +104,33 @@ class PuestoController extends Controller
         return response()->json($data, 200);
     }
 
-    public function update(Request $request, $idPuesto){
-
+    public function update(Request $request, $idPuesto)
+    {
         $puestos = Puestos::find($idPuesto);
         if (!$puestos) {
-            $data = [
-                'message' => 'Puesto no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
+            return response()->json(['message' => 'Puesto no encontrado', 'status' => 404], 404);
         }
-
+    
         $validator = Validator::make($request->all(), [
-                'descripcion' => 'required|max:255'
+            'descripcion' => 'required|max:255'
         ]);
-
+    
         if ($validator->fails()) {
-            $data = [
-                    'message' => 'Error en la validación de los datos',
-                    'errors' => $validator->errors(),
-                    'status' => 400
-            ];
-            return response()->json($data, 400);
+            return response()->json([
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ], 400);
         }
-
-        $puestos->idPuesto = $request->idPuesto;
+    
         $puestos->descripcion = strtoupper(trim($request->descripcion));
         $puestos->save();
-
-        $data = [
-                'message' => 'Puesto actualizado',
-                'puesto' => $puestos,
-                'status' => 200
-        ];
-        return response()->json($data, 200);
+    
+        return response()->json([
+            'message' => 'Puesto actualizado',
+            'puesto' => $puestos,
+            'status' => 200,
+        ], 200);
     }
+    
 }

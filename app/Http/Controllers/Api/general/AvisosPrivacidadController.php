@@ -42,7 +42,7 @@ class AvisosPrivacidadController extends Controller
         $newIdAviso = $maxIdAviso ? $maxIdAviso + 1 : 1;
         $avisos = AvisosPrivacidad::create([
             'idAviso' => $newIdAviso,
-            'descripcion' => $request->descripcion
+            'descripcion' => strtoupper(trim($request->descripcion))
         ]);
 
         if (!$avisos) {
@@ -109,11 +109,7 @@ class AvisosPrivacidadController extends Controller
 
         $avisos = AvisosPrivacidad::find($idAviso);
         if (!$avisos) {
-            $data = [
-                'message' => 'Aviso de privacidad no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
+            return response()->json(['message' => 'Aviso de privacidad no encontrado', 'status' => 404], 404);
         }
 
         $validator = Validator::make($request->all(), [
@@ -122,12 +118,11 @@ class AvisosPrivacidadController extends Controller
         ]);
 
         if ($validator->fails()) {
-            $data = [
-                    'message' => 'Error en la validación de los datos',
-                    'errors' => $validator->errors(),
-                    'status' => 400
-            ];
-            return response()->json($data, 400);
+            return response()->json([
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ], 400);
         }
 
         $avisos->idAviso = $request->idAviso;
@@ -135,11 +130,11 @@ class AvisosPrivacidadController extends Controller
         $avisos->activo = $request->activo;
         $avisos->save();
 
-        $data = [
-                'message' => 'Aviso de privacidad actualizado',
-                'medio' => $avisos,
-                'status' => 200
-        ];
-        return response()->json($data, 200);
+        return response()->json([
+            'message' => 'Aviso de privacidad actualizado',
+            'aviso de privacidad' => $avisos,
+            'status' => 200,
+        ], 200);
+
     }
 }

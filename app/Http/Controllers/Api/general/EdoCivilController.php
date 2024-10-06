@@ -41,7 +41,7 @@ class EdoCivilController extends Controller
         $newIdEdoCivil = $maxIdEdoCivil ? $maxIdEdoCivil + 1 : 1;
         $edoCiviles = EdoCivil::create([
             'idEdoCivil' => $newIdEdoCivil,
-            'descripcion' => $request->descripcion
+            'descripcion' => strtoupper(trim($request->descripcion))
         ]);
 
         if (!$edoCiviles) {
@@ -104,39 +104,33 @@ class EdoCivilController extends Controller
         return response()->json($data, 200);
     }
 
-    public function update(Request $request, $idEdoCivil){
-
+    public function update(Request $request, $idEdoCivil)
+    {
         $edoCiviles = EdoCivil::find($idEdoCivil);
-        if (!$edoCiviles) {
-            $data = [
-                'message' => 'Estado Civil no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
+        if (!edoCiviles) {
+            return response()->json(['message' => 'Estado Civil no encontrado', 'status' => 404], 404);
         }
-
+    
         $validator = Validator::make($request->all(), [
-                'descripcion' => 'required|max:255'
+            'descripcion' => 'required|max:255'
         ]);
-
+    
         if ($validator->fails()) {
-            $data = [
-                    'message' => 'Error en la validación de los datos',
-                    'errors' => $validator->errors(),
-                    'status' => 400
-            ];
-            return response()->json($data, 400);
+            return response()->json([
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400                
+            ], 400);
         }
-
-        $edoCiviles->idEdoCivil = $request->idEdoCivil;
+    
         $edoCiviles->descripcion = strtoupper(trim($request->descripcion));
         $edoCiviles->save();
-
-        $data = [
-                'message' => 'Estado Civil actualizado',
-                'edoCivil' => $edoCiviles,
-                'status' => 200
-        ];
-        return response()->json($data, 200);
+    
+        return response()->json([
+            'message' => 'Estado Civil actualizado',
+            'estado Civil' => $edoCiviles,
+            'status' => 200,
+        ], 200);
     }
+
 }
