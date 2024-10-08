@@ -69,4 +69,7 @@ Route::prefix('medios')->group(function () {
     require base_path('routes/general/medios.php');
 });
 
+Route::prefix('integra')->group(function () {
+    require base_path('routes/general/integra.php');
+});
 Route::post('/generate-report', [reporteController::class, 'generateReport']);
