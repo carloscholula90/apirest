@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers\Api\general;  
 use App\Http\Controllers\Controller;
-use App\Models\general\EdoCivil;
+use App\Models\general\Puestos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class EdoCivilController extends Controller
+class PuestoController extends Controller
 {
     public function index(){
        
        
-        $edoCiviles = EdoCivil::all();
+        $puestos = Puestos::all();
 
         $data = [
-            'edoCiviles' => $edoCiviles,
+            'puestos' => $puestos,
             'status' => 200
         ];
 
@@ -37,24 +37,24 @@ class EdoCivilController extends Controller
             return response()->json($data, 400);
         }
 
-        $maxIdEdoCivil = EdoCivil::max('idEdoCivil');
-        $newIdEdoCivil = $maxIdEdoCivil ? $maxIdEdoCivil + 1 : 1;
-        $edoCiviles = EdoCivil::create([
-            'idEdoCivil' => $newIdEdoCivil,
+        $maxIdPuesto = Puestos::max('idPuesto');
+        $newIdPuesto = $maxIdPuesto ? $maxIdPuesto + 1 : 1;
+        $puestos = Puestos::create([
+            'idPuesto' => $newIdPuesto,
             'descripcion' => strtoupper(trim($request->descripcion))
         ]);
 
-        if (!$edoCiviles) {
+        if (!$puestos) {
             $data = [
-                'message' => 'Error al crear el estado Civil',
+                'message' => 'Error al crear el puesto',
                 'status' => 500
             ];
             return response()->json($data, 500);
         }
-        $edoCiviles = EdoCivil::findOrFail($newIdEdoCivil);
+        $puestos = Puestos::findOrFail($newIdPuesto);
     
         $data = [
-            'edoCivil' => $edoCiviles,
+            'puesto' => $puestos,
             'status' => 201
         ];
 
@@ -62,53 +62,53 @@ class EdoCivilController extends Controller
 
     }
 
-    public function show($idEdoCivil){
+    public function show($idPuesto){
         try {
-            // Busca el estado civil por ID y lanza una excepción si no se encuentra
-            $edoCiviles = EdoCivil::findOrFail($idEdoCivil);
+            // Busca el puesto por ID y lanza una excepción si no se encuentra
+            $puestos = Puestos::findOrFail($idPuesto);
     
-            // Retorna el medio con estado 200
+            // Retorna el puesto con estado 200
             $data = [
-                'medio' => $edoCiviles,
+                'Puesto' => $puestos,
                 'status' => 200
             ];
             return response()->json($data, 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            // Si el estado civil no se encuentra, retorna un mensaje de error con estado 404
+            // Si el puesto no se encuentra, retorna un mensaje de error con estado 404
             $data = [
-                'message' => 'Estado Civil no encontrado',
+                'message' => 'Puesto no encontrado',
                 'status' => 404
             ];
             return response()->json($data, 404);
         }
     }
     
-    public function destroy($idEdoCivil){
-        $edoCiviles = EdoCivil::find($idEdoCivil);
+    public function destroy($idPuesto){
+        $puestos = Puestos::find($idPuesto);
 
-        if (!$edoCiviles) {
+        if (!$puestos) {
             $data = [
-                'message' => 'Estado Civil no encontrado',
+                'message' => 'Puesto no encontrado',
                 'status' => 404
             ];
             return response()->json($data, 404);
         }
         
-        $edoCiviles->delete();
+        $puestos->delete();
 
         $data = [
-            'message' => 'Estado Civil eliminado',
+            'message' => 'Puesto eliminado',
             'status' => 200
         ];
 
         return response()->json($data, 200);
     }
 
-    public function update(Request $request, $idEdoCivil)
+    public function update(Request $request, $idPuesto)
     {
-        $edoCiviles = EdoCivil::find($idEdoCivil);
-        if (!edoCiviles) {
-            return response()->json(['message' => 'Estado Civil no encontrado', 'status' => 404], 404);
+        $puestos = Puestos::find($idPuesto);
+        if (!$puestos) {
+            return response()->json(['message' => 'Puesto no encontrado', 'status' => 404], 404);
         }
     
         $validator = Validator::make($request->all(), [
@@ -119,18 +119,18 @@ class EdoCivilController extends Controller
             return response()->json([
                 'message' => 'Error en la validación de los datos',
                 'errors' => $validator->errors(),
-                'status' => 400                
+                'status' => 400
             ], 400);
         }
     
-        $edoCiviles->descripcion = strtoupper(trim($request->descripcion));
-        $edoCiviles->save();
+        $puestos->descripcion = strtoupper(trim($request->descripcion));
+        $puestos->save();
     
         return response()->json([
-            'message' => 'Estado Civil actualizado',
-            'estado Civil' => $edoCiviles,
+            'message' => 'Puesto actualizado',
+            'puesto' => $puestos,
             'status' => 200,
         ], 200);
     }
-
+    
 }

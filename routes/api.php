@@ -25,51 +25,60 @@ Route::get('/test-db', function () {
 });
 
 
+Route::prefix('aplicaciones')->group(function () {
+    require base_path('routes/seguridad/aplicaciones.php');
+});
+
 Route::prefix('asentamientos')->group(function () {
     require base_path('routes/general/asentamientos.php');
 });
 
-Route::prefix('usuarios')->group(function () {
-    require base_path('routes/general/usuarios.php');
+Route::prefix('avisosPrivacidad')->group(function () {
+    require base_path('routes/general/avisosPrivacidad.php');
 });
 
-Route::prefix('pais')->group(function () {
-    require base_path('routes/general/pais.php');
+Route::prefix('carreras')->group(function () {
+    require base_path('routes/escolar/carreras.php');
 });
 
-Route::prefix('personas')->group(function () {
-    require base_path('routes/general/personas.php');
+Route::prefix('ciudades')->group(function () {
+    require base_path('routes/general/ciudades.php');
 });
 
-Route::prefix('modulos')->group(function () {
-    require base_path('routes/seguridad/modulos.php');
+Route::prefix('direcciones')->group(function () {
+    require base_path('routes/general/direcciones.php');
 });
 
-Route::prefix('rolesseguridad')->group(function () {
-    require base_path('routes/seguridad/rolesseguridad.php');
+Route::prefix('edocivil')->group(function () {
+    require base_path('routes/general/edocivil.php');
 });
 
-Route::prefix('aplicaciones')->group(function () {
-    require base_path('routes/seguridad/aplicaciones.php');
+Route::prefix('estados')->group(function () {
+    require base_path('routes/general/estados.php');
+});
+
+Route::prefix('medios')->group(function () {
+    require base_path('routes/general/medios.php');
 });
 
 Route::prefix('modalidades')->group(function () {
     require base_path('routes/escolar/modalidades.php');
 });
 
+Route::prefix('modulos')->group(function () {
+    require base_path('routes/seguridad/modulos.php');
+});
+
 Route::prefix('niveles')->group(function () {
     require base_path('routes/escolar/niveles.php');
 });
 
-Route::prefix('carreras')->group(function () {
-    require base_path('routes/escolar/carreras.php');
-});
-  
-Route::prefix('medios')->group(function () {
-    require base_path('routes/general/medios.php');
+Route::prefix('pais')->group(function () {
+    require base_path('routes/general/pais.php');
 });
 
 Route::prefix('integra')->group(function () {
     require base_path('routes/general/integra.php');
 });
+
 Route::post('/generate-report', [reporteController::class, 'generateReport']);

@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers\Api\general;  
 use App\Http\Controllers\Controller;
-use App\Models\general\Parentesco;
+use App\Models\general\AvisosPrivacidad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class ParentescoController extends Controller
+class AvisosPrivacidadController extends Controller
 {
     public function index(){
        
        
-        $parentesco = Parentesco::all();
+        $avisos = avisosPrivacidad::all();
 
         $data = [
-            'medios' => $parentesco,
+            'Avisos de Privacidad' => $avisos,
             'status' => 200
         ];
 
@@ -25,7 +25,8 @@ class ParentescoController extends Controller
     {
         
         $validator = Validator::make($request->all(), [
-            'descripcion' => 'required|max:255'
+            'descripcion' => 'required|max:255',
+            'activo' => 'required|max:1'
         ]);
 
         if ($validator->fails()) {
@@ -37,24 +38,24 @@ class ParentescoController extends Controller
             return response()->json($data, 400);
         }
 
-        $maxIdParentesco = Parentesco::max('idParentesco');
-        $newIdParentesco = $maxIdParentesco ? $maxIdParentesco + 1 : 1;
-        $parentesco = Parentesco::create([
-            'idParentesco' => $newIdParentesco,
+        $maxIdAviso = AvisosPrivacidad::max('idAviso');
+        $newIdAviso = $maxIdAviso ? $maxIdAviso + 1 : 1;
+        $avisos = AvisosPrivacidad::create([
+            'idAviso' => $newIdAviso,
             'descripcion' => strtoupper(trim($request->descripcion))
         ]);
 
-        if (!$parentesco) {
+        if (!$avisos) {
             $data = [
-                'message' => 'Error al crear el parentesco',
+                'message' => 'Error al crear el aviso de privacidad',
                 'status' => 500
             ];
             return response()->json($data, 500);
         }
-        $parentesco = Parentesco::findOrFail($newIdParentesco);
+        $avisos = AvisosPrivacidad::findOrFail($newIdAviso);
     
         $data = [
-            'parentesco' => $parentesco,
+            'Aviso de Privacidad' => $avisos,
             'status' => 201
         ];
 
@@ -62,57 +63,58 @@ class ParentescoController extends Controller
 
     }
 
-    public function show($idParentesco){
+    public function show($idAviso){
         try {
-            // Busca el parentesco por ID y lanza una excepción si no se encuentra
-            $parentesco = Parentesco::findOrFail($idParentesco);
+            // Busca el aviso de privacidad por ID y lanza una excepción si no se encuentra
+            $avisos = AvisosPrivacidad::findOrFail($idAviso);
     
-            // Retorna el medio con estado 200
+            // Retorna el aviso de privacidad con estado 200
             $data = [
-                'parentesco' => $parentesco,
+                'Avisos de Privacidad' => $avisos,
                 'status' => 200
             ];
             return response()->json($data, 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            // Si el parentesco no se encuentra, retorna un mensaje de error con estado 404
+            // Si el aviso de privacidad no se encuentra, retorna un mensaje de error con estado 404
             $data = [
-                'message' => 'Parentesco no encontrado',
+                'message' => 'Aviso de privacidad no encontrado',
                 'status' => 404
             ];
             return response()->json($data, 404);
         }
     }
     
-    public function destroy($idParentesco){
-        $parentesco = Parentesco::find($idParentesco);
+    public function destroy($idAviso){
+        $avisos = AvisosPrivacidad::find($idAviso);
 
-        if (!$parentesco) {
+        if (!$avisos) {
             $data = [
-                'message' => 'Parentesco no encontrado',
+                'message' => 'Aviso de privacidad no encontrado',
                 'status' => 404
             ];
             return response()->json($data, 404);
         }
         
-        $parentesco->delete();
+        $avisos->delete();
 
         $data = [
-            'message' => 'Parentesco eliminado',
+            'message' => 'Aviso de privacidad eliminado',
             'status' => 200
         ];
 
         return response()->json($data, 200);
     }
 
-    public function update(Request $request, $idParentesco){
+    public function update(Request $request, $idAviso){
 
-        $parentesco = Parentesco::find($idParentesco);
-        if (!$parentesco) {
-            return response()->json(['message' => 'Parentesco no encontrado', 'status' => 404], 404);
+        $avisos = AvisosPrivacidad::find($idAviso);
+        if (!$avisos) {
+            return response()->json(['message' => 'Aviso de privacidad no encontrado', 'status' => 404], 404);
         }
 
         $validator = Validator::make($request->all(), [
-                    'descripcion' => 'required|max:255'
+                    'descripcion' => 'required|max:255',
+                    'activo' => 'required|max:255'
         ]);
 
         if ($validator->fails()) {
@@ -123,14 +125,16 @@ class ParentescoController extends Controller
             ], 400);
         }
 
-        $parentesco->idParentesco = $request->idParentesco;
-        $parentesco->descripcion = strtoupper(trim($request->descripcion));
-        $parentesco->save();
+        $avisos->idAviso = $request->idAviso;
+        $avisos->descripcion = strtoupper(trim($request->descripcion));
+        $avisos->activo = $request->activo;
+        $avisos->save();
 
         return response()->json([
-            'message' => 'Parentesco actualizado',
-            'parentesco' => $avisos,
+            'message' => 'Aviso de privacidad actualizado',
+            'aviso de privacidad' => $avisos,
             'status' => 200,
         ], 200);
+
     }
 }

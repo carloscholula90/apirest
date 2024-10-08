@@ -7,6 +7,7 @@ Route::get('/', [PersonaController::class, 'index']);
 Route::get('/contacto/{id}', [PersonaController::class, 'recovery']);
 Route::get('/{id}', [PersonaController::class, 'show']);
 Route::post('/create', [PersonaController::class, 'store']);
+Route::post('/generaReporte', [PersonaController::class, 'generaReportePersonas']);
 Route::put('/{id}', [PersonaController::class, 'update']);
-Route::delete('/{id}', [PersonaController::class, 'destroy']);
+Route::delete('/{id}', [PersonaController::class, 'destroy']);   
   

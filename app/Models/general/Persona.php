@@ -42,12 +42,17 @@ class persona extends Model{
     
     public function pais()
     {
-        return $this->belongsTo(Pais::class);
+        return $this->belongsTo(Pais::class, 'idPais', 'idPais');
     }
 
     public function ciudad()
     {
         return $this->belongsTo(Ciudad::class);
+    }
+
+    public function edoCivil()
+    {
+        return $this->belongsTo(EdoCivil::class,'idEdoCivil','idEdoCivil');
     }
 
     public function contactos()

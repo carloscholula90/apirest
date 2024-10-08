@@ -15,20 +15,24 @@ class reporteController extends Controller{
         // Validar y obtener los datos de la solicitud
         $validatedData = $request->validate(['report_path' => 'required|string',
                                             'params' => 'nullable|array',
+                                            'name_report'=>'required|string',
                                             'data' => 'nullable|array',
                                             'format' => 'nullable|string']);
                                               // Enviar la respuesta en formato JSON
 
+        Log::info('Este es un mensaje de depuración en Laravel. 111 ');
+    
          } catch (ValidationException $e) {
             Log::error('Errores de validación:', $e->errors());
             // Opcionalmente, puedes devolver una respuesta de error
             return response()->json(['errors' => $e->errors()], 422);
         }
     // Ruta al archivo jrxml
-        $input = resource_path('reportes/test/'.$validatedData['report_path']);
-
+        $input = resource_path('reportes/'.$validatedData['report_path'].'/'.$validatedData['name_report']);
+        Log::info('Este es un mensaje de depuración en Laravel. 777 '.$input  );
+    
         // Ruta donde se guardará el archivo generado
-        $output = storage_path('app/reportes/test/'.pathinfo($validatedData['report_path'], PATHINFO_FILENAME));
+        $output = storage_path('app/reportes/'.pathinfo($validatedData['report_path'], PATHINFO_FILENAME));
         Log::info('Este es un mensaje de depuración en Laravel. 2 '.$output );
         $fontsPath = 'app/public/fonts/fonts.xml';
         Log::info('Este es un mensaje de depuración en Laravel. 2 '. $fontsPath );
@@ -46,7 +50,7 @@ class reporteController extends Controller{
                     [
                         'fonts_path' => $fontsPath // Parámetro adicional para especificar la ruta del archivo fonts.xml
                         // otros parámetros si es necesario
-                    ]
+                    ]   
         ];
 
         // Procesar el reporte
@@ -57,7 +61,7 @@ class reporteController extends Controller{
             "message" => "Reporte generado exitosamente ",
             "file_path" => $output.'.'.$options['format'][0]
         ];
-        Log::info('Este es un mensaje de depuración en Laravel. 3 ');
+        Log::info('Este es un mensaje de depuración en Laravel. 3 '.$response);
  
         // Enviar la respuesta en formato JSON
         return response()->json($response);

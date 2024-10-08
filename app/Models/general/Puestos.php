@@ -5,14 +5,13 @@ namespace App\Models\general;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class parentesco extends Model
+class puestos extends Model
 {
     use HasFactory;
-    protected $table = 'parentesco';
-    protected $primaryKey = 'idParentesco';
+    protected $table = 'puestos';
+    protected $primaryKey = 'idPuesto';
     public $incrementing = true;
     protected $keyType = 'int';
-    protected $fillable = [ 'idParentesco','descripcion'];
+    protected $fillable = [ 'idPuesto','descripcion'];
     public $timestamps = false;
-
 }
