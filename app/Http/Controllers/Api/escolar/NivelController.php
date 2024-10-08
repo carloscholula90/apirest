@@ -1,64 +1,191 @@
 <?php
 
-namespace App\Http\Controllers\escolar;
-
+namespace App\Http\Controllers\Api\escolar;  
+use App\Http\Controllers\Controller;
+use App\Models\escolar\Nivel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class NivelController extends Controller
 {
-     /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
+        $niveles = Nivel::all();
+
+        $data = [
+            'niveles' => $niveles,
+            'status' => 200
+        ];
+
+        return response()->json($data, 200);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+
+        $validator = Validator::make($request->all(), [
+            'descripcion' => 'required|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            $data = [
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ];
+            return response()->json($data, 400);
+        }
+
+        $maxIdNivel = Nivel::max('idNivel');
+        $newIdNivel = $maxIdNivel ? $maxIdNivel + 1 : 1;
+
+        $niveles = Nivel::create([
+                        'idNivel' => $newIdNivel,
+                        'descripcion' => $request->descripcion
+        ]);
+
+        if (!$niveles) {
+            $data = [
+                'message' => 'Error al crear el nivel',
+                'status' => 500
+            ];
+            return response()->json($data, 500);
+        }
+        
+        $niveles = Nivel::find($newIdNivel);
+
+        $data = [
+            'niveles' => $niveles,
+            'status' => 201
+        ];
+
+        return response()->json($data, 201);
+
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function show($idNivel)
     {
-        //
+        $niveles = Nivel::find($idNivel);
+
+        if (!$niveles) {
+            $data = [
+                'message' => 'Nivel no encontrado',
+                'status' => 404
+            ];
+            return response()->json($data, 404);
+        }
+
+        $data = [
+            'niveles' => $niveles,
+            'status' => 200
+        ];
+
+        return response()->json($data, 200);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function destroy($idNivel)
     {
-        //
+        $niveles = Nivel::find($idNivel);
+
+        if (!$niveles) {
+            $data = [
+                'message' => 'Nivel no encontrado',
+                'status' => 404
+            ];
+            return response()->json($data, 404);
+        }
+        
+        $niveles->delete();
+
+        $data = [
+            'message' => 'Nivel eliminado',
+            'status' => 200
+        ];
+
+        return response()->json($data, 200);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function update(Request $request, $idNivel)
     {
-        //
+        $niveles = Nivel::find($idNivel);
+
+        if (!$niveles) {
+            $data = [
+                'message' => 'Nivel no encontrado',
+                'status' => 404
+            ];
+            return response()->json($data, 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'idNivel' => 'required|numeric|max:255',
+            'descripcion' => 'required|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            $data = [
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ];
+            return response()->json($data, 400);
+        }
+
+        $niveles->idNivel = $request->idNivel;
+        $niveles->descripcion = $request->descripcion;
+
+        $niveles->save();
+
+        $data = [
+            'message' => 'Nivel actualizado',
+            'carreras' => $niveles,
+            'status' => 200
+        ];
+
+        return response()->json($data, 200);
+
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function updatePartial(Request $request, $idNivel)
     {
-        //
+        $niveles = Nivel::find($idNivel);
+
+        if (!$niveles) {
+            $data = [
+                'message' => 'Nivel no encontrado',
+                'status' => 404
+            ];
+            return response()->json($data, 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'idNivel' => 'required|numeric|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            $data = [
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ];
+            return response()->json($data, 400);
+        }
+        if ($request->has('idNivel')) {
+            $niveles->idNivel = $request->idNivel;
+        }
+
+        if ($request->has('descripcion')) {
+            $niveles->descripcion = $request->descripcion;
+        }
+
+        $niveles->save();
+
+        $data = [
+            'message' => 'Nivel actualizado',
+            'carreras' => $niveles,
+            'status' => 200
+        ];
+
+        return response()->json($data, 200);
     }
 }

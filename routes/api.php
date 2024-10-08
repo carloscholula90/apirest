@@ -33,6 +33,10 @@ Route::prefix('usuarios')->group(function () {
     require base_path('routes/general/usuarios.php');
 });
 
+Route::prefix('pais')->group(function () {
+    require base_path('routes/general/pais.php');
+});
+
 Route::prefix('personas')->group(function () {
     require base_path('routes/general/personas.php');
 });
@@ -44,5 +48,25 @@ Route::prefix('modulos')->group(function () {
 Route::prefix('rolesseguridad')->group(function () {
     require base_path('routes/seguridad/rolesseguridad.php');
 });
+
+Route::prefix('aplicaciones')->group(function () {
+    require base_path('routes/seguridad/aplicaciones.php');
+});
+
+Route::prefix('modalidades')->group(function () {
+    require base_path('routes/escolar/modalidades.php');
+});
+
+Route::prefix('niveles')->group(function () {
+    require base_path('routes/escolar/niveles.php');
+});
+
+Route::prefix('carreras')->group(function () {
+    require base_path('routes/escolar/carreras.php');
+});
   
+Route::prefix('medios')->group(function () {
+    require base_path('routes/general/medios.php');
+});
+
 Route::post('/generate-report', [reporteController::class, 'generateReport']);

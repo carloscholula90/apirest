@@ -25,7 +25,6 @@ class RolSegController extends Controller
     {
 
         $validator = Validator::make($request->all(), [
-            'idRol' => 'required|numeric|max:255',
             'nombre' => 'required|max:255'
         ]);
 
@@ -38,8 +37,10 @@ class RolSegController extends Controller
             return response()->json($data, 400);
         }
 
+        $maxIdRol = RolSeg::max('idRol');
+        $newIdRol = $maxIdRol ? $maxIdRol + 1 : 1;
         $rolSeg = RolSeg::create([
-            'idRol' => $request->idRol,
+            'idRol' => $newIdRol,
             'nombre' => $request->nombre
         ]);
 
@@ -51,6 +52,7 @@ class RolSegController extends Controller
             return response()->json($data, 500);
         }
 
+        $rolSeg = Medio::findOrFail($newIdRol);
         $data = [
             'rolSeg' => $rolSeg,
             'status' => 201
@@ -135,7 +137,7 @@ class RolSegController extends Controller
 
         $data = [
             'message' => 'rol de seguridad actualizado',
-            'asentamiento' => $rolSeg,
+            'rolSeg' => $rolSeg,
             'status' => 200
         ];
 
@@ -180,7 +182,7 @@ class RolSegController extends Controller
 
         $data = [
             'message' => 'rol de seguridad actualizado',
-            'asentamiento' => $rolSeg,
+            'rolSeg' => $rolSeg,
             'status' => 200
         ];
 
