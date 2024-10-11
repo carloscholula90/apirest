@@ -3,7 +3,7 @@ namespace App\Http\Controllers\Api\serviciosGenerales;
 use Illuminate\Http\Request;
 use PHPJasper\PHPJasper;   
 use Illuminate\Support\Facades\Log;
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Controller;  
 
 class reporteController extends Controller{ 
 
@@ -32,25 +32,29 @@ class reporteController extends Controller{
         Log::info('Este es un mensaje de depuración en Laravel. 777 '.$input  );
     
         // Ruta donde se guardará el archivo generado
-        $output = storage_path('app/reportes/'.pathinfo($validatedData['report_path'], PATHINFO_FILENAME));
+        $output = storage_path('app/public/'.pathinfo($validatedData['report_path'], PATHINFO_FILENAME));
         Log::info('Este es un mensaje de depuración en Laravel. 2 '.$output );
-        $fontsPath = 'app/public/fonts/fonts.xml';
-        Log::info('Este es un mensaje de depuración en Laravel. 2 '. $fontsPath );
+        //$fontsPath = 'app/public/fonts/fonts.xml';  
+        //Log::info('Este es un mensaje de depuración en Laravel. 2 '. $fontsPath );
        
         // Configurar opciones
+        $data = $validatedData['data'] ?? []; 
+        $dataSource = new \PHPJasper\JasperPHPDataSource($data);
+        Log::info('Datos enviados al reporte:', $validatedData['data']);
         $options = ['format' => [$validatedData['format'] ?? 'pdf'],
-                    'params' => array_merge($validatedData['params'] ?? [], [
+                    'params' => array_merge($validatedData['params'] ?? [], [ 
                         'REPORT_IMAGE' => public_path('images\logo.png'),
                         'REPORT_ENC' => public_path('images\encPag.png'),
-                        'REPORT_DTL' => public_path('images\piePag.png') 
-                    ]),
-                    'data' => $validatedData['data'] ?? [], // Los datos externos para el reporte
+                        'REPORT_DTL' => public_path('images\piePag.png'),
+                        'REPORT_DATA_SOURCE' => $dataSource// Usa el array directamente
+                    ]),    
                     'locale' => 'es', // Configurar el locale para español
-                    'charset' => 'UTF-8', // Configurar el charset para UTF-8,
+                    'charset' => 'UTF-8'  
+                    /*, // Configurar el charset para UTF-8,
                     [
                         'fonts_path' => $fontsPath // Parámetro adicional para especificar la ruta del archivo fonts.xml
                         // otros parámetros si es necesario
-                    ]   
+                    ]   */  
         ];
 
         // Procesar el reporte
@@ -61,8 +65,7 @@ class reporteController extends Controller{
             "message" => "Reporte generado exitosamente ",
             "file_path" => $output.'.'.$options['format'][0]
         ];
-        Log::info('Este es un mensaje de depuración en Laravel. 3 '.$response);
- 
+         
         // Enviar la respuesta en formato JSON
         return response()->json($response);
     }

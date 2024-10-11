@@ -53,8 +53,7 @@ class DireccionController extends Controller
    public function show($uid,$idParentesco){
     $direcciones = Direccion::join('pais', 'direcciones.idPais', '=', 'pais.idPais')
                                 ->join('estado', function($join) {
-                                    // Eliminar el operador "->" antes de "on()"
-                                    $join->on('direcciones.idEstado', '=', 'estado.idEstado')
+                                       $join->on('direcciones.idEstado', '=', 'estado.idEstado')
                                         ->on('direcciones.idPais', '=', 'estado.idPais'); 
                                 })
                                 ->join('ciudad', function($join) {
@@ -104,7 +103,6 @@ class DireccionController extends Controller
    }
   
    public function update(Request $request){
-     
              
    }
 

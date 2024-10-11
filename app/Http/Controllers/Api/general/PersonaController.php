@@ -5,7 +5,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\general\Persona;
-use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\serviciosGenerales\reporteController;
 
 class PersonaController extends Controller{
@@ -89,7 +88,6 @@ class PersonaController extends Controller{
     // Muestra una persona por ID
     public function recovery($uid)
     {
-        Log::info('Entra a buscar el contacto: '.$uid);
         $tipo = 1; // Tipo de contacto oficial correo electrónico
     
         // Busca la persona con el tipo de contacto específico
@@ -236,15 +234,23 @@ class PersonaController extends Controller{
                 ], 404);
             }
     
+            $personas = [
+                [
+                    'uid' => '1244',
+                    'primerApellido' => 'Prueba',
+                    'segundoApellido' => 'Prueba 2'
+                ]
+            ];
+  
             // Crear una solicitud simulada (Request) para el reporte
             $request = new Request([
-                'report_path' => 'general/', // Ruta del archivo .jrxml
+                'report_path' => 'general', // Ruta del archivo .jrxml
                 'params' => [
-                    'titulo' => 'CATÁLOGO DE PERSONAS',
-                    'fecha' => 'FECHA DE IMPRESIÓN '.now()->format('dd/MM/YYYY') // Genera la fecha actual automáticamente
+                    'Titulo' => 'CATÁLOGO DE PERSONAS',
+                    'SubTitulo' => 'FECHA DE IMPRESIÓN '.now()->format('d/m/Y') // Genera la fecha actual automáticamente
                 ],
-                'name_report'=>'catalogo.jrxml',     
-                'data' => $personas->toArray(), // Los datos de las personas
+                'name_report'=>'catalogo.jrxml',       
+                'data' => $personas, // Los datos de las personas
                 'format' => 'pdf' // El formato del reporte
             ]);   
     
