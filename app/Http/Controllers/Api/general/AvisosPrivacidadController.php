@@ -10,7 +10,6 @@ class AvisosPrivacidadController extends Controller
 {
     public function index(){
        
-       
         $avisos = avisosPrivacidad::all();
 
         $data = [
@@ -21,12 +20,20 @@ class AvisosPrivacidadController extends Controller
         return response()->json($data, 200);
     }
 
+    public function active(){
+
+        $avisos = avisosPrivacidad::where('activo',1)->get();
+
+        return $this->returnData('avisos',$avisos,200);
+    }
+
     public function store(Request $request)
     {
         
         $validator = Validator::make($request->all(), [
             'descripcion' => 'required|max:255',
-            'activo' => 'required|max:1'
+            'activo' => 'required|max:1',
+            'archvivo' => 'required|max:255'
         ]);
 
         if ($validator->fails()) {
@@ -42,7 +49,9 @@ class AvisosPrivacidadController extends Controller
         $newIdAviso = $maxIdAviso ? $maxIdAviso + 1 : 1;
         $avisos = AvisosPrivacidad::create([
             'idAviso' => $newIdAviso,
-            'descripcion' => strtoupper(trim($request->descripcion))
+            'descripcion' => strtoupper(trim($request->descripcion)),
+            'activo' => $request->activo,
+            'archivo' => strtolower(trim($request->archivo))
         ]);
 
         if (!$avisos) {
@@ -114,7 +123,8 @@ class AvisosPrivacidadController extends Controller
 
         $validator = Validator::make($request->all(), [
                     'descripcion' => 'required|max:255',
-                    'activo' => 'required|max:255'
+                    'activo' => 'required|max:255',
+                    'archivo' => 'required|max:255'
         ]);
 
         if ($validator->fails()) {
@@ -128,6 +138,7 @@ class AvisosPrivacidadController extends Controller
         $avisos->idAviso = $request->idAviso;
         $avisos->descripcion = strtoupper(trim($request->descripcion));
         $avisos->activo = $request->activo;
+        $avisos->archivo = strtolower(trim($request->archivo));
         $avisos->save();
 
         return response()->json([

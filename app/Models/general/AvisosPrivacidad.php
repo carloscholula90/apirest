@@ -12,6 +12,6 @@ class avisosPrivacidad extends Model
     protected $primaryKey = 'idAviso';
     public $incrementing = true;
     protected $keyType = 'int';
-    protected $fillable = [ 'idAviso','descripcion','activo'];
+    protected $fillable = [ 'idAviso','descripcion','activo','archivo'];
     public $timestamps = false;
 }
