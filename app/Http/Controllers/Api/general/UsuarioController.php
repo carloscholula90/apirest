@@ -63,7 +63,6 @@ class UsuarioController extends Controller{
             return $this->returnEstatus('Usuario no encontrado',400,null);
 
         $validator = Validator::make($request->all(), [
-            'uid' => 'required|numeric|max:255',
             'secuencia' => 'required|numeric|max:255',
             'contrasena' => 'required|max:255'
         ]);
@@ -71,7 +70,7 @@ class UsuarioController extends Controller{
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
         
-        $usuario->uid = $request->uid;
+        $usuario->uid = $id;
         $usuario->secuencia = $request->secuencia;
         $usuario->contrasena = $request->contrasena;
         $usuario->save();

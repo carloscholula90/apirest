@@ -12,55 +12,43 @@ class AceptaAvisoController extends Controller
        
         $aceptaAviso = AceptaAviso::all();
 
-        return $this->returnData('avisos',$aceptaAviso,200);
+        return $this->returnData('aceptaAvisos',$aceptaAviso,200);
     }
 
-    public function store(Request $request)
-    {
-        
+    public function active(Request $request){
+
+        $aceptaAviso = AceptaAviso::where('idAviso',$request->idAviso)
+        ->where('uid',$request->uid)
+        ->get();
+
+        if ($aceptaAviso->isEmpty())
+           return $this->returnEstatus('0',200,NULL);
+        else
+           return $this->returnEstatus('1',200,NULL);
+    }
+
+    public function store(Request $request) {
+
         $validator = Validator::make($request->all(), [
-            'descripcion' => 'required|max:255',
-            'activo' => 'required|max:1',
-            'archvivo' => 'required|max:255'
+            'idAviso' => 'required|integer|regex:/^[0-9]{1,3}$/',
+            'uid' => 'required|integer|regex:/^[0-9]{5,7}$/'
         ]);
 
-        if ($validator->fails()) {
-            $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ];
-            return response()->json($data, 400);
-        }
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
 
-        $maxIdAviso = AceptaAviso::max('idAviso');
-        $newIdAviso = $maxIdAviso ? $maxIdAviso + 1 : 1;
         $avisos = AceptaAviso::create([
-            'idAviso' => $newIdAviso,
-            'descripcion' => strtoupper(trim($request->descripcion)),
-            'activo' => $request->activo,
-            'archivo' => strtolower(trim($request->archivo))
+            'idAviso' => $request->idAviso,
+            'uid' => $request->uid,
+            'ip' => $request->ip
         ]);
 
-        if (!$avisos) {
-            $data = [
-                'message' => 'Error al crear el aviso de privacidad',
-                'status' => 500
-            ];
-            return response()->json($data, 500);
-        }
-        $avisos = AceptaAviso::findOrFail($newIdAviso);
-    
-        $data = [
-            'Aviso de Privacidad' => $aceptaAvisos
-            'status' => 201
-        ];
-
-        return response()->json($data, 201);
-
+        if (!$avisos)
+            return $this->returnEstatus('Error al crear el registro',500,null);
+        return $this->returnData('Aviso de Privacidad',$avisos,201);
     }
 
-    public function show($idAviso){
+    /*public function show($idAviso){
         try {
             // Busca el aviso de privacidad por ID y lanza una excepción si no se encuentra
             $avisos = AceptaAviso::findOrFail($idAviso);
@@ -135,5 +123,5 @@ class AceptaAvisoController extends Controller
             'status' => 200,
         ], 200);
 
-    }
+    }*/
 }
