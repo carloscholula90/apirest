@@ -25,13 +25,13 @@
 	<field name="segundoApellido" class="java.lang.String"/>
 	<field name="nombre" class="java.lang.String"/>
 	<field name="curp" class="java.lang.String"/>
-	<field name="fechaNacimiento" class="java.sql.Date"/>
+	<field name="fechaNacimiento" class="java.lang.String"/>
 	<field name="sexo" class="java.lang.String"/>
 	<background>
 		<band splitType="Stretch"/>
 	</background>
 	<pageHeader>
-		<band height="120" splitType="Stretch">
+		<band height="83" splitType="Stretch">
 			<property name="com.jaspersoft.studio.layout" value="com.jaspersoft.studio.editor.layout.FreeLayout"/>
 			<property name="com.jaspersoft.studio.unit.height" value="px"/>
 			<image scaleImage="RealSize" hAlign="Left" vAlign="Middle">
@@ -42,8 +42,10 @@
 				<imageExpression><![CDATA[$P{REPORT_ENC}]]></imageExpression>
 			</image>
 			<line>
-				<reportElement x="375" y="79" width="170" height="1" uuid="fa795d90-e210-4e15-9d29-e8fa18e1044c">
+				<reportElement x="375" y="75" width="170" height="1" uuid="fa795d90-e210-4e15-9d29-e8fa18e1044c">
 					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
 				</reportElement>
 				<graphicElement>
 					<pen lineColor="#B0ABAB"/>
@@ -73,105 +75,127 @@
 		</band>
 	</pageHeader>
 	<columnHeader>
-		<band height="30" splitType="Stretch">
+		<band height="26" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
 			<staticText>
-				<reportElement x="0" y="0" width="50" height="30" uuid="7023643b-2f4b-440c-9950-30e918e9fa41"/>
-				<textElement verticalAlignment="Middle">
-					<font fontName="Arial" isBold="true"/>
+				<reportElement x="0" y="0" width="50" height="20" uuid="7023643b-2f4b-440c-9950-30e918e9fa41"/>
+				<textElement verticalAlignment="Middle" markup="styled">
+					<font fontName="Arial" size="9" isBold="true"/>
 				</textElement>
 				<text><![CDATA[UID]]></text>
 			</staticText>
 			<staticText>
-				<reportElement x="50" y="0" width="100" height="30" uuid="d8aac44b-6a24-4f4b-835c-0d3f11575537"/>
-				<textElement verticalAlignment="Middle">
-					<font fontName="Arial" isBold="true"/>
+				<reportElement x="50" y="0" width="100" height="20" uuid="d8aac44b-6a24-4f4b-835c-0d3f11575537"/>
+				<textElement verticalAlignment="Middle" markup="styled">
+					<font fontName="Arial" size="9" isBold="true"/>
 				</textElement>
 				<text><![CDATA[APELLIDO PATERNO]]></text>
 			</staticText>
 			<staticText>
-				<reportElement x="150" y="0" width="100" height="30" uuid="3f723e72-db49-44aa-84ac-747775d9c008"/>
-				<textElement verticalAlignment="Middle">
-					<font fontName="Arial" isBold="true"/>
+				<reportElement x="150" y="0" width="100" height="20" uuid="3f723e72-db49-44aa-84ac-747775d9c008"/>
+				<textElement verticalAlignment="Middle" markup="styled">
+					<font fontName="Arial" size="9" isBold="true"/>
 				</textElement>
 				<text><![CDATA[APELLIDO MATERNO]]></text>
 			</staticText>
 			<staticText>
-				<reportElement x="250" y="0" width="100" height="30" uuid="b4b4584c-1a64-439f-959e-7fe0fec58aab"/>
-				<textElement verticalAlignment="Middle">
-					<font fontName="Arial" isBold="true"/>
+				<reportElement x="250" y="0" width="100" height="20" uuid="b4b4584c-1a64-439f-959e-7fe0fec58aab"/>
+				<textElement verticalAlignment="Middle" markup="styled">
+					<font fontName="Arial" size="9" isBold="true"/>
 				</textElement>
 				<text><![CDATA[NOMBRE]]></text>
 			</staticText>
 			<staticText>
-				<reportElement x="400" y="0" width="70" height="30" uuid="fe889c8f-6620-4882-b9ca-0d8e46bc82ca"/>
-				<textElement verticalAlignment="Middle">
-					<font fontName="Arial" isBold="true"/>
+				<reportElement x="400" y="0" width="70" height="20" uuid="fe889c8f-6620-4882-b9ca-0d8e46bc82ca"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" markup="styled">
+					<font fontName="Arial" size="9" isBold="true"/>
 				</textElement>
 				<text><![CDATA[CURP]]></text>
 			</staticText>
 			<staticText>
-				<reportElement x="470" y="0" width="75" height="30" uuid="1c41259a-3f4c-4f5f-8ddb-a8a5be4cbfbd">
+				<reportElement x="470" y="0" width="75" height="20" uuid="1c41259a-3f4c-4f5f-8ddb-a8a5be4cbfbd">
 					<property name="com.jaspersoft.studio.unit.width" value="px"/>
 				</reportElement>
-				<textElement verticalAlignment="Middle">
-					<font fontName="Arial" isBold="true"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" markup="styled">
+					<font fontName="Arial" size="8" isBold="true"/>
 				</textElement>
 				<text><![CDATA[FECHA DE NACIMIENTO]]></text>
 			</staticText>
 			<staticText>
-				<reportElement x="350" y="0" width="50" height="30" uuid="1c78df09-813d-48bc-b9a3-f1f6336bab46"/>
-				<textElement verticalAlignment="Middle">
-					<font fontName="Arial" isBold="true"/>
+				<reportElement x="350" y="0" width="50" height="20" uuid="1c78df09-813d-48bc-b9a3-f1f6336bab46"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" markup="styled">
+					<font fontName="Arial" size="9" isBold="true"/>
 				</textElement>
 				<text><![CDATA[SEXO]]></text>
 			</staticText>
 		</band>
 	</columnHeader>
 	<detail>
-		<band height="30" splitType="Stretch">
+		<band height="20" splitType="Stretch">
 			<property name="com.jaspersoft.studio.unit.height" value="px"/>
-			<textField>
-				<reportElement stretchType="ElementGroupHeight" x="0" y="0" width="50" height="30" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="a51b92bb-9b78-4c00-bf15-abe8bd5b1937">
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="ElementGroupHeight" x="0" y="0" width="50" height="20" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="a51b92bb-9b78-4c00-bf15-abe8bd5b1937">
 					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="52aee9f3-9421-46f7-a038-f0a675596fd7"/>
 				</reportElement>
+				<textElement>
+					<font fontName="Arial" size="9"/>
+				</textElement>
 				<textFieldExpression><![CDATA[$F{uid}]]></textFieldExpression>
 			</textField>
-			<textField>
-				<reportElement stretchType="ElementGroupHeight" x="50" y="0" width="100" height="30" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="ddfb5b8e-b307-4586-8ea7-08cfedac5c39">
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="ElementGroupHeight" x="50" y="0" width="100" height="20" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="ddfb5b8e-b307-4586-8ea7-08cfedac5c39">
 					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="8506ee46-b31a-4229-b9ab-155adaaff6fe"/>
 				</reportElement>
+				<textElement>
+					<font fontName="Arial" size="9"/>
+				</textElement>
 				<textFieldExpression><![CDATA[$F{primerApellido}]]></textFieldExpression>
 			</textField>
-			<textField>
-				<reportElement stretchType="ElementGroupHeight" x="150" y="0" width="100" height="30" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="6e7e625e-ea72-47a1-bac9-d8391f129e82">
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="ElementGroupHeight" x="150" y="0" width="100" height="20" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="6e7e625e-ea72-47a1-bac9-d8391f129e82">
 					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="04b77aab-bc67-4a97-9ec2-b417854b1395"/>
 				</reportElement>
+				<textElement>
+					<font fontName="Arial" size="9"/>
+				</textElement>
 				<textFieldExpression><![CDATA[$F{segundoApellido}]]></textFieldExpression>
 			</textField>
-			<textField>
-				<reportElement stretchType="ElementGroupBottom" x="250" y="0" width="100" height="30" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="fa365199-1d54-4bc6-b7a0-8846ab4cf9fc">
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="ElementGroupBottom" x="250" y="0" width="100" height="20" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="fa365199-1d54-4bc6-b7a0-8846ab4cf9fc">
 					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="e3a3ff6a-6d5e-4d26-a33c-d53199e9704b"/>
 				</reportElement>
+				<textElement>
+					<font fontName="Arial" size="9"/>
+				</textElement>
 				<textFieldExpression><![CDATA[$F{nombre}]]></textFieldExpression>
 			</textField>
-			<textField>
-				<reportElement stretchType="ElementGroupBottom" x="350" y="0" width="50" height="30" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="1142ec05-ee50-49fd-a095-021176536e13">
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="ElementGroupBottom" x="350" y="0" width="50" height="20" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="1142ec05-ee50-49fd-a095-021176536e13">
 					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="8961fb99-b3b2-405c-99da-aedc5776bc0b"/>
 				</reportElement>
+				<textElement textAlignment="Center">
+					<font fontName="Arial" size="9"/>
+				</textElement>
 				<textFieldExpression><![CDATA[$F{sexo}]]></textFieldExpression>
 			</textField>
-			<textField>
-				<reportElement stretchType="ElementGroupBottom" x="400" y="0" width="70" height="30" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="1bdb8c55-b48c-42a6-a128-9bec63883773">
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="ElementGroupBottom" x="400" y="0" width="70" height="20" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="1bdb8c55-b48c-42a6-a128-9bec63883773">
 					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="661a6d9a-7d43-4ea8-a113-2a8735d757ab"/>
 				</reportElement>
+				<textElement textAlignment="Center">
+					<font fontName="Arial" size="9"/>
+				</textElement>
 				<textFieldExpression><![CDATA[$F{curp}]]></textFieldExpression>
 			</textField>
-			<textField>
-				<reportElement stretchType="ElementGroupBottom" x="470" y="0" width="75" height="30" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="4b658a19-f79f-43e3-95d8-080cf0d05eef">
+			<textField isBlankWhenNull="true">
+				<reportElement stretchType="ElementGroupBottom" x="470" y="0" width="75" height="20" isRemoveLineWhenBlank="true" isPrintWhenDetailOverflows="true" uuid="4b658a19-f79f-43e3-95d8-080cf0d05eef">
 					<property name="com.jaspersoft.studio.spreadsheet.connectionID" value="ed19d7de-d9f6-4dc5-813a-e41ca6801751"/>
 					<property name="com.jaspersoft.studio.unit.x" value="px"/>
 					<property name="com.jaspersoft.studio.unit.width" value="px"/>
 				</reportElement>
+				<textElement textAlignment="Center">
+					<font fontName="Arial" size="9"/>
+				</textElement>
 				<textFieldExpression><![CDATA[$F{fechaNacimiento}]]></textFieldExpression>
 			</textField>
 		</band>
@@ -180,7 +204,7 @@
 		<band height="110" splitType="Stretch">
 			<property name="com.jaspersoft.studio.unit.height" value="px"/>
 			<image scaleImage="RealSize" hAlign="Left" vAlign="Bottom">
-				<reportElement x="-25" y="-2" width="595" height="112" isRemoveLineWhenBlank="true" uuid="a04feae7-221d-4f8f-8edc-59d066e86105">
+				<reportElement x="-25" y="0" width="595" height="110" isRemoveLineWhenBlank="true" uuid="a04feae7-221d-4f8f-8edc-59d066e86105">
 					<property name="com.jaspersoft.studio.unit.width" value="px"/>
 					<property name="com.jaspersoft.studio.unit.height" value="px"/>
 				</reportElement>
