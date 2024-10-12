@@ -2,24 +2,17 @@
 
 namespace App\Http\Controllers\Api\general;  
 use App\Http\Controllers\Controller;
-use App\Models\general\AvisosPrivacidad;
+use App\Models\general\AceptaAviso;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class AvisosPrivacidadController extends Controller
+class AceptaAvisoController extends Controller
 {
     public function index(){
        
-        $avisos = avisosPrivacidad::all();
+        $aceptaAviso = AceptaAviso::all();
 
-        return $this->returnData('avisos',$avisos,200);
-    }
-
-    public function active(){
-
-        $avisos = avisosPrivacidad::where('activo',1)->get();
-
-        return $this->returnData('avisos',$avisos,200);
+        return $this->returnData('avisos',$aceptaAviso,200);
     }
 
     public function store(Request $request)
@@ -40,9 +33,9 @@ class AvisosPrivacidadController extends Controller
             return response()->json($data, 400);
         }
 
-        $maxIdAviso = AvisosPrivacidad::max('idAviso');
+        $maxIdAviso = AceptaAviso::max('idAviso');
         $newIdAviso = $maxIdAviso ? $maxIdAviso + 1 : 1;
-        $avisos = AvisosPrivacidad::create([
+        $avisos = AceptaAviso::create([
             'idAviso' => $newIdAviso,
             'descripcion' => strtoupper(trim($request->descripcion)),
             'activo' => $request->activo,
@@ -56,10 +49,10 @@ class AvisosPrivacidadController extends Controller
             ];
             return response()->json($data, 500);
         }
-        $avisos = AvisosPrivacidad::findOrFail($newIdAviso);
+        $avisos = AceptaAviso::findOrFail($newIdAviso);
     
         $data = [
-            'Aviso de Privacidad' => $avisos,
+            'Aviso de Privacidad' => $aceptaAvisos
             'status' => 201
         ];
 
@@ -70,11 +63,11 @@ class AvisosPrivacidadController extends Controller
     public function show($idAviso){
         try {
             // Busca el aviso de privacidad por ID y lanza una excepción si no se encuentra
-            $avisos = AvisosPrivacidad::findOrFail($idAviso);
+            $avisos = AceptaAviso::findOrFail($idAviso);
     
             // Retorna el aviso de privacidad con estado 200
             $data = [
-                'Avisos de Privacidad' => $avisos,
+                'Avisos de Privacidad' => $aceptaAvisos
                 'status' => 200
             ];
             return response()->json($data, 200);
@@ -89,7 +82,7 @@ class AvisosPrivacidadController extends Controller
     }
     
     public function destroy($idAviso){
-        $avisos = AvisosPrivacidad::find($idAviso);
+        $avisos = AceptaAviso::find($idAviso);
 
         if (!$avisos) {
             $data = [
@@ -111,7 +104,7 @@ class AvisosPrivacidadController extends Controller
 
     public function update(Request $request, $idAviso){
 
-        $avisos = AvisosPrivacidad::find($idAviso);
+        $avisos = AceptaAviso::find($idAviso);
         if (!$avisos) {
             return response()->json(['message' => 'Aviso de privacidad no encontrado', 'status' => 404], 404);
         }
@@ -138,7 +131,7 @@ class AvisosPrivacidadController extends Controller
 
         return response()->json([
             'message' => 'Aviso de privacidad actualizado',
-            'aviso de privacidad' => $avisos,
+            'aviso de privacidad' => $aceptaAvisos
             'status' => 200,
         ], 200);
 

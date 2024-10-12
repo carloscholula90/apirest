@@ -24,6 +24,9 @@ Route::get('/test-db', function () {
     }
 });
 
+Route::prefix('aplicaciones')->group(function () {
+    require base_path('routes/general/aceptaAviso.php');
+});
 
 Route::prefix('aplicaciones')->group(function () {
     require base_path('routes/seguridad/aplicaciones.php');
