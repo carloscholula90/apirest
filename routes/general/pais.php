@@ -8,6 +8,5 @@ Route::get('/nacionalidad', [PaisController::class, 'nacionalidad']);
 Route::get('/nacionalidad/{idPais}', [PaisController::class, 'buscaNacionalidad']);
 Route::get('/{idPais}', [PaisController::class, 'show']);
 Route::post('/create', [PaisController::class, 'store']);  
-Route::put('/{idPais}', [PaisController::class, 'update']);
 Route::patch('/{idPais}', [PaisController::class, 'updatePartial']);
 Route::delete('/{idPais}', [PaisController::class, 'destroy']);

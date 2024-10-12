@@ -12,13 +12,7 @@ class RolSegController extends Controller
     public function index()
     {
         $rolesseg = RolSeg::all();
-
-        $data = [
-            'rolesseg' => $rolesseg,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+        return $this->returnData('rolesseg',$rolesseg,200);        
     }
 
     public function store(Request $request)
@@ -28,164 +22,56 @@ class RolSegController extends Controller
             'nombre' => 'required|max:255'
         ]);
 
-        if ($validator->fails()) {
-            $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ];
-            return response()->json($data, 400);
-        }
-
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
+        
         $maxIdRol = RolSeg::max('idRol');
         $newIdRol = $maxIdRol ? $maxIdRol + 1 : 1;
         $rolSeg = RolSeg::create([
-            'idRol' => $newIdRol,
-            'nombre' => $request->nombre
+                                'idRol' => $newIdRol,
+                                'nombre' => strtoupper(trim($request->nombre))
         ]);
 
-        if (!$rolSeg) {
-            $data = [
-                'message' => 'Error al crear el rol de seguridad',
-                'status' => 500
-            ];
-            return response()->json($data, 500);
-        }
+        if (!$rolSeg) 
+            return $this->returnEstatus('Error al crear el rol de seguridad',500,null);
 
-        $rolSeg = Medio::findOrFail($newIdRol);
-        $data = [
-            'rolSeg' => $rolSeg,
-            'status' => 201
-        ];
-
-        return response()->json($data, 201);
-
+        $rolSeg = RolSeg::findOrFail($newIdRol);        
+        return $this->returnData('rolSeg',$rolSeg,200);
     }
 
     public function show($id)
     {
         $rolSeg = RolSeg::find($id);
-
-        if (!$RolSeg) {
-            $data = [
-                'message' => 'Rol de seguridad no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
-
-        $data = [
-            'rolSeg' => $rolSeg,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+        if (!$RolSeg)
+            return $this->returnEstatus('Rol de seguridad no encontrado',404,null);
+        return $this->returnData('rolSeg',$rolSeg,200);
     }
 
     public function destroy($id)
     {
         $rolSeg = RolSeg::find($id);
 
-        if (!$rolSeg) {
-            $data = [
-                'message' => 'Rol de seguridad no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
+        if (!$rolSeg) 
+            return $this->returnEstatus('Rol de seguridad no encontrado',404,null);
         
         $rolSeg->delete();
-
-        $data = [
-            'message' => 'rol de seguridad eliminado',
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+        return $this->returnEstatus('Rol de seguridad eliminado',200,null);        
     }
 
-    public function update(Request $request, $id)
+    
+    public function updatePartial(Request $request, $idRol)
     {
-        $rolSeg = RolSeg::find($id);
+        $rolSeg = RolSeg::find($idRol);
 
-        if (!$rolSeg) {
-            $data = [
-                'message' => 'rol de seguridad no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
+        if (!$rolSeg) 
+            return $this->returnEstatus('Rol de seguridad no encontrado',404,null);
 
-        $validator = Validator::make($request->all(), [
-            'idRol' => 'required|numeric|max:255',
-            'nombre' => 'required|max:255'
-        ]);
+        $rolSeg->idRol = $idRol;        
 
-        if ($validator->fails()) {
-            $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ];
-            return response()->json($data, 400);
-        }
-
-        $rolSeg->idRol = $request->idRol;
-        $rolSeg->nombre = $request->nombre;
+        if ($request->has('nombre')) 
+            $rolSeg->nombre = strtoupper(trim($request->nombre));        
 
         $rolSeg->save();
-
-        $data = [
-            'message' => 'rol de seguridad actualizado',
-            'rolSeg' => $rolSeg,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
-
-    }
-
-    public function updatePartial(Request $request, $id)
-    {
-        $rolSeg = RolSeg::find($id);
-
-        if (!$rolSeg) {
-            $data = [
-                'message' => 'rol de seguridad no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-           'idRol' => 'required|numeric|max:255',
-            'nombre' => 'required|max:255'
-        ]);
-
-        if ($validator->fails()) {
-            $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ];
-            return response()->json($data, 400);
-        }
-        if ($request->has('idRol')) {
-            $rolSeg->idRol = $request->idRol;
-        }
-
-        if ($request->has('nombre')) {
-            $rolSeg->nombre = $request->nombre;
-        }
-
-        $rolSeg->save();
-
-        $data = [
-            'message' => 'rol de seguridad actualizado',
-            'rolSeg' => $rolSeg,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+        return $this->returnEstatus('Rol de seguridad actualizado',200,null); 
     }
 }

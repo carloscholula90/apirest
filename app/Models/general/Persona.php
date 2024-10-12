@@ -10,11 +10,11 @@ class persona extends Model{
     use HasFactory;
     protected $table = 'persona';
     protected $primaryKey = 'uid';
-    public $incrementing = true;
+    public $incrementing = false;
     protected $keyType = 'int';
     public $timestamps = false;
 
-    protected $fillable = [
+    protected $fillable = [ 'uid',
                             'curp',
                             'nombre',
                             'primerApellido',

@@ -9,16 +9,8 @@ use Illuminate\Support\Facades\Validator;
 class MedioController extends Controller
 {
     public function index(){
-       
-       
         $medios = Medio::all();
-
-        $data = [
-            'medios' => $medios,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+        return $this->returnData('medios',$medios,200);
     }
 
     public function store(Request $request)
@@ -28,37 +20,21 @@ class MedioController extends Controller
             'descripcion' => 'required|max:255'
         ]);
 
-        if ($validator->fails()) {
-            $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ];
-            return response()->json($data, 400);
-        }
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());        
 
         $maxIdMedio = Medio::max('idMedio');
         $newIdMedio = $maxIdMedio ? $maxIdMedio + 1 : 1;
         $medios = Medio::create([
-            'idMedio' => $newIdMedio,
-            'descripcion' => $request->descripcion
+                            'idMedio' => $newIdMedio,
+                            'descripcion' => strtoupper(trim($request->descripcion))
         ]);
 
-        if (!$medios) {
-            $data = [
-                'message' => 'Error al crear el medio',
-                'status' => 500
-            ];
-            return response()->json($data, 500);
-        }
+        if (!$medios) 
+            return $this->returnEstatus('Error al crear el medio',500,null);
+        
         $medios = Medio::findOrFail($newIdMedio);
-    
-        $data = [
-            'medio' => $medios,
-            'status' => 201
-        ];
-
-        return response()->json($data, 201);
+        return $this->returnData('medios',$medios,200);
 
     }
 
@@ -66,78 +42,39 @@ class MedioController extends Controller
         try {
             // Busca el medio por ID y lanza una excepción si no se encuentra
             $medios = Medio::findOrFail($idMedio);
-    
-            // Retorna el medio con estado 200
-            $data = [
-                'medio' => $medios,
-                'status' => 200
-            ];
-            return response()->json($data, 200);
+            return $this->returnData('medios',$medios,200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             // Si el medio no se encuentra, retorna un mensaje de error con estado 404
-            $data = [
-                'message' => 'Medio no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
+            return $this->returnEstatus('Medio no encontrado',400,null);            
         }
     }
     
     public function destroy($idMedio){
         $medios = Medio::find($idMedio);
-
-        if (!$medios) {
-            $data = [
-                'message' => 'Medio no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
-        
+        if (!$medios) 
+            return $this->returnEstatus('Medio no encontrado',400,null); 
         $medios->delete();
-
-        $data = [
-            'message' => 'Medio eliminado',
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+            return $this->returnEstatus('Medio eliminado',200,null);  
     }
 
     public function update(Request $request, $idMedio){
 
         $medios = Medio::find($idMedio);
-        if (!$medios) {
-            $data = [
-                'message' => 'Medio no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
+        if (!$medios) 
+            return $this->returnEstatus('Medio no encontrado',400,null); 
 
         $validator = Validator::make($request->all(), [
                     'idMedio' => 'required|numeric|max:255',
                     'descripcion' => 'required|max:255'
         ]);
 
-        if ($validator->fails()) {
-            $data = [
-                    'message' => 'Error en la validación de los datos',
-                    'errors' => $validator->errors(),
-                    'status' => 400
-            ];
-            return response()->json($data, 400);
-        }
+        if ($validator->fails()) 
+                 return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
 
         $medios->idMedio = $request->idMedio;
-        $medios->descripcion = $request->descripcion;
+        $medios->descripcion = strtoupper(trim($request->descripcion));
         $medios->save();
 
-        $data = [
-                'message' => 'Medio actualizado',
-                'medio' => $medios,
-                'status' => 200
-        ];
-        return response()->json($data, 200);
+        return $this->returnEstatus('Medio actualizao',200,null);
     }
-}
+}  

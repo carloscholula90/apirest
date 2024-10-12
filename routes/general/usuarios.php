@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
 Route::get('/', [UsuarioController::class, 'index']);
+Route::get('/{id}', [UsuarioController::class, 'showId']);
 Route::get('/{id}/{pasw}', [UsuarioController::class, 'show']);
 Route::post('/create', [UsuarioController::class, 'store']);
 Route::put('/{id}', [UsuarioController::class, 'update']);

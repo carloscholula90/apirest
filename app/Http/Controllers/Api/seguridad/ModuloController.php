@@ -11,13 +11,7 @@ class ModuloController extends Controller
     public function index()
     {
         $modulos = Modulo::all();
-
-        $data = [
-            'modulos' => $modulos,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+        return $this->returnData('modulos',$modulos,200);
     }
 
     public function store(Request $request)
@@ -27,118 +21,65 @@ class ModuloController extends Controller
             'descripcion' => 'required|max:255'
         ]);
 
-        if ($validator->fails()) {
-            $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ];
-            return response()->json($data, 400);
-        }
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
         $maxId = Modulo::max('idModulo');
         $newId = $maxId ? $maxId+ 1 : 1;
 
         $modulos = Modulo::create([
-            'idModulo' => $newId,
-            'descripcion' => $request->descripcion
+                        'idModulo' => $newId,
+                        'descripcion' => $request->descripcion
         ]);
 
-        if (!$modulos) {
-            $data = [
-                'message' => 'Error al crear el asentamiento',
-                'status' => 500
-            ];
-            return response()->json($data, 500);
-        }
+        if (!$modulos) return 
+            $this->returnEstatus('Error al crear el módulo',500,null); 
+        
         $modulos = Modulo::findOrFail($newId);
-        $data = [
-            'modulos' => $modulos,
-            'status' => 201
-        ];
-        return response()->json($data, 201);
+        return $this->returnData('modulos',$modulos,200);
     }
 
     public function show($id)
     {
         $modulos = Modulo::find($id);
 
-        if (!$modulos) {
-            $data = [
-                'message' => 'Modulos no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
+        if (!$modulos) 
+            return $this->returnEstatus('Modulo no encontrado',404,null); 
 
-        $data = [
-            'modulos' => $modulos,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+        return $this->returnData('modulos',$modulos,200);
     }
 
     public function destroy($id)
     {
         $modulos = Modulo::find($id);
 
-        if (!$modulos) {
-            $data = [
-                'message' => 'Modulos no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
+        if (!$modulos) 
+            return $this->returnEstatus('Modulo no encontrado',404,null);         
         
         $modulos->delete();
 
-        $data = [
-            'message' => 'Modulos eliminado',
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+        return $this->returnEstatus('Módulo eliminado',200,null); 
     }
 
     public function update(Request $request, $id)
     {
         $modulos = Modulo::find($id);
 
-        if (!$modulos) {
-            $data = [
-                'message' => 'Modulos no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
+        if (!$modulos) 
+            return $this->returnEstatus('Modulo no encontrado',404,null); 
 
         $validator = Validator::make($request->all(), [
-            'idModulo' => 'required|numeric|max:255',
-            'descripcion' => 'required|max:255'
+                                'descripcion' => 'required|max:255'
         ]);
 
-        if ($validator->fails()) {
-            $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ];
-            return response()->json($data, 400);
-        }
+        if ($validator->fails())
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        $modulos->idModulo = $request->idModulo;
-        $modulos->descripcion = $request->descripcion;
+        $modulos->idModulo = $id;
+        $modulos->descripcion = strtoupper(trim($request->descripcion));
 
         $modulos->save();
-
-        $data = [
-            'message' => 'Modulos actualizado',
-            'asentamiento' => $modulos,
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+        return $this->returnEstatus('Módulo actualizado',200,null); 
 
     }
 }

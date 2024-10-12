@@ -15,12 +15,20 @@ abstract class Controller
  * @return \Illuminate\Http\JsonResponse Respuesta JSON con el mensaje, error y código de estado.*/
 
   public function returnEstatus($message,$status,$error){
+        if($error!=null){
             $data = [
                 'message' => $message,
                 'error' => $error,
                 'status' => $status
             ];
             return response()->json($data, $status);
+        }else{
+            $data = [
+                'message' => $message,
+                'status' => $status
+            ];
+            return response()->json($data, $status);
+        }
     }
 
     /**
