@@ -22,22 +22,20 @@ class AvisosPrivacidadController extends Controller
         return $this->returnData('avisos',$avisos,200);
     }
 
-    public function store(Request $request)
-    {
+    public function store(Request $request) {
         
         $validator = Validator::make($request->all(), [
             'descripcion' => 'required|max:255',
-            'activo' => 'required|max:1',
-            'archvivo' => 'required|max:255'
+            'activo' => 'required|integer|regex:/^[0-1]{1}$/',
+            'archivo' => 'required|max:255'
         ]);
 
-        if ($validator->fails()) {
-            $data = [
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ];
-            return response()->json($data, 400);
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+
+        //Actualiza todos los registro de activo 1 a 0 para que solo exista uno en 1
+        if ($request->activo == 1) {
+            $actualizados = AvisosPrivacidad::where('activo',1)->update(['activo' => 0]);
         }
 
         $maxIdAviso = AvisosPrivacidad::max('idAviso');
@@ -49,13 +47,9 @@ class AvisosPrivacidadController extends Controller
             'archivo' => strtolower(trim($request->archivo))
         ]);
 
-        if (!$avisos) {
-            $data = [
-                'message' => 'Error al crear el aviso de privacidad',
-                'status' => 500
-            ];
-            return response()->json($data, 500);
-        }
+        if (!$avisos) 
+            return $this->returnEstatus('Error al crear el aviso de privacidad',500,null);         
+
         $avisos = AvisosPrivacidad::findOrFail($newIdAviso);
     
         $data = [
@@ -67,7 +61,7 @@ class AvisosPrivacidadController extends Controller
 
     }
 
-    public function show($idAviso){
+    /*public function show($idAviso){
         try {
             // Busca el aviso de privacidad por ID y lanza una excepción si no se encuentra
             $avisos = AvisosPrivacidad::findOrFail($idAviso);
@@ -86,29 +80,20 @@ class AvisosPrivacidadController extends Controller
             ];
             return response()->json($data, 404);
         }
-    }
+    }*/
     
+    // Elimina un aviso de privacidad por ID
     public function destroy($idAviso){
         $avisos = AvisosPrivacidad::find($idAviso);
 
-        if (!$avisos) {
-            $data = [
-                'message' => 'Aviso de privacidad no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
-        
+        if (!$avisos) 
+            return $this->returnEstatus('Aviso de privacidad no encontrado',404,null);
+
         $avisos->delete();
-
-        $data = [
-            'message' => 'Aviso de privacidad eliminado',
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+            return $this->returnEstatus('Aviso de privacidad eliminado exitosamente',200,null);
     }
 
+    // Actualiza un aviso de privacidad por ID
     public function update(Request $request, $idAviso){
 
         $avisos = AvisosPrivacidad::find($idAviso);
@@ -116,19 +101,19 @@ class AvisosPrivacidadController extends Controller
             return response()->json(['message' => 'Aviso de privacidad no encontrado', 'status' => 404], 404);
         }
 
+        //Actualiza todos los registro de activo 1 a 0 para que solo exista uno en 1
+        if ($request->activo == 1) {
+            $actualizados = AvisosPrivacidad::where('activo',1)->update(['activo' => 0]);
+        }
+
         $validator = Validator::make($request->all(), [
                     'descripcion' => 'required|max:255',
-                    'activo' => 'required|max:255',
+                    'activo' => 'required|integer|regex:/^[0-1]{1}$/',
                     'archivo' => 'required|max:255'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error en la validación de los datos',
-                'errors' => $validator->errors(),
-                'status' => 400
-            ], 400);
-        }
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
 
         $avisos->idAviso = $request->idAviso;
         $avisos->descripcion = strtoupper(trim($request->descripcion));
@@ -136,11 +121,6 @@ class AvisosPrivacidadController extends Controller
         $avisos->archivo = strtolower(trim($request->archivo));
         $avisos->save();
 
-        return response()->json([
-            'message' => 'Aviso de privacidad actualizado',
-            'aviso de privacidad' => $avisos,
-            'status' => 200,
-        ], 200);
-
+        return $this->returnEstatus('El registro fue actualizado con éxito',200,null);
     }
 }
