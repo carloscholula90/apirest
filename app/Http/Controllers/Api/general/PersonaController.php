@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\general\Persona;
 use App\Http\Controllers\Api\serviciosGenerales\reporteController;
+use Illuminate\Support\Facades\Log;  
 
 class PersonaController extends Controller{
 
@@ -40,6 +41,7 @@ class PersonaController extends Controller{
                 'ciudad.idCiudad',
                 'ciudad.descripcion'
             )
+            ->distinct()  
             ->get();
         return $personas;
     }
@@ -202,27 +204,39 @@ class PersonaController extends Controller{
         // Si no hay personas, devolver un mensaje de error
         if ($personas->isEmpty())
             return $this->returnEstatus('No se encontraron personas para generar el reporte',404,null);
-            
-        $personas = [
-            [
-               'uid' => '1244',
-               'primerApellido' => 'Prueba',
-               'segundoApellido' => 'Prueba 2'
-            ]
-         ];
+                
+            $personasArray = ['data' => []];
+
+            foreach ($personas as $persona) {
+                 $personasArray['data'][] = [  
+                    'uid' => $persona->uid,
+                    'primerApellido' => $persona->primerApellido,
+                    'segundoApellido' => $persona->segundoApellido,
+                    'curp' => $persona->curp,
+                    'nombre' => $persona->nombre,
+                    'fechaNacimiento' => $persona->fechaNacimiento,
+                    'sexo' => $persona->sexo,
+                ];
+            }
+           
+        $jsonFilePath = storage_path('app/public/personasArray.json');    
+        $jsonData = json_encode($personasArray, JSON_PRETTY_PRINT);                                  
+       
+        if (file_put_contents($jsonFilePath, $jsonData) === false) 
+            return response()->json(['error' => 'Error al guardar el archivo JSON'], 500);
+           
          // Crear una solicitud simulada (Request) para el reporte
         $request = new Request([
-            'report_path' => 'general', // Ruta del archivo .jrxml
-            'params' => [
-               'Titulo' => 'CATÁLOGO DE PERSONAS',
-               'SubTitulo' => 'FECHA DE IMPRESIÓN '.now()->format('d/m/Y') // Genera la fecha actual automáticamente
-            ],
-            'name_report'=>'catalogo.jrxml',       
-            'data' => $personas, // Los datos de las personas
-            'format' => 'pdf' // El formato del reporte
-            ]);   
-    
-        // Llamar al método de generación de reporte
+                                'report_path' => 'general', // Ruta del archivo .jrxml
+                                'params' => [
+                                            'Titulo' => 'CATÁLOGO DE PERSONAS',
+                                            'SubTitulo' => 'FECHA DE IMPRESIÓN '.now()->format('d/m/Y') // Genera la fecha actual automáticamente
+                                ],
+                                'name_report'=>'catalogo.jrxml',  
+                                'jsonFilePath'  =>  $jsonFilePath,
+                                'format' => 'pdf' // El formato del reporte
+            ]);  
+         
         return $reporteController->generateReport($request);
     }
 }
