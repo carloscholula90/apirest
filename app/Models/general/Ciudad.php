@@ -9,18 +9,14 @@ class Ciudad extends Model
 {
     use HasFactory;
     protected $table ='ciudad';
-    protected $primaryKey =  ['idPais','idEstado','idCiudad'];
+    protected $primaryKey =null;
     protected $fillable = ['idPais', 'idEstado','idCiudad','descripcion'];
-    public $incrementing = true;
+    public $incrementing = false;
     protected $keyType = 'int';
     public $timestamps = false;
 
-     // Sobrescribir getKeyName() para retornar el array de claves primarias
-     public function getKeyName()
-     {  
-         return $this->primaryKey;
-     }
- 
+     
+   
      // Sobrescribir find() para buscar usando múltiples columnas de clave primaria
      public static function find($idPais, $idEstado,$idCiudad)
      {
@@ -44,9 +40,5 @@ class Ciudad extends Model
     {
         return $this->hasMany(Ciudad::class, 'idCiudad', 'idCiudad');
     }
-
-    public function codigoPostal()
-    {
-        return $this->hasMany(CodigoPostal::class, 'idCp', 'idCp');
-    }
+    
 }
