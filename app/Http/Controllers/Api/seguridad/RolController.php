@@ -63,9 +63,9 @@ class RolController extends Controller
         return $this->returnEstatus('Rol eliminado',200,null); 
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request)
     {
-        $roles = Rol::find($id);
+        $roles = Rol::find($request->idRol);
 
         if (!$roles) 
             return $this->returnEstatus('Rol no encontrado',404,null); 
@@ -77,7 +77,7 @@ class RolController extends Controller
         if ($validator->fails())
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        $roles->idRol = $id;
+        $roles->idRol = $request->idRol;
         $roles->descripcion = strtoupper(trim($request->descripcion));
 
         $roles->save();
