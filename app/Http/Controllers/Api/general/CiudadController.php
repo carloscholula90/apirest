@@ -22,53 +22,36 @@ public function index(){
                                 'ciudad.descripcion as ciudadDescripcion'
                                 )
                                ->get();
-
-   $data = [
-       'estados' => $ciudades,
-       'status' => 200
-   ];
-
-   return response()->json($data, 200);
+    return $this->returnData('ciudades',$ciudades,200);
 }
 
 public function store(Request $request)
 {
    
    $validator = Validator::make($request->all(), [
-       'descripcion' => 'required|max:255'
+                            'idPais' =>'required|numeric|max:255',
+                            'idEstado' =>'required|numeric|max:255',
+                            'descripcion' => 'required|max:255'
    ]);
 
-   if ($validator->fails()) {
-       $data = [
-           'message' => 'Error en la validación de los datos',
-           'errors' => $validator->errors(),
-           'status' => 400
-       ];
-       return response()->json($data, 400);
-   }
+   if ($validator->fails()) 
+    return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-   $maxId = Ciudad::max('idEstado');
+   $maxId = Ciudad::where('idPais',$request->idPais)
+                    ->where('idEstado',$request->idEstado)
+                    ->max('idCiudad');
+   
    $newId = $maxId ? $maxId + 1 : 1;
    $ciudades = Ciudad::create([
-       'idEstado' => $newId,
-       'descripcion' => $request->descripcion
+                            'idCiudad' => $newId,
+                            'idPais' =>$request->idPais,
+                            'idEstado'=>$request->idEstado,
+                            'descripcion' =>strtoupper(trim( $request->descripcion))
    ]);
-
-   if (!$ciudades) {
-       $data = [
-           'message' => 'Error al crear el ',
-           'status' => 500
-       ];
-       return response()->json($data, 500);
-   }
-   $ciudades = Ciudad::findOrFail($newId);
-
-   $data = [
-       'estado' => $ciudades,
-       'status' => 201
-   ];
-
-   return response()->json($data, 201);
+  
+   if (!$ciudades) 
+        return $this->returnEstatus('Error al crear la ciudad',404,null); 
+    return $this->returnEstatus('Ciudad generada con éxito '.$newId,200,null);
 
 }
 
@@ -90,80 +73,44 @@ public function show($idPais,$idEstado,$idCiudad){
                                ->get();
 
        // Retorna el  con estado 200
-       $data = [
-           'estado' => $ciudades,
-           'status' => 200
-       ];
-       return response()->json($data, 200);
+       return $this->returnData('ciudades',$ciudades,200);
    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-       // Si el  no se encuentra, retorna un mensaje de error con estado 404
-       $data = [
-           'message' => 'Estado no encontrado',
-           'status' => 404
-       ];
-       return response()->json($data, 404);
+        return $this->returnEstatus('Ciudad no encontrada',404,null); 
    }
 }
 
 public function destroy($idPais,$idEstado,$idCiudad){
-   $ciudades = Ciudad::find($idPais,$idEstado,$idCiudad);
-
-   if (!$ciudades) {
-       $data = [
-           'message' => 'Ciudad no encontrado',
-           'status' => 404
-       ];
-       return response()->json($data, 404);
-   }
+   $ciudades = Ciudad::where('idPais',$idPais)
+                        ->where('idEstado',$idEstado)
+                        ->where('idCiudad',$idCiudad);
    
+   if (!$ciudades)
+    return $this->returnEstatus('Ciudad no encontrada',404,null); 
    $ciudades->delete();
-
-   $data = [
-       'message' => 'Ciudad eliminado',
-       'status' => 200
-   ];
-
-   return response()->json($data, 200);
+   return $this->returnEstatus('Ciudad eliminada',404,null); 
 }
 
 public function update(Request $request){
 
    $ciudades = Ciudad::find($request->idPais,$request->idEstado,$request->idCiudad);
-   if (!$ciudades) {
-       $data = [
-                    'message' => 'Ciudad no encontrado',
-                    'status' => 404
-       ];
-       return response()->json($data, 404);
-   }
+   if (!$ciudades) 
+    return $this->returnEstatus('Ciudad no encontrada',404,null);
 
    $validator = Validator::make($request->all(), [
                                             'idCiudad' => 'required|numeric|max:255',
                                             'idEstado' => 'required|numeric|max:255',
                                             'idPais' => 'required|numeric|max:255',
                                             'descripcion' => 'required|max:255'
-   ]);
+   ]);   
 
-   if ($validator->fails()) {
-       $data = [
-               'message' => 'Error en la validación de los datos',
-               'errors' => $validator->errors(),
-               'status' => 400
-       ];
-       return response()->json($data, 400);
-   }
+   if ($validator->fails()) 
+    return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
    $ciudades->idEstado = $request->idEstado;
    $ciudades->idPais =   $request->idPais;
-   $ciudades->idPais =   $request->idCiudad;
-   $ciudades->descripcion = $request->descripcion;
+   $ciudades->idCiudad =   $request->idCiudad;
+   $ciudades->descripcion = strtoupper(trim($request->descripcion));
    $ciudades->save();
-
-   $data = [
-           'message' => 'Ciudad actualizado',
-           'ciudad' => $ciudades,
-           'status' => 200
-   ];
-   return response()->json($data, 200);
+   return $this->returnEstatus('Ciudad actualizada',200,null); 
 }
 }
