@@ -88,8 +88,8 @@ Route::prefix('perfiles')->group(function () {
     require base_path('routes/seguridad/perfiles.php');
 });
 
-Route::prefix('permisosRol')->group(function () {
-    require base_path('routes/seguridad/permisosRol.php');
+Route::prefix('permisosrol')->group(function () {
+    require base_path('routes/seguridad/permisosrol.php');
 });
 
 Route::prefix('personas')->group(function () {

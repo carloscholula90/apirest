@@ -10,12 +10,12 @@ class PermisoRolController extends Controller
 {
     public function index()
     {
-        $permisorol = PerfilRol::all();
+        $permisorol = PermisoRol::all();
         
-        return $this->returnData('perfiles',$perfiles,200);
+        /*return $this->returnData('perfiles',$perfiles,200);*/
     }
 
-    public function store(Request $request)
+    /*public function store(Request $request)
     {
 
         $validator = Validator::make($request->all(), [
@@ -83,5 +83,5 @@ class PermisoRolController extends Controller
         $modulos->save();
         return $this->returnEstatus('Perfil actualizado',200,null); 
 
-    }
+    }*/
 }
