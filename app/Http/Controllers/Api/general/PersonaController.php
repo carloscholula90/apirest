@@ -48,7 +48,7 @@ class PersonaController extends Controller{
     
     // Retorna todas las personas
     public function index(){    
-        $personas = getPersonas();
+        $personas = $this->getPersonas();
 
         if ($personas->isEmpty()) 
             return $this->returnEstatus('No se encontraron personas.',200,null);
