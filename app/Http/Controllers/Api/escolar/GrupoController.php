@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\escolar;
 
-use App\Models\escolar\Alumno;
+use App\Models\escolar\Grupo;
 use Illuminate\Http\Request;
 
-class AlumnoController extends Controller
+class GrupoController extends Controller
 {
     /**
      * Display a listing of the resource.

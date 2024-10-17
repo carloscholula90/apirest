@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\escolar;
+namespace App\Http\Controllers\tesoreria;
 
-use App\Models\escolar\Alumno;
+use App\Models\tesoreria\Impuesto;
 use Illuminate\Http\Request;
 
-class AlumnoController extends Controller
+class ImpuestoController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -34,7 +34,7 @@ class AlumnoController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Alumno $alumno)
+    public function show(Impuesto $impuesto)
     {
         //
     }
@@ -42,7 +42,7 @@ class AlumnoController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Alumno $alumno)
+    public function edit(Impuesto $impuesto)
     {
         //
     }
@@ -50,7 +50,7 @@ class AlumnoController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Alumno $alumno)
+    public function update(Request $request, Impuesto $impuesto)
     {
         //
     }
@@ -58,7 +58,7 @@ class AlumnoController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Alumno $alumno)
+    public function destroy(Impuesto $impuesto)
     {
         //
     }
