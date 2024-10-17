@@ -63,9 +63,9 @@ class PerfilController extends Controller
         return $this->returnEstatus('Perfil eliminado',200,null); 
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request)
     {
-        $perfiles = Perfil::find($id);
+        $perfiles = Perfil::find($request->idPerfil);
 
         if (!$perfiles) 
             return $this->returnEstatus('Perfil no encontrado',404,null); 
@@ -77,10 +77,10 @@ class PerfilController extends Controller
         if ($validator->fails())
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        $modulos->idModulo = $id;
-        $modulos->descripcion = strtoupper(trim($request->descripcion));
+        $perfiles->idPerfil = $request->idPerfil;
+        $perfiles->descripcion = strtoupper(trim($request->descripcion));
 
-        $modulos->save();
+        $perfiles->save();
         return $this->returnEstatus('Perfil actualizado',200,null); 
 
     }
