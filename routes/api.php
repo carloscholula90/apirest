@@ -84,12 +84,28 @@ Route::prefix('parentesco')->group(function () {
     require base_path('routes/general/parentesco.php');
 });
 
+Route::prefix('perfiles')->group(function () {
+    require base_path('routes/seguridad/perfiles.php');
+});
+
+Route::prefix('permisosRol')->group(function () {
+    require base_path('routes/seguridad/permisosRol.php');
+});
+
 Route::prefix('personas')->group(function () {
     require base_path('routes/general/personas.php');
 });
 
 Route::prefix('puestos')->group(function () {
     require base_path('routes/general/puestos.php');
+});
+
+Route::prefix('rol')->group(function () {
+    require base_path('routes/seguridad/rol.php');
+});
+
+Route::prefix('rolespersona')->group(function () {
+    require base_path('routes/seguridad/rolespersona.php');
 });
 
 Route::prefix('rolesseguridad')->group(function () {

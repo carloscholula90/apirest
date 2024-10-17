@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Api\seguridad;  
 use App\Http\Controllers\Controller;
-use App\Models\seguridad\PermisoRol;
+use App\Models\seguridad\Perfil;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class PermisoRolController extends Controller
+class PerfilController extends Controller
 {
     public function index()
     {
-        $permisorol = PerfilRol::all();
+        $perfiles = Perfil::all();
         
         return $this->returnData('perfiles',$perfiles,200);
     }
@@ -25,10 +25,10 @@ class PermisoRolController extends Controller
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        $maxId = PerfilRol::max('idPerfil');
+        $maxId = Perfil::max('idPerfil');
         $newId = $maxId ? $maxId+ 1 : 1;
 
-        $perfiles = PerfilRol::create([
+        $perfiles = Perfil::create([
                         'idPerfil' => $newId,
                         'descripcion' => strtoupper(trim($request->descripcion))
         ]);
@@ -36,14 +36,14 @@ class PermisoRolController extends Controller
         if (!$perfiles) return 
             $this->returnEstatus('Error al crear el perfil',500,null); 
         
-        $perfiles = PerfilRol::findOrFail($newId);
+        $perfiles = Perfil::findOrFail($newId);
         return $this->returnData('perfiles',$perfiles,200);
     }
 
 
     public function show($id)
     {
-        $perfiles = PerfilRol::find($id);
+        $perfiles = Perfil::find($id);
 
         if (!$perfiles) 
             return $this->returnEstatus('Perfil no encontrado',404,null); 
@@ -53,7 +53,7 @@ class PermisoRolController extends Controller
 
     public function destroy($id)
     {
-        $perfiles = PerfilRol::find($id);
+        $perfiles = Perfil::find($id);
 
         if (!$perfiles) 
             return $this->returnEstatus('Perfil no encontrado',404,null);         
@@ -65,7 +65,7 @@ class PermisoRolController extends Controller
 
     public function update(Request $request, $id)
     {
-        $perfiles = PerfilRol::find($id);
+        $perfiles = Perfil::find($id);
 
         if (!$perfiles) 
             return $this->returnEstatus('Perfil no encontrado',404,null); 
