@@ -92,6 +92,11 @@ Route::prefix('permisosrol')->group(function () {
     require base_path('routes/seguridad/permisosrol.php');
 });
 
+Route::prefix('permisospersona')->group(function () {
+    require base_path('routes/seguridad/permisospersona.php');
+});
+  
+
 Route::prefix('personas')->group(function () {
     require base_path('routes/general/personas.php');
 });
