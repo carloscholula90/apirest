@@ -61,28 +61,7 @@ class AvisosPrivacidadController extends Controller
 
     }
 
-    /*public function show($idAviso){
-        try {
-            // Busca el aviso de privacidad por ID y lanza una excepción si no se encuentra
-            $avisos = AvisosPrivacidad::findOrFail($idAviso);
-    
-            // Retorna el aviso de privacidad con estado 200
-            $data = [
-                'Avisos de Privacidad' => $avisos,
-                'status' => 200
-            ];
-            return response()->json($data, 200);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            // Si el aviso de privacidad no se encuentra, retorna un mensaje de error con estado 404
-            $data = [
-                'message' => 'Aviso de privacidad no encontrado',
-                'status' => 404
-            ];
-            return response()->json($data, 404);
-        }
-    }*/
-    
-    // Elimina un aviso de privacidad por ID
+     // Elimina un aviso de privacidad por ID
     public function destroy($idAviso){
         $avisos = AvisosPrivacidad::find($idAviso);
 
