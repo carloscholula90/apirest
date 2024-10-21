@@ -1,17 +1,19 @@
 <?php
-
-namespace App\Http\Controllers\seguridad;
-
+namespace App\Http\Controllers\Api\seguridad; 
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Validator;
+use App\Models\seguridad\PermisoPersona;
+use Illuminate\Support\Facades\DB;   
 
-class PermisosPersonaController extends Controller
-{
+class PermisoPersonaController extends Controller
+{  
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        //
+      
     }
 
     /**
@@ -33,9 +35,16 @@ class PermisosPersonaController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show($id,$idRol)
     {
-        //
+          $permisos = DB::table('aplicacionesUsuario')
+                        ->where('uid', $id)
+                        ->where('idRol', $idRol)
+                        ->get();
+
+          if (!$permisos)
+            return $this->returnEstatus('Sin aplicaciones en el rol. Favor de validar',400,null); 
+          return $this->returnData('Permisos',$permisos,200);  
     }
 
     /**

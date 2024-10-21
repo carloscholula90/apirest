@@ -1,8 +1,8 @@
 <?php
-namespace App\Http\Controllers\Api\general; 
+namespace App\Http\Controllers\Api\seguridad;  
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use App\Models\general\Usuario;
+use App\Models\seguridad\Usuario;
 use Illuminate\Support\Facades\Validator;
 
 class UsuarioController extends Controller{
@@ -33,37 +33,35 @@ class UsuarioController extends Controller{
         return $this->returnEstatus('Usuario gnerado',200,null); 
     }
 
-    public function show($id, $pasw = null) {         
+    public function show($id,$pasw = null) { 
         
-        if($pasw==null)     
-            $usuario = Usuario::where('uid',$id)->get();        
-        else $usuario = Usuario::where('uid',$id)->where('pasw',$pasw)->get();
+        $query = Usuario::where('uid', $id);
 
-        if (!$usuario)
+        if ($pasw !== null) 
+            $query->where('contrasena', $pasw);    
+        $usuario = $query->get();
+
+        if ($usuario->isEmpty())
             return $this->returnEstatus('Usuario no encontrado',400,null); 
         return $this->returnData('Usuario',$usuario,200);    
     }
 
-   
-    public function update(Request $request, $id){
-        $usuario = Usuario::find($id);
-        
+     public function update(Request $request){   
+       $usuario = Usuario::find($request->uid);  
+           
         if (!$usuario) 
             return $this->returnEstatus('Usuario no encontrado',400,null);
 
         $validator = Validator::make($request->all(), [
-                        'secuencia' => 'required|numeric|max:255',
                         'contrasena' => 'required|max:255'
         ]);
-
+  
         if ($validator->fails())
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        $usuario->uid = $request->uid;
-        $usuario->secuencia = $request->secuencia;
+        $usuario->uid = $request->uid;   
         $usuario->contrasena = $request->contrasena;
         $usuario->save();
-        return $this->returnEstatus('Usuario actualizado',200,null); 
-
+        return $this->returnEstatus('Contraseña actualizada',200,null); 
     }
 }
