@@ -1,17 +1,17 @@
 <?php
 
-namespace App\Models\general;
+namespace App\Models\escolar;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class TipoContacto extends Model
+class Escolaridad extends Model
 {
     use HasFactory;
-    protected $table = 'tipoContacto';
-    protected $primaryKey = 'idTipoContacto';
+    protected $table = 'escolaridad';
+    protected $primaryKey = 'idEscolaridad';
     public $incrementing = true;
     protected $keyType = 'int';
-    protected $fillable = [ 'idTipoContacto','descripcion'];
+    protected $fillable = ['idEscolaridad','descripcion'];
     public $timestamps = false;
 }
