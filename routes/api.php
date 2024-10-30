@@ -72,6 +72,10 @@ Route::prefix('idiomas')->group(function () {
     require base_path('routes/escolar/idiomas.php');
 });
 
+Route::prefix('impuestos')->group(function () {
+    require base_path('routes/tesoreria/impuestos.php');
+});
+
 Route::prefix('medios')->group(function () {
     require base_path('routes/general/medios.php');
 });
