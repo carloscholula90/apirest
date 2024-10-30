@@ -52,6 +52,10 @@ Route::prefix('direcciones')->group(function () {
     require base_path('routes/general/direcciones.php');
 });
 
+Route::prefix('documentos')->group(function () {
+    require base_path('routes/escolar/documentos.php');
+});
+
 Route::prefix('edocivil')->group(function () {
     require base_path('routes/general/edocivil.php');
 });
