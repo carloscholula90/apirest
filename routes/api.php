@@ -28,6 +28,10 @@ Route::prefix('aceptaAviso')->group(function () {
     require base_path('routes/general/aceptaAviso.php');
 });
 
+Route::prefix('alergias')->group(function () {
+    require base_path('routes/general/alergias.php');
+});
+
 Route::prefix('aplicaciones')->group(function () {
     require base_path('routes/seguridad/aplicaciones.php');
 });
@@ -46,6 +50,10 @@ Route::prefix('carreras')->group(function () {
 
 Route::prefix('ciudades')->group(function () {
     require base_path('routes/general/ciudades.php');
+});
+
+Route::prefix('documentos')->group(function () {
+    require base_path('routes/escolar/documentos.php');
 });
 
 Route::prefix('direcciones')->group(function () {
@@ -135,6 +143,10 @@ Route::prefix('rolespersona')->group(function () {
 
 Route::prefix('rolesseguridad')->group(function () {
     require base_path('routes/seguridad/rolesseguridad.php');
+});
+
+Route::prefix('tipoasignatura')->group(function () {
+    require base_path('routes/escolar/tipoasignatura.php');
 });
 
 Route::prefix('tipocontacto')->group(function () {
