@@ -14,9 +14,9 @@ class UsuarioController extends Controller{
 
     public function store(Request $request) {
         $validator = Validator::make($request->all(), [
-                            'uid' => 'required|numeric|max:255',
-                            'secuencia' => 'required|numeric|max:255',
-                            'contrasena' => 'required|max:255'
+                                        'uid' => 'required|numeric|max:255',
+                                        'secuencia' => 'required|numeric|max:255',
+                                        'contrasena' => 'required|max:255'
         ]);
 
         if ($validator->fails()) 
@@ -33,18 +33,16 @@ class UsuarioController extends Controller{
         return $this->returnEstatus('Usuario gnerado',200,null); 
     }
 
-    public function show($id,$pasw = null) { 
-        
+    public function show($id,$pasw) {         
         $query = Usuario::where('uid', $id);
-
-        if ($pasw !== null) 
-            $query->where('contrasena', $pasw); 
-
+        $query->where('contrasena', $pasw); 
         $usuario = $query->get();
 
-        //if ($usuario->isEmpty())
-            return $this->returnData('Usuario',1,200);  
-        //return $this->returnData('Usuario',1,200);    
+        if ($usuario->isEmpty())
+            return $this->returnData('Usuario',0,200);  
+        else if($usuario->contrasena = $pasw && $usuario->contrasena=$id) 
+                return $this->returnData('Usuario',1,200); 
+            else  $this->returnData('Usuario',0,200);                                                                                                    
     }
 
      public function update(Request $request){   
@@ -53,7 +51,7 @@ class UsuarioController extends Controller{
         if (!$usuario) 
             return $this->returnEstatus('Usuario no encontrado',400,null);
 
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [   
                         'contrasena' => 'required|max:255'
         ]);
   
