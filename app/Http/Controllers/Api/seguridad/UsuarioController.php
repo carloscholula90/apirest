@@ -42,9 +42,9 @@ class UsuarioController extends Controller{
 
         $usuario = $query->get();
 
-        if ($usuario->isEmpty())
-            return $this->returnData('Usuario',0,200);  
-        return $this->returnData('Usuario',1,200);    
+        //if ($usuario->isEmpty())
+            return $this->returnData('Usuario',1,200);  
+        //return $this->returnData('Usuario',1,200);    
     }
 
      public function update(Request $request){   
