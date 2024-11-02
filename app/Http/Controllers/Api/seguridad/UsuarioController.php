@@ -38,12 +38,13 @@ class UsuarioController extends Controller{
         $query = Usuario::where('uid', $id);
 
         if ($pasw !== null) 
-            $query->where('contrasena', $pasw);    
+            $query->where('contrasena', $pasw); 
+
         $usuario = $query->get();
 
         if ($usuario->isEmpty())
-            return $this->returnEstatus('Usuario no encontrado',400,null); 
-        return $this->returnData('Usuario',$usuario,200);    
+            return $this->returnData('Usuario',0,200);  
+        return $this->returnData('Usuario',1,200);    
     }
 
      public function update(Request $request){   
