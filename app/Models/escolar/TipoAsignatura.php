@@ -5,13 +5,13 @@ namespace App\Models\escolar;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Documento extends Model
+class TipoAsignatura extends Model
 {
     use HasFactory;
-    protected $table = 'documento';
-    protected $primaryKey = 'idDocumento';
+    protected $table = 'tipoAsignatura';
+    protected $primaryKey = 'idTipoAsignatura';
     public $incrementing = true;
     protected $keyType = 'int';
-    protected $fillable = ['idDocumento','descripcion'];
+    protected $fillable = ['idTipoAsignatura','descripcion'];
     public $timestamps = false;
 }
