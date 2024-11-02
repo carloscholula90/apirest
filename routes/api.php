@@ -60,6 +60,10 @@ Route::prefix('direcciones')->group(function () {
     require base_path('routes/general/direcciones.php');
 });
 
+Route::prefix('documentos')->group(function () {
+    require base_path('routes/escolar/documentos.php');
+});
+
 Route::prefix('edocivil')->group(function () {
     require base_path('routes/general/edocivil.php');
 });
@@ -78,6 +82,10 @@ Route::prefix('estados')->group(function () {
 
 Route::prefix('idiomas')->group(function () {
     require base_path('routes/escolar/idiomas.php');
+});
+
+Route::prefix('impuestos')->group(function () {
+    require base_path('routes/tesoreria/impuestos.php');
 });
 
 Route::prefix('medios')->group(function () {
