@@ -153,6 +153,10 @@ Route::prefix('tipocontacto')->group(function () {
     require base_path('routes/general/tipocontacto.php');
 });
 
+Route::prefix('turnos')->group(function () {
+    require base_path('routes/escolar/turnos.php');
+});
+
 Route::prefix('usuarios')->group(function () {
     require base_path('routes/general/usuarios.php');
 });
