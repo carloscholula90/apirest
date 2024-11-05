@@ -16,8 +16,10 @@ class Modulo extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'idModulo',
-        'descripcion'
+                            'idModulo',
+                            'descripcion',
+                            'icono',
+                            'alias'
     ];
 
 }

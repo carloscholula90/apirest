@@ -18,7 +18,10 @@ class ModuloController extends Controller
     {
 
         $validator = Validator::make($request->all(), [
-            'descripcion' => 'required|max:255'
+                            'descripcion' => 'required|max:255',
+                            'icono' => 'required|max:255',
+                            'alias' => 'required|max:255'
+
         ]);
 
         if ($validator->fails()) 
@@ -28,8 +31,10 @@ class ModuloController extends Controller
         $newId = $maxId ? $maxId+ 1 : 1;
 
         $modulos = Modulo::create([
-                        'idModulo' => $newId,
-                        'descripcion' => $request->descripcion
+                                    'idModulo' => $newId,
+                                    'descripcion' => $request->descripcion,
+                                    'icono' => $request->icono,
+                                    'alias' => $request->alias
         ]);
 
         if (!$modulos) return 
@@ -69,7 +74,9 @@ class ModuloController extends Controller
             return $this->returnEstatus('Modulo no encontrado',404,null); 
 
         $validator = Validator::make($request->all(), [
-                                'descripcion' => 'required|max:255'
+                                'descripcion' => 'required|max:255',
+                                'icono' => 'required|max:255',
+                                'alias' => 'required|max:255'
         ]);
 
         if ($validator->fails())
@@ -77,8 +84,10 @@ class ModuloController extends Controller
 
         $modulos->idModulo = $id;
         $modulos->descripcion = strtoupper(trim($request->descripcion));
-
+        $modulos->icono=$request->icono;
+        $modulos->alias=$request->alias;
         $modulos->save();
+        
         return $this->returnEstatus('Módulo actualizado',200,null); 
 
     }
