@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\escolar\Documento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Database\QueryException;
 
 class DocumentoController extends Controller{
 
@@ -25,14 +26,23 @@ class DocumentoController extends Controller{
 
         $maxId = Documento::max('idDocumento');  
         $newId = $maxId ? $maxId + 1 : 1; 
-        $documentos = Documento::create([
-                        'idDocumento' => $newId,
-                        'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        try {
+            $documentos = Documento::create([
+                'idDocumento' => $newId,
+                'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El documento ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el documento',400,null);
+        }
 
-        if (!$Documento) 
+        if (!$documentos) 
             return $this->returnEstatus('Error al crear el Documento',500,null); 
-        return $this->returnData('$documentos',$$documentos,201);   
+        return $this->returnData('$documentos',$documentos,201);   
     }
 
     public function show($idDocumento){
