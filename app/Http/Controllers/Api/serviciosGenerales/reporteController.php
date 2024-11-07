@@ -23,7 +23,7 @@ class reporteController extends Controller{
         }
        
         $input = resource_path('reportes/'.$validatedData['report_path'].'/'.$validatedData['name_report']);
-        $output = '/home1/magentad/siaweb.com.mx/temp/personas/' . pathinfo($validatedData['report_path'], PATHINFO_FILENAME);
+        $output = '/home1/magentad/siaweb.com.mx/temp/personas/';
         
         $options = ['format' => [$validatedData['format'] ?? 'pdf'],
                     'params' => array_merge($validatedData['params'] ?? [], [ 
