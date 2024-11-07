@@ -27,12 +27,18 @@ class RolController extends Controller
 
         $maxId = Rol::max('idRol');
         $newId = $maxId ? $maxId+ 1 : 1;
-
-        $roles = Rol::create([
-                        'idRol' => $newId,
-                        'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
-
+        try{
+            $roles = Rol::create([
+                            'idRol' => $newId,
+                            'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El rol ya se encuentra dado de alta',400,null);                
+            return $this->returnEstatus('Error al insertar el rol',400,null);
+        }
         if (!$roles) return 
             $this->returnEstatus('Error al crear el rol',500,null); 
         

@@ -25,10 +25,19 @@ class MedioController extends Controller
 
         $maxIdMedio = Medio::max('idMedio');
         $newIdMedio = $maxIdMedio ? $maxIdMedio + 1 : 1;
-        $medios = Medio::create([
-                            'idMedio' => $newIdMedio,
-                            'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        try{
+            $medios = Medio::create([
+                                'idMedio' => $newIdMedio,
+                                'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El medio ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el medio',400,null);
+        }
 
         if (!$medios) 
             return $this->returnEstatus('Error al crear el medio',500,null);

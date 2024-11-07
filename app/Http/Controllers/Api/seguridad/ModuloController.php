@@ -29,13 +29,21 @@ class ModuloController extends Controller
 
         $maxId = Modulo::max('idModulo');
         $newId = $maxId ? $maxId+ 1 : 1;
-
+        try{
         $modulos = Modulo::create([
                                     'idModulo' => $newId,
                                     'descripcion' => $request->descripcion,
                                     'icono' => $request->icono,
                                     'alias' => $request->alias
         ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El modulo ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el modulo',400,null);
+        }
 
         if (!$modulos) return 
             $this->returnEstatus('Error al crear el módulo',500,null); 

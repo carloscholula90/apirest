@@ -32,13 +32,13 @@ class {Nombre}Controller extends Controller{
 
         if (!${nombre}) 
             return $this->returnEstatus('Error al crear el {nombre}',500,null); 
-        return $this->returnData('${nameApi}',$${nameApi},201);   
+        return $this->returnData('${nameApi}',${nameApi},201);   
     }
 
     public function show($id{Nombre}){
         try {
-            $${nameApi} = {Nombre}::findOrFail($id{Nombre});
-            return $this->returnData('${nameApi}',$${nameApi},200);   
+            ${nameApi} = {Nombre}::findOrFail($id{Nombre});
+            return $this->returnData('${nameApi}',${nameApi},200);   
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->returnEstatus('{Nombre} no encontrado',404,null); 
         }
@@ -91,7 +91,7 @@ class {Nombre}Controller extends Controller{
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
             
         if ($request->has('id{Nombre}')) 
-            ${nombre}->id{Nombre} = $request->id{Nombre};        
+            ${nombre}->id{Nombre} = $request->id{Nombre};          
 
         if ($request->has('descripcion')) 
             ${nombre}->descripcion = strtoupper(trim($request->descripcion));        

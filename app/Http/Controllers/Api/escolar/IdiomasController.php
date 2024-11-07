@@ -35,10 +35,19 @@ class IdiomasController extends Controller
             
         $maxIdIdiomas = Idiomas::max('idIdioma');
         $newIdIdiomas = $maxIdIdiomas ? $maxIdIdiomas + 1 : 1;
-        $idiomas = Idiomas::create([
-                            'idIdioma' => $newIdIdiomas,
-                            'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        try{
+            $idiomas = Idiomas::create([
+                                'idIdioma' => $newIdIdiomas,
+                                'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+            } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El idioma ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el idioma',400,null);
+        }
 
         if (!$idiomas)
             return $this->returnEstatus('Error al crear el idioma',500,null); 

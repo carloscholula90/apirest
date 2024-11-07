@@ -39,10 +39,18 @@ class PuestoController extends Controller
 
         $maxIdPuesto = Puestos::max('idPuesto');
         $newIdPuesto = $maxIdPuesto ? $maxIdPuesto + 1 : 1;
-        $puestos = Puestos::create([
-            'idPuesto' => $newIdPuesto,
-            'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        try{
+            $puestos = Puestos::create([
+                'idPuesto' => $newIdPuesto,
+                'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El puesto ya se encuentra dado de alta',400,null);
+            return $this->returnEstatus('Error al insertar el puesto',400,null);
+        }
 
         if (!$puestos) {
             $data = [

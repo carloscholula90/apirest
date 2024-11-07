@@ -14,7 +14,7 @@ class ParentescoController extends Controller
         $parentesco = Parentesco::all();
 
         $data = [
-            'medios' => $parentesco,
+            'parentesco' => $parentesco,
             'status' => 200
         ];
 
@@ -39,10 +39,19 @@ class ParentescoController extends Controller
 
         $maxIdParentesco = Parentesco::max('idParentesco');
         $newIdParentesco = $maxIdParentesco ? $maxIdParentesco + 1 : 1;
-        $parentesco = Parentesco::create([
-            'idParentesco' => $newIdParentesco,
-            'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        try{
+            $parentesco = Parentesco::create([
+                'idParentesco' => $newIdParentesco,
+                'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El parentesco ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el parentesco',400,null);
+        }
 
         if (!$parentesco) {
             $data = [

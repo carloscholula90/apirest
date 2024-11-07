@@ -39,10 +39,19 @@ class EdoCivilController extends Controller
 
         $maxIdEdoCivil = EdoCivil::max('idEdoCivil');
         $newIdEdoCivil = $maxIdEdoCivil ? $maxIdEdoCivil + 1 : 1;
-        $edoCiviles = EdoCivil::create([
-            'idEdoCivil' => $newIdEdoCivil,
-            'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        try{
+            $edoCiviles = EdoCivil::create([
+                'idEdoCivil' => $newIdEdoCivil,
+                'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El estado civi ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el estado civil',400,null);
+        }
 
         if (!$edoCiviles) {
             $data = [

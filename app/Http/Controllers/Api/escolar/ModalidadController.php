@@ -26,10 +26,19 @@ class ModalidadController extends Controller
         $maxId = Modalidad::max('idModalidad');
         $newId = $maxId ? $maxId+ 1 : 1;
 
-        $modalidades = Modalidad::create([
-            'idModalidad' => $newId,
-            'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        try{
+            $modalidades = Modalidad::create([
+                'idModalidad' => $newId,
+                'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('La modalidad ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar la modalidad',400,null);
+        }
 
         if (!$modalidades) 
             return $this->returnEstatus('Error al crear la modalidad',500,null); 

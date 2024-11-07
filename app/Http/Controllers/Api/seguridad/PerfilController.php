@@ -27,11 +27,19 @@ class PerfilController extends Controller
 
         $maxId = Perfil::max('idPerfil');
         $newId = $maxId ? $maxId+ 1 : 1;
-
-        $perfiles = Perfil::create([
-                        'idPerfil' => $newId,
-                        'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        try{
+            $perfiles = Perfil::create([
+                            'idPerfil' => $newId,
+                            'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El perfil ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el perfil',400,null);
+        }
 
         if (!$perfiles) return 
             $this->returnEstatus('Error al crear el perfil',500,null); 

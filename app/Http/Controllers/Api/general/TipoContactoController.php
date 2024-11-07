@@ -26,10 +26,19 @@ class TipoContactoController extends Controller
         $maxId = TipoContacto::max('idTipoContacto');
         $newId = $maxId ? $maxId+ 1 : 1;
 
-        $tipocontacto = TipoContacto::create([
-            'idTipoContacto' => $newId,
-            'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        try{
+            $tipocontacto = TipoContacto::create([
+                'idTipoContacto' => $newId,
+                'descripcion' => strtoupper(trim($request->descripcion))
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El tipo de contacto ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el tipo de contacto',400,null);
+        }
 
         if (!$tipocontacto) 
             return $this->returnEstatus('Error al crear el tipo de contacto',500,null); 

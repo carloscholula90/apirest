@@ -25,20 +25,28 @@ class TurnoController extends Controller{
 
         $maxId = Turno::max('idTurno');  
         $newId = $maxId ? $maxId + 1 : 1; 
+        try{
         $turnos = Turno::create([
                         'idTurno' => $newId,
                         'descripcion' => strtoupper(trim($request->descripcion))
         ]);
 
-        if (!$Turno) 
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El turno ya se encuentra dado de alta',400,null);
+            return $this->returnEstatus('Error al insertar el turno',400,null);
+        }
+        if (!$turnos) 
             return $this->returnEstatus('Error al crear el Turno',500,null); 
         return $this->returnData('$turnos',$turnos,201);   
     }
 
     public function show($idTurno){
         try {
-            $$turnos = Turno::findOrFail($idTurno);
-            return $this->returnData('$turnos',$$turnos,200);   
+            $turnos = Turno::findOrFail($idTurno);
+            return $this->returnData('$turnos',$turnos,200);   
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->returnEstatus('Turno no encontrado',404,null); 
         }

@@ -38,11 +38,19 @@ class NivelController extends Controller
 
         $maxIdNivel = Nivel::max('idNivel');
         $newIdNivel = $maxIdNivel ? $maxIdNivel + 1 : 1;
-
-        $niveles = Nivel::create([
-                        'idNivel' => $newIdNivel,
-                        'descripcion' => $request->descripcion
-        ]);
+        try{
+            $niveles = Nivel::create([
+                            'idNivel' => $newIdNivel,
+                            'descripcion' => $request->descripcion
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El nivel ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el nivel',400,null);
+        }
 
         if (!$niveles) {
             $data = [

@@ -25,20 +25,29 @@ class ImpuestoController extends Controller{
 
         $maxId = Impuesto::max('idImpuesto');  
         $newId = $maxId ? $maxId + 1 : 1; 
+        try{
         $impuestos = Impuesto::create([
                         'idImpuesto' => $newId,
                         'descripcion' => strtoupper(trim($request->descripcion))
         ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El impuesto ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el impuesto',400,null);
+        }
 
-        if (!$Impuesto) 
+        if (!$impuestos) 
             return $this->returnEstatus('Error al crear el Impuesto',500,null); 
-        return $this->returnData('$impuestos',$$impuestos,201);   
+        return $this->returnData('$impuestos',$impuestos,201);   
     }
 
     public function show($idImpuesto){
         try {
-            $$impuestos = Impuesto::findOrFail($idImpuesto);
-            return $this->returnData('$impuestos',$$impuestos,200);   
+            $impuestos = Impuesto::findOrFail($idImpuesto);
+            return $this->returnData('$impuestos',$impuestos,200);   
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->returnEstatus('Impuesto no encontrado',404,null); 
         }

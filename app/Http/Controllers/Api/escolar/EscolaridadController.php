@@ -25,11 +25,19 @@ class EscolaridadController extends Controller
 
         $maxId = Escolaridad::max('idEscolaridad');
         $newId = $maxId ? $maxId+ 1 : 1;
-
-        $escolaridad = Escolaridad::create([
-            'idEscolaridad' => $newId,
-            'descripcion' => strtoupper(trim($request->descripcion))
+        try{
+                $escolaridad = Escolaridad::create([
+                    'idEscolaridad' => $newId,
+                    'descripcion' => strtoupper(trim($request->descripcion))
         ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('La escolaridad ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar la escolaridad',400,null);
+        }
 
         if (!$escolaridad) 
             return $this->returnEstatus('Error al crear la escolaridad',500,null); 

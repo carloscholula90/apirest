@@ -47,8 +47,8 @@ class DocumentoController extends Controller{
 
     public function show($idDocumento){
         try {
-            $$documentos = Documento::findOrFail($idDocumento);
-            return $this->returnData('$documentos',$$documentos,200);   
+            $documentos = Documento::findOrFail($idDocumento);
+            return $this->returnData('$documentos',$documentos,200);   
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->returnEstatus('Documento no encontrado',404,null); 
         }
