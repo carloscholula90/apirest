@@ -42,6 +42,7 @@ class PersonaController extends Controller{
                 'ciudad.descripcion'
             )
             ->distinct()  
+            ->take(50)
             ->get();
         return $personas;
     }
