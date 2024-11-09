@@ -46,6 +46,57 @@ class PersonaController extends Controller{
             ->get();
         return $personas;
     }
+
+    public function getPersonasLike($var)
+    {
+            // Realizar la consulta y devolver los resultados
+            Log::info('--->   Este es un mensaje de información.'.$var);  
+            $personas = Persona::leftJoin('pais', 'persona.idPais', '=', 'pais.idPais')
+            ->leftJoin('edoCivil', 'persona.idEdoCivil', '=', 'edoCivil.idEdoCivil')
+            ->leftJoin('estado', function($join) {
+                $join->on('persona.idPais', '=', 'estado.idPais')
+                    ->on('persona.idEstado', '=', 'estado.idEstado');
+            })
+            ->leftJoin('ciudad', function($join) {
+                $join->on('persona.idPais', '=', 'ciudad.idPais')
+                    ->on('persona.idEstado', '=', 'ciudad.idEstado')
+                    ->on('persona.idCiudad', '=', 'ciudad.idCiudad');
+            })
+            ->select(
+                'persona.uid',
+                'persona.curp',
+                'persona.nombre',
+                'persona.primerApellido',
+                'persona.segundoApellido',
+                'persona.fechaNacimiento',
+                'persona.sexo',
+                'edoCivil.idEdoCivil',
+                'edoCivil.descripcion as descripcionEdoCivil',
+                'pais.idPais',
+                'pais.descripcion as paisDescripcion',
+                'estado.idEstado',
+                'estado.descripcion as estadoDescripcion',
+                'ciudad.idCiudad',
+                'ciudad.descripcion'
+            )
+            ->where(function($query) use ($var) {
+                $query->where('persona.nombre', 'LIKE', '%'.$var.'%')
+                    ->orWhere('persona.primerApellido', 'LIKE', '%'.$var.'%')
+                    ->orWhere('persona.segundoApellido', 'LIKE', '%'.$var.'%')
+                    ->orWhere('persona.uid', 'LIKE', '%'.$var.'%');
+            })
+            ->distinct()
+            ->take(50)
+            ->get();
+        
+        Log::info('Número de personas encontradas: ' . $personas->count());
+        
+        if ($personas->isEmpty()) {
+            return $this->returnEstatus('No se encontraron personas.', 200, null);
+        }
+        return $this->returnData('personas', $personas, 200);
+        
+    }
     
     // Retorna todas las personas
     public function index(){    
@@ -132,7 +183,7 @@ class PersonaController extends Controller{
         if (!$persona) 
             return $this->returnEstatus('Persona no encontrada',404,null);
         return $this->returnData('persona',$persona,200);
-    }
+    }  
 
     // Elimina una persona por ID
     public function destroy($uid){
