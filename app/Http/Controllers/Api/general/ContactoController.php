@@ -1,65 +1,83 @@
 <?php
 
-namespace App\Http\Controllers\Api\general; 
-
+namespace App\Http\Controllers\Api\general;  
+use App\Http\Controllers\Controller;
+use App\Models\general\Contacto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
-class ContactoController extends Controller
-{
-   /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
+class ContactoController extends Controller{
+
+    public function index(){       
+        $contactos = Contacto::all();
+        return $this->returnData('contactos',$contactos,200);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+
+        $validator = Validator::make($request->all(), [
+                                        'uid' => 'required|numeric',
+                                        'idParentesco' => 'required|numeric',
+                                        'idTipoContacto' => 'required|numeric',
+                                        'dato' => 'required|max:255'
+        ]);
+
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+
+            $maxId =  DB::table('contacto')
+                            ->where('idParentesco', $request->idParentesco)
+                            ->where('idTipoContacto', $request->idTipoContacto)
+                            ->where('uid', $request->uid)
+                            ->max('consecutivo'); 
+            $newId = $maxId ? $maxId + 1 : 1; 
+            try {
+                $contactos = Contacto::create([
+                                            'consecutivo' => $newId,
+                                            'idParentesco' => $request->idParentesco, 
+                                            'idTipoContacto' => $request->idTipoContacto,
+                                            'uid' => $request->uid,
+                                            'dato' => strim($request->dato)
+                ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('El Contacto ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar el Contacto',400,null);
+        }
+
+        if (!$contactos) 
+            return $this->returnEstatus('Error al crear el Contacto',500,null); 
+        return $this->returnData('$contactos',$contactos,201);   
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
+    public function show($uid,$idParentesco,$idTipoContacto){
+        try {
+            $contactos =  DB::table('contacto')
+                                    ->where('idParentesco', $idParentesco)
+                                    ->where('idTipoContacto',$idTipoContacto)
+                                    ->where('uid', $uid); 
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
+            return $this->returnData('$contactos',$contactos,200);   
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->returnEstatus('Contacto no encontrado',404,null); 
+        }
     }
+    
+    public function destroy($uid,$idParentesco,$idTipoContacto,$consecutivo){
+        $contactos =  DB::table('contacto')
+                                ->where('idParentesco', $idParentesco)
+                                ->where('idTipoContacto',$idTipoContacto)
+                                ->where('uid', $uid)
+                                ->where('consecutivo',$consecutivo); 
+        $contactos->delete();
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
+        if (!$contactos) 
+            return $this->returnEstatus('Contacto no encontrado',404,null);  
+        return $this->returnEstatus('Contacto eliminado',200,null); 
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
-    }
-
 }

@@ -52,6 +52,10 @@ Route::prefix('ciudades')->group(function () {
     require base_path('routes/general/ciudades.php');
 });
 
+Route::prefix('contactos')->group(function () {
+    require base_path('routes/general/contactos.php');
+});  
+  
 Route::prefix('documentos')->group(function () {
     require base_path('routes/escolar/documentos.php');
 });

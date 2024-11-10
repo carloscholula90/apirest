@@ -18,3 +18,4 @@ class Contacto extends Model
         return $this->belongsTo(Persona::class, 'uid', 'uid');
     }
 }
+
