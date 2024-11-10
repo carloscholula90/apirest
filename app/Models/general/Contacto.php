@@ -9,6 +9,10 @@ class Contacto extends Model
 {
     use HasFactory;
     protected $table = 'contacto';
+    protected $primaryKey =null;
+    public $incrementing = false;
+    public $timestamps = false;  
+
     protected $fillable = [
         'uid', 'idParentesco', 'idTipoContacto', 'consecutivo','dato'
     ];
