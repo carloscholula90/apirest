@@ -8,4 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class Aspirante extends Model
 {
     use HasFactory;
+    protected $table = 'aspirante';
+    protected $primaryKey =null;
+    public $incrementing = false;
+    public $timestamps = false;  
+
+    protected $fillable = [
+                        'uid','secuencia','idPeriodo','idCarrera','adeudoAsignaturas','idNivel',
+                        'idMedio','publica','paisCursoGradoAnterior','estadoCursoGradoAnterior',
+                        'uidEmpleado','fechaSolicitud','matReprobada','mesReprobada','observaciones'
+    ];
 }

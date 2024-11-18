@@ -1,8 +1,10 @@
 <?php
 
 namespace App\Http\Controllers\Api\admisiones; 
-
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Validator;
+use App\Models\admisiones\Aspirante;   
 
 class AspiranteController extends Controller
 {
@@ -11,7 +13,8 @@ class AspiranteController extends Controller
      */
     public function index()
     {
-        //
+        $aspirantes = Aspirante::all();
+        return $this->returnData('aspirantes',$aspirantes,200);
     }
 
     /**
