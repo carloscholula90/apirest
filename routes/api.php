@@ -28,9 +28,6 @@ Route::prefix('aceptaAviso')->group(function () {
     require base_path('routes/general/aceptaAviso.php');
 });
 
-Route::prefix('alergias')->group(function () {
-    require base_path('routes/general/alergias.php');
-});
 
 Route::prefix('aplicaciones')->group(function () {
     require base_path('routes/seguridad/aplicaciones.php');
