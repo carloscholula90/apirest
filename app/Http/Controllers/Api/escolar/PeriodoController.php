@@ -28,17 +28,17 @@ class PeriodoController extends Controller{
 
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
-
+    
         try {
             $periodos = Periodo::create([
-                            $periodos->idPeriodo = $request->idPeriodo,
-                            $periodos->idNivel => $request->idNivel,
-                            $periodos->descripcion => strtoupper(trim($request->descripcion)),
-                            $periodos->activo =>$request->activo,
-                            $periodos->inscripciones =>$request->inscripciones,
-                            $periodos->fechaInicio =>$request->fechaInicio,
-                            $periodos->fechaTermino =>$request->fechaTermino,
-                            $periodos->inmediato =>$request->inmediato
+                            'idPeriodo' => $request->idPeriodo,
+                            'idNivel' => $request->idNivel,
+                            'descripcion' => strtoupper(trim($request->descripcion)),
+                            'activo' => $request->activo,
+                            'inscripciones' => $request->inscripciones,
+                            'fechaInicio' => $request->fechaInicio,
+                            'fechaTermino' => $request->fechaTermino,
+                            'inmediato' => $request->inmediato
                         ]);
         } catch (QueryException $e) {
             if ($e->getCode() == '23000') 
