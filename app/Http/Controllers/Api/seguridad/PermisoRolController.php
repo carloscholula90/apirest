@@ -52,32 +52,44 @@ class PermisoRolController extends Controller
      
 
 
-    /*public function store(Request $request)
+    public function store(Request $request)
     {
 
         $validator = Validator::make($request->all(), [
-            'descripcion' => 'required|max:255'
+                        'idAplicacion' => 'required|max:255',
+                        'idRol' => 'required|max:255',
         ]);
 
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        $maxId = PerfilRol::max('idPerfil');
-        $newId = $maxId ? $maxId+ 1 : 1;
+        $permisosrol = PermisoRol::join('aplicaciones','permisosRol.idAplicacion','=','aplicaciones.idAplicacion')
+                        ->join('rol','permisosRol.idRol','=','rol.idRol')
+                        ->select('aplicaciones.idAplicacion',
+                                'aplicaciones.descripcion as appDescripcion',
+                                'rol.idRol',
+                                'rol.descripcion as rolDescripcion'
+                                )
+                        ->where('permisosRol.idAplicacion', '=', $request->idAplicacion)
+                        ->where('permisosRol.idRol', '=', $request->idRol)                                        
+                        ->get();
 
-        $perfiles = PerfilRol::create([
-                        'idPerfil' => $newId,
-                        'descripcion' => strtoupper(trim($request->descripcion))
-        ]);
+        
+        if (!$permisosrol) return 
+           $this->returnEstatus('La aplicación ya se encuentra asignada al rol',500,null); 
+                   
 
-        if (!$perfiles) return 
+        $permisosrol = PermisoRol::create([
+                        'idAplicacion' =>  $request->idAplicacion,
+                        'idRol' =>  $request->idRol]);   
+
+        if (!$permisosrol) return 
             $this->returnEstatus('Error al crear el perfil',500,null); 
         
-        $perfiles = PerfilRol::findOrFail($newId);
-        return $this->returnData('perfiles',$perfiles,200);
+        return $this->returnEstatus('Se agregó con éxito',500,null); 
     }
 
-    public function update(Request $request, $id)
+  /*  public function update(Request $request, $id)
     {
         $perfiles = PerfilRol::find($id);
 

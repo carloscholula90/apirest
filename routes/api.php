@@ -2,7 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\serviciosGenerales\reporteController;
 
 /* Validar conexión a la BD http://127.0.0.1:8000/api/test-db*/
 Route::get('/test-db', function () {
@@ -169,7 +168,5 @@ Route::prefix('turnos')->group(function () {
 Route::prefix('usuarios')->group(function () {
     require base_path('routes/general/usuarios.php');
 });
-
-Route::post('/generate-report', [reporteController::class, 'generateReport']);
-
+   
 #Este es un comentario para probar el fech y el pull..
