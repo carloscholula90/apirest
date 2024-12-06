@@ -8,8 +8,7 @@ use Illuminate\Support\Facades\Validator;
 
 class EdoCivilController extends Controller
 {
-    public function index(){
-       
+    public function index(){      
        
         $edoCiviles = EdoCivil::all();
 
@@ -66,9 +65,7 @@ class EdoCivilController extends Controller
             'edoCivil' => $edoCiviles,
             'status' => 201
         ];
-
         return response()->json($data, 201);
-
     }
 
     public function show($idEdoCivil){
@@ -94,22 +91,18 @@ class EdoCivilController extends Controller
     
     public function destroy($idEdoCivil){
         $edoCiviles = EdoCivil::find($idEdoCivil);
-
         if (!$edoCiviles) {
             $data = [
                 'message' => 'Estado Civil no encontrado',
                 'status' => 404
             ];
             return response()->json($data, 404);
-        }
-        
+        }        
         $edoCiviles->delete();
-
         $data = [
             'message' => 'Estado Civil eliminado',
             'status' => 200
         ];
-
         return response()->json($data, 200);
     }
 
@@ -146,4 +139,14 @@ class EdoCivilController extends Controller
      {
         $this->imprimeCtl('edoCivil'," ESTADO CIVIL ");
      }   
+
+    /**
+     * Exporta los datos de una tabla a Excel.
+     *
+     * @param string $tableName Nombre de la tabla.
+     * @return Response
+     */
+    public function exportaExcel() {             
+        $this->exportaXLS('edoCivil','idEdoCivil');     
+    }
 }

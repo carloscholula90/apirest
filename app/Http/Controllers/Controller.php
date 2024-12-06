@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB; 
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExport;   
 
 abstract class Controller
-{
+{   
  
  /**  
  * Devuelve una respuesta JSON con un mensaje de estado, código y posibles errores.
@@ -87,4 +89,14 @@ abstract class Controller
         );
     }
 
+    /**
+     * Exporta los datos de una tabla a Excel.
+     *
+     * @param string $tableName Nombre de la tabla.
+     * @return Response
+     */
+    public function exportaXLS($tableName,$nameId)
+    {   
+        return Excel::download(new GenericTableExport($tableName,$nameId), $tableName . '_reporte.xlsx');
+    }  
 }
