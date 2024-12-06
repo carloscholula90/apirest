@@ -10,11 +10,13 @@ class GenericTableExport implements FromQuery, WithHeadings
 {   
     protected $tableName;
     protected $nameId;
+    protected $headers;
 
-    public function __construct($tableName,$nameId)
+    public function __construct($tableName,$nameId,$headers = [])
     {
         $this->tableName = $tableName;
         $this->nameId = $nameId;
+        $this->headers = $headers;
     }
 
     public function query()
@@ -23,9 +25,6 @@ class GenericTableExport implements FromQuery, WithHeadings
     }
 
     public function headings(): array {  
-        $firstRow = DB::table($this->tableName)->orderBy($this->nameId)->first();
-        if ($firstRow === null) 
-            return [];     
-        return array_keys((array) $firstRow);
+        return $this->headers;
     }  
 }

@@ -146,7 +146,8 @@ class EdoCivilController extends Controller
      * @param string $tableName Nombre de la tabla.
      * @return Response
      */
-    public function exportaExcel() {             
-        $this->exportaXLS('edoCivil','idEdoCivil');     
+    public function exportaExcel() {
+        $headers = ['Clave', 'Descripción'];                 
+        $this->exportaXLS('edoCivil','idEdoCivil',$headers);     
     }
 }

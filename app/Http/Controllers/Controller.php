@@ -95,8 +95,8 @@ abstract class Controller
      * @param string $tableName Nombre de la tabla.
      * @return Response
      */
-    public function exportaXLS($tableName,$nameId)
+    public function exportaXLS($tableName,$nameId,$headers = [])
     {   
-        return Excel::download(new GenericTableExport($tableName,$nameId), $tableName . '_reporte.xlsx');
+        return Excel::download(new GenericTableExport($tableName,$nameId,$headers), $tableName . '_reporte.xlsx');
     }  
 }
