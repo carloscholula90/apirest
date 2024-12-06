@@ -142,4 +142,8 @@ class EdoCivilController extends Controller
         ], 200);
     }
 
+    public function generaReporte()
+     {
+        $this->imprimeCtl('edoCivil'," ESTADO CIVIL ");
+     }   
 }

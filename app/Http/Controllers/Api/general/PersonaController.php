@@ -58,7 +58,6 @@ class PersonaController extends Controller{
     public function getPersonasLike($var)
     {
             // Realizar la consulta y devolver los resultados
-            Log::info('--->   Este es un mensaje de información.'.$var);  
             $personas = Persona::leftJoin('pais', 'persona.idPais', '=', 'pais.idPais')
             ->leftJoin('edoCivil', 'persona.idEdoCivil', '=', 'edoCivil.idEdoCivil')
             ->leftJoin('estado', function($join) {
@@ -257,15 +256,21 @@ class PersonaController extends Controller{
       // Función para generar el reporte de personas
     public function generaReportePersonas()
      {
-         // Datos de ejemplo que podrías obtener de la base de datos
-        $data = [
-            ['columna1' => 'Dato 1', 'columna2' => 'Dato A'],
-            ['columna1' => 'Dato 2', 'columna2' => 'Dato B'],
-            ['columna1' => 'Dato 3', 'columna2' => 'Dato C'],
-        ];
-
-        // Llamar al servicio para generar el reporte PDF      
-        return $this->pdfController->generateReport($data, 'Reporte de Personas');
+        $personas = $this->getPersonas();
+    
+        // Si no hay personas, devolver un mensaje de error
+        if ($personas->isEmpty())
+            return $this->returnEstatus('No se encontraron personas para generar el reporte',404,null);
+        
+        $headers = ['UID', 'Primer Apellido', 'Segundo Apellido', 'Nombre','CURP',  'Fecha de Nacimiento', 'Sexo'];
+        $columnWidths = [80,100,120, 120, 140, 100, 50];   
+        $keys = ['uid','primerApellido','segundoApellido','nombre','curp','fechaNacimiento','sexo'];
+       
+        $personasArray = $personas->map(function ($persona) {
+            return $persona->toArray();
+        })->toArray();   
+    
+        return $this->pdfController->generateReport($personasArray,$columnWidths,$keys , 'REPORTE DE PERSONAS', $headers,'L','letter');
       
     }  
 }

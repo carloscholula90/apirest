@@ -7,7 +7,10 @@ class CustomTCPDF extends TCPDF
 {
     private $imagePathEnc;
     private $imagePathPie;
-    
+    private $orientation;
+    private $headers;
+    private $columnWidths;
+    public $title;
 
     // Constructor para recibir las rutas de las imágenes
     public function __construct($orientation = 'P', $unit = 'mm', $size = 'A4', $unicode = true, $encoding = 'UTF-8', $diskcache = false)
@@ -19,7 +22,7 @@ class CustomTCPDF extends TCPDF
     }   
 
     // Método para establecer las rutas de las imágenes
-    public function setImagePaths($encPath, $piePath)
+    public function setImagePaths($encPath, $piePath,$orientation)
     {
         $this->imagePathEnc = $encPath;
         $this->imagePathPie = $piePath;
@@ -28,35 +31,47 @@ class CustomTCPDF extends TCPDF
     // Sobrecargar el método Header() para agregar la imagen de encabezado
     public function Header()
     {
-        if ($this->imagePathEnc) {
-            $this->Image($this->imagePathEnc, 15, 0, 180, 0, '', '', '', false, 300);  // Colocar imagen de encabezado
+       $this->Image($this->imagePathEnc, 15, 0, 180, 0, '', '', '', false, 300);  // Colocar imagen de encabezado     
+       // Título del reporte
+       $this->SetFont('TitilliumWeb-Bold', '', 14); 
+       $this->MultiCell(0, 30,"\n\n\n\n". $this->title, 0, 'R', 0, 1, '', '', false);   
+       $html = '<br><br><table border="0" cellpadding="0">';   
+       $this->SetFont('TitilliumWeb-Bold', '', 12);  // Fuente en negrita para los encabezados
+        if ($this->headers) {
+            $html .= '<tr>';   
+            foreach ($this->headers as $index => $header)
+                $html .= '<th width="' . $this->columnWidths[$index] . '">' . htmlspecialchars($header) . '</th>';
+            $html .= '</tr>';
         }
+        $html .= '</table>';     
+        $this->writeHTML($html, true, false, true, false, '');          
     }
 
     // Sobrecargar el método Footer() para agregar el pie de página y el número de página
     public function Footer()
     {
-        if ($this->imagePathPie)     
-            $this->Image($this->imagePathPie, 5, 286, 180, 0, '', '', '', false, 300);  // Colocar imagen del pie de página
+        if ($this->imagePathPie && $this->CurOrientation === "P") 
+            $this->Image($this->imagePathPie, 5, 286, 180, 0, '', '', '', false, 300);  // Imagen pie de página
+         else $this->Image($this->imagePathPie, 120, 200, 180, 0, '', '', '', false, 300);  // Imagen en otra posición
         
-        $this->SetY(-15);  // Colocar el pie de página a 15mm desde el borde inferior
+        $this->SetY(-15);
         $this->SetFont('TitilliumWeb-Regular', '', 10);
-       // Posicionamos el cursor en el borde izquierdo de la página
-        $this->SetX(10);  // Mover el cursor 10 unidades desde la izquierda
-        $this->Cell(90, 10, date('d/m/Y H:i:s'), 0, 0, 'L');  // Fecha y hora a la izquierda
+        $this->SetX(10);
+        $this->Cell(90, 10, date('d/m/Y H:i:s'), 0, 0, 'L');
+        $this->SetX(90);
+        $this->Cell(90, 10, 'SIAWEB', 0, 0, 'C');
+        $this->SetX(180);
+        $this->Cell(0, 10, 'Página ' . $this->getAliasNumPage() . ' de ' . $this->getAliasNbPages(), 0, 0, 'R');
+    }  
 
-        // Mover el cursor al centro (por ejemplo, 10 unidades después del borde izquierdo y luego centramos)
-        $this->SetX(90); // Mover el cursor un poco más
-        $this->Cell(90, 10, 'SIAWEB', 0, 0, 'C'); // SIAWEB centrado
-
-        // Mover el cursor al final de la página para la parte derecha      
-        $this->SetX(180);  // Mover a la posición final (derecha)
-        $this->Cell(0, 10, 'Página ' . $this->getPage() . ' de ' . $this->getPages(), 0, 0, 'R');  // Número de página a la derecha   
-    }
-  
     public function getPages()
     {
-        // Define aquí lo que necesitas. Por ejemplo:
         return $this->getNumPages();   
+    }
+
+    public function setHeaders($headers,$columnWidths,$title) {
+        $this->headers = $headers;
+        $this->columnWidths= $columnWidths;
+        $this->title=$title;     
     }
 }

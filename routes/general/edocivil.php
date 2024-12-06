@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [EdoCivilController::class, 'index']);
 Route::get('/{idEdoCivil}', [EdoCivilController::class, 'show']);
 Route::post('/create', [EdoCivilController::class, 'store']);  
+Route::post('/imprime', [EdoCivilController::class, 'generaReporte']);     
 Route::put('/{idEdoCivil}', [EdoCivilController::class, 'update']);
 Route::delete('/{idEdoCivil}', [EdoCivilController::class, 'destroy']);
   

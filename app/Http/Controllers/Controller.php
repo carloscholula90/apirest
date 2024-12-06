@@ -1,6 +1,9 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Api\serviciosGenerales\pdfController;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB; 
 
 abstract class Controller
 {
@@ -47,4 +50,41 @@ abstract class Controller
         ];
         return response()->json($data, $status);
     }
+
+    /**
+     * 
+     */
+    public function imprimeCtl($tableName, $name)
+    {
+        // Verificar si la tabla existe
+        if (!Schema::hasTable($tableName)) {
+            return $this->returnEstatus('La tabla no existe.', 404, null);
+        }
+
+        // Obtener las columnas de la tabla
+        $columns = Schema::getColumnListing($tableName);
+
+        // Consultar los datos de la tabla
+        $data = DB::table($tableName)->get();
+
+        // Convertir los datos a un formato de arreglo asociativo
+        $dataArray = $data->map(function ($item) {
+            return (array) $item;
+        })->toArray();
+
+        // Definir los encabezados y anchos de columna para el PDF
+        $headers = ['CLAVE','DESCRIPCIÓN'];
+        $columnWidths = [100,300]; // Ajusta los anchos según sea necesario
+
+        // Generar el PDF
+        $pdfController = new pdfController();
+        return $pdfController->generateReport(
+            $dataArray,  // Datos
+            $columnWidths, // Anchos de columna
+            $columns, // Claves
+            'CATÁLOGO DE ' . $name, // Título del reporte
+            $headers // Encabezados   
+        );
+    }
+
 }
