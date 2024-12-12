@@ -157,6 +157,10 @@ Route::prefix('tipoasignatura')->group(function () {
     require base_path('routes/escolar/tipoasignatura.php');
 });
 
+Route::prefix('salud')->group(function () {
+    require base_path('routes/general/salud.php');    
+});
+
 Route::prefix('tipocontacto')->group(function () {
     require base_path('routes/general/tipocontacto.php');
 });

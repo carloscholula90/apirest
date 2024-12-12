@@ -7,5 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class salud extends Model
 {
-    use HasFactory;
+    protected $table = 'salud';
+    protected $primaryKey = null;
+    public $incrementing = false;
+    public $timestamps = false;
+
+    protected $fillable = [ 'uid',
+                            'secuencia',
+                            'enfermedad',
+                            'medico',
+                            'telefono'
+    ];
 }
