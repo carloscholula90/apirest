@@ -80,8 +80,8 @@ Route::prefix('estados')->group(function () {
     require base_path('routes/general/estados.php');
 });
 
-Route::prefix('estados')->group(function () {
-    require base_path('routes/general/estados.php');
+Route::prefix('formaspagos')->group(function () {
+    require base_path('routes/tesoreria/formaspagos.php');
 });
 
 Route::prefix('idiomas')->group(function () {
