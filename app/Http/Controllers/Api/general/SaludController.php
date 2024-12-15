@@ -52,7 +52,7 @@ class SaludController extends Controller
             $salud = Salud::select('uid','secuencia','enfermedad','medico','telefono')
                             ->where('uid',$uid)
                             ->get();      
-            if (!$salud) 
+            if ($salud) 
                 return $this->returnData('salud',$salud,200);     
             else return $this->returnEstatus('Registro no encontrado',404,null); 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
