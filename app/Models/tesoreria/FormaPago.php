@@ -16,6 +16,7 @@ class FormaPago extends Model
 
     protected $fillable = [
                         'idFormaPago',
-                        'descripcion'
+                        'descripcion',
+                        'solicita4digitos'
     ];
 }

@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\Log;
 
 class {Nombre}Controller extends Controller{
 
+    protected $pdfController;
+
+    // Inyección de la clase PdfReportGenerator
+    public function __construct(pdfController $pdfController)
+    {
+        $this->pdfController = $pdfController;
+    }
+
+
     public function index(){       
         ${nameApi} = {Nombre}::all();
         return $this->returnData('{nameApi}',${nameApi},200);
@@ -120,8 +129,8 @@ class {Nombre}Controller extends Controller{
          if (${nombre}->isEmpty())
              return $this->returnEstatus('No se encontraron datos para generar el reporte',404,null);
          
-         $headers = ['Id', 'descripcion'];
-         $columnWidths = [80,100];   
+         $headers = ['ID', 'DESCRIPCION'];
+         $columnWidths = [80,500];   
          $keys = ['id{Nombre}', 'descripcion'];
         
          ${nombre}Array = ${nombre}->map(function (${nombre}) {

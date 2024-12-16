@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\Log;
 
 class FormaPagoController extends Controller{
 
+    protected $pdfController;
+
+    // Inyección de la clase PdfReportGenerator
+    public function __construct(pdfController $pdfController)
+    {
+        $this->pdfController = $pdfController;
+    }
+
+
     public function index(){       
         $formaspagos = FormaPago::all();
         return $this->returnData('formaspagos',$formaspagos,200);
@@ -56,20 +65,20 @@ class FormaPagoController extends Controller{
     }
     
     public function destroy($idFormaPago){
-        $FormaPago = FormaPago::find($idFormaPago);
+        $formasPagos = FormaPago::find($idFormaPago);
 
-        if (!$FormaPago) 
+        if (!$formasPagos) 
             return $this->returnEstatus('Forma de pago no encontrado',404,null);             
         
-            $FormaPago->delete();
+            $formasPagos->delete();
         return $this->returnEstatus('Forma de pago eliminado',200,null); 
     }
 
     public function update(Request $request, $idFormaPago){
 
-        $FormaPago = FormaPago::find($idFormaPago);
+        $formasPagos = FormaPago::find($idFormaPago);
         
-        if (!$FormaPago) 
+        if (!$formasPagos) 
             return $this->returnEstatus('FormaPago no encontrado',404,null);             
 
         $validator = Validator::make($request->all(), [
@@ -80,17 +89,17 @@ class FormaPagoController extends Controller{
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
             
-        $FormaPago->idFormaPago = $request->idFormaPago;
-        $FormaPago->descripcion = strtoupper(trim($request->descripcion));
-        $FormaPago->save();
-        return $this->returnData('FormaPago',$FormaPago,200);
+        $formasPagos->idFormaPago = $request->idFormaPago;
+        $formasPagos->descripcion = strtoupper(trim($request->descripcion));
+        $formasPagos->save();
+        return $this->returnData('FormaPago',$formasPagos,200);
     }
 
     public function updatePartial(Request $request, $idFormaPago){
 
-        $FormaPago = FormaPago::find($idFormaPago);
+        $formasPagos = FormaPago::find($idFormaPago);
         
-        if (!$FormaPago) 
+        if (!$formasPagos) 
             return $this->returnEstatus('Forma de pago no encontrado',404,null);             
 
         $validator = Validator::make($request->all(), [
@@ -102,33 +111,45 @@ class FormaPagoController extends Controller{
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
             
         if ($request->has('idFormaPago')) 
-            $FormaPago->idFormaPago = $request->idFormaPago;        
+            $formasPagos->idFormaPago = $request->idFormaPago;        
 
         if ($request->has('descripcion')) 
-            $FormaPago->descripcion = strtoupper(trim($request->descripcion));        
+            $formasPagos->descripcion = strtoupper(trim($request->descripcion));        
 
-        $FormaPago->save();
+        $formasPagos->save();
         return $this->returnEstatus('FormaPago actualizado',200,null);    
+    }
+
+    public function getFormaPago()
+    {
+        // Realizar la consulta y devolver los resultados
+        $formasPagos = FormaPago::select(
+                'idFormaPago',
+                'descripcion',
+                'solicita4digitos'
+            )
+            ->get();
+        return $formasPagos;
     }
 
       // Función para generar el reporte de personas
       public function generaReport()
       {
-        $FormaPago = $this->FormaPago::all();
+        $formasPagos = $this->getFormaPago();  
      
          // Si no hay personas, devolver un mensaje de error
-         if ($FormaPago->isEmpty())
+         if ($formasPagos->isEmpty())
              return $this->returnEstatus('No se encontraron datos para generar el reporte',404,null);
          
-         $headers = ['Id', 'descripcion'];
-         $columnWidths = [80,100];   
+         $headers = ['ID', 'DESCRIPCION'];
+         $columnWidths = [80,500];   
          $keys = ['idFormaPago', 'descripcion'];
         
-         $FormaPagoArray = $FormaPago->map(function ($FormaPago) {
-             return $FormaPago->toArray();
+         $formasPagosArray = $formasPagos->map(function ($formasPagos) {
+             return $formasPagos->toArray();
          })->toArray();   
      
-         return $this->pdfController->generateReport($FormaPagoArray,$columnWidths,$keys , 'REPORTE DE FORMA DE PAGO', $headers,'L','letter');
+         return $this->pdfController->generateReport($formasPagosArray,$columnWidths,$keys , 'REPORTE DE FORMA DE PAGO', $headers,'L','letter');
        
      }  
 }
