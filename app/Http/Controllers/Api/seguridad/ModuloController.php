@@ -5,9 +5,19 @@ use App\Http\Controllers\Controller;
 use App\Models\seguridad\Modulo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 
 class ModuloController extends Controller
 {
+
+    protected $pdfController;
+
+    // Inyección de la clase PdfReportGenerator
+    public function __construct(pdfController $pdfController)
+    {
+        $this->pdfController = $pdfController;
+    }
+       
     public function index()
     {
         $modulos = Modulo::all();
@@ -99,4 +109,24 @@ class ModuloController extends Controller
         return $this->returnEstatus('Módulo actualizado',200,null); 
 
     }
+
+    // Función para generar el reporte de personas
+    public function generaReporte()
+     {
+        $modulos = Modulo::all();    
+        // Si no hay personas, devolver un mensaje de error
+        if ($modulos->isEmpty())
+            return $this->returnEstatus('No se encontraron personas para generar el reporte',404,null);
+        
+        $headers = ['Clave', 'Descripción','Ícono','Alias'];
+        $columnWidths = [80,100,80,80];   
+        $keys = ['idModulo','descripcion','icono','alias'];
+       
+        $modulosArray = $modulos->map(function ($modulos) {
+            return $modulos->toArray();
+        })->toArray();   
+    
+        return $this->pdfController->generateReport($modulosArray,$columnWidths,$keys , 'REPORTE DE MÓDULOS', $headers,'L','letter');
+      
+    }  
 }
