@@ -119,14 +119,15 @@ class ModuloController extends Controller
             return $this->returnEstatus('No se encontraron personas para generar el reporte',404,null);
         
         $headers = ['Clave', 'Descripción','Ícono','Alias'];
-        $columnWidths = [80,100,80,80];   
+        $columnWidths = [80,150,80,80];   
         $keys = ['idModulo','descripcion','icono','alias'];
        
         $modulosArray = $modulos->map(function ($modulos) {
             return $modulos->toArray();
         })->toArray();   
     
-        return $this->pdfController->generateReport($modulosArray,$columnWidths,$keys , 'REPORTE DE MÓDULOS', $headers,'L','letter');
+        return $this->pdfController->generateReport($modulosArray,$columnWidths,$keys , 'REPORTE DE MÓDULOS', $headers,'L','letter',
+        'rptModulos'.mt_rand(1, 100).'pdf');
       
     }  
 }
