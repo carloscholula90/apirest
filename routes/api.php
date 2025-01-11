@@ -27,6 +27,9 @@ Route::prefix('aceptaAviso')->group(function () {
     require base_path('routes/general/aceptaAviso.php');
 });
 
+Route::prefix('alumnos')->group(function () {
+    require base_path('routes/escolar/alumnos.php');
+});
 
 Route::prefix('aplicaciones')->group(function () {
     require base_path('routes/seguridad/aplicaciones.php');
