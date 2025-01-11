@@ -60,13 +60,12 @@ class PdfController extends Controller
         // Ahora puedes verificar si el archivo se ha guardado correctamente en la ruta especificada.
         if (file_exists($filePath)) {
             return response()->json([
-                'status' => 'success',
-                'message' => 'Reporte generado correctamente',
-                'filePath' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
-                'status' => 'error',
+                'status' => 500,
                 'message' => 'Error al generar el reporte'
             ]);
         }    
