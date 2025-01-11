@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 
 class PdfController extends Controller
 {
-    public function generateReport(array $data, array $columnWidths = null, array $keys = null, string $title = 'Reporte PDF', array $headers = null, string $orientation = 'P', string $size = 'letter',string $nameReport=null)
+    public function generateReport(array $data, array $columnWidths = null, array $keys = null, string $title = 'Reporte PDF', array $headers = null, string $orientation = 'L', string $size = 'letter',string $nameReport=null)
     {
         // Rutas de las imágenes para el encabezado y pie
         $imagePathEnc = public_path('images/encPag.png');
@@ -62,7 +62,7 @@ class PdfController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Reporte generado correctamente',
-                'filePath' => $filePath // Puedes devolver la ruta para fines de depuración
+                'filePath' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([

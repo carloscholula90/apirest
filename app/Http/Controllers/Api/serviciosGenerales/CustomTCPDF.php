@@ -13,12 +13,12 @@ class CustomTCPDF extends TCPDF
     public $title;
 
     // Constructor para recibir las rutas de las imágenes
-    public function __construct($orientation = 'P', $unit = 'mm', $size = 'A4', $unicode = true, $encoding = 'UTF-8', $diskcache = false)
+    public function __construct($orientation = 'L', $unit = 'mm', $size = 'A4', $unicode = true, $encoding = 'UTF-8', $diskcache = false)
     {
         parent::__construct($orientation, $unit, $size, $unicode, $encoding, $diskcache);
-        $this->AddFont('TitilliumWeb-Regular', '', 'TitilliumWeb-Regular.php'); // Regular
-        $this->AddFont('TitilliumWeb-Bold', 'B', 'TitilliumWeb-Bold.php');   // Bold
-        $this->AddFont('TitilliumWeb-Italic', 'I', 'TitilliumWeb-Italic.php'); // Italic
+        //$this->AddFont('TitilliumWeb-Regular', '', 'TitilliumWeb-Regular.php'); // Regular
+        //$this->AddFont('TitilliumWeb-Bold', 'B', 'TitilliumWeb-Bold.php');   // Bold
+        //$this->AddFont('TitilliumWeb-Italic', 'I', 'TitilliumWeb-Italic.php'); // Italic
     }   
 
     // Método para establecer las rutas de las imágenes
@@ -33,10 +33,10 @@ class CustomTCPDF extends TCPDF
     {
        $this->Image($this->imagePathEnc, 15, 0, 180, 0, '', '', '', false, 300);  // Colocar imagen de encabezado     
        // Título del reporte
-       $this->SetFont('TitilliumWeb-Bold', '', 14); 
+       //$this->SetFont('TitilliumWeb-Bold', '', 14); 
        $this->MultiCell(0, 30,"\n\n\n\n". $this->title, 0, 'R', 0, 1, '', '', false);   
        $html = '<br><br><table border="0" cellpadding="0">';   
-       $this->SetFont('TitilliumWeb-Bold', '', 12);  // Fuente en negrita para los encabezados
+       //$this->SetFont('TitilliumWeb-Bold', '', 12);  // Fuente en negrita para los encabezados
         if ($this->headers) {
             $html .= '<tr>';   
             foreach ($this->headers as $index => $header)
@@ -55,7 +55,7 @@ class CustomTCPDF extends TCPDF
          else $this->Image($this->imagePathPie, 120, 200, 180, 0, '', '', '', false, 300);  // Imagen en otra posición
         
         $this->SetY(-15);
-        $this->SetFont('TitilliumWeb-Regular', '', 10);
+        //$this->SetFont('TitilliumWeb-Regular', '', 10);
         $this->SetX(10);
         $this->Cell(90, 10, date('d/m/Y H:i:s'), 0, 0, 'L');
         $this->SetX(90);

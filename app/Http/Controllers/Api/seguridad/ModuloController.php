@@ -124,7 +124,7 @@ class ModuloController extends Controller
        
         $modulosArray = $modulos->map(function ($modulos) {
             return $modulos->toArray();
-        })->toArray();   
+        })->toArray();     
     
         return $this->pdfController->generateReport($modulosArray,$columnWidths,$keys , 'REPORTE DE MÓDULOS', $headers,'L','letter',
         'rptModulos'.mt_rand(1, 100).'.pdf');
