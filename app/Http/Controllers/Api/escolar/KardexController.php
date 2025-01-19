@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
   
 class KardexController extends Controller
 {
@@ -30,6 +31,7 @@ class KardexController extends Controller
                         ->join('nivel as n', 'n.idNivel', '=', 'cl.idNivel')
                         ->select(
                                     'n.descripcion',
+                                    'alumno.matricula',
                                     'carrera.descripcion as carrera',
                                     'per.descripcion as periodo',
                                     'p.UID as estudiante',
@@ -38,11 +40,11 @@ class KardexController extends Controller
                                     'p.segundoApellido as apellidomat',
                                     'g.idAsignatura',
                                     'a.descripcion as asignatura',
+                                    'per.idPeriodo',  
                                     'a.creditos',
                                     'ca.cf as calificacion',
                                     'e.descripcion as tipo',
-                                    DB::raw('CONLETRA(ca.cf) as califConLetra',
-                                    'ROW_NUMBER() OVER (PARTITION BY cl.idPeriodo ORDER BY cl.idPeriodo) AS rownum')
+                                    DB::raw('CONLETRA(ca.cf) as califConLetra')
                         )
                         ->where('cl.uid', $id)
                         ->where('alumno.idNivel', $idNivel)
@@ -54,15 +56,15 @@ class KardexController extends Controller
         if ($results->isEmpty())
             return $this->returnEstatus('No existen datos para generar el kardex',404,null);
         
-        $headers = ['Clave', 'Asignatura','Calif','Calificación con letra','Tipo','Periodo','Créditos'];
-        $columnWidths = [80,150,80,200,80,150,80];   
-        $keys = ['idAsignatura','asignatura','calificacion','califConLetra','tipo','periodo','creditos','rownum'];
+        $headers = ['Clave', 'Asignatura','Créditos','Calif','Calificación con letra','Tipo','Periodo'];
+        $columnWidths = [80,150,80,70,110,80,100];   
+        $keys = ['idAsignatura','asignatura','creditos','calificacion','califConLetra','tipo','periodo',];
        
         $resultsArray = $results->map(function ($item) {
             return (array) $item; // Convertir cada stdClass a un arreglo
         })->toArray();       
     
-        return $this->generateReport($resultsArray,$columnWidths,$keys , 'UNIVERSIDAD ALVA EDISON', $headers,'L','letter',
+        return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX SIMPLE', $headers,'L','letter',
         'rptKardex'.mt_rand(1, 100).'.pdf');
       
     }
@@ -77,7 +79,7 @@ class KardexController extends Controller
         $pdf = new CustomTCPDF($orientation, PDF_UNIT, $size, true, 'UTF-8', false);
         
         // Configurar los encabezados, las rutas de las imágenes y otros parámetros
-        $pdf->setHeaders($headers, $columnWidths, $title);
+        $pdf->setHeaders(null, $columnWidths, $title);
         $pdf->setImagePaths($imagePathEnc, $imagePathPie, $orientation);
         
         // Configurar las fuentes
@@ -92,24 +94,66 @@ class KardexController extends Controller
 
         // Establecer fuente para el cuerpo del documento
         $pdf->SetFont('helvetica', '', 8);
-        $html2 = "<p>Nivel:</p>";
-        $html2 = "<br><p>Carrera:</p>";
-        $html2 = "<br><p>Matrícula:</p>";
-        $html2 = "<br><p>Nombre:</p>";
-        $html2 = "<br><p>Plan:</p><br><hr>";
-
-        // Generar la tabla HTML para los datos
+         // Generar la tabla HTML para los datos
         $html2 = '<table border="0" cellpadding="1">';
-        foreach ($data as $row) {
+        $generalesRow = $data[0];
+
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Nivel:</b> '.$generalesRow['descripcion'].'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Carrera:</b> '.$generalesRow['carrera'].'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>UID:</b> '.$generalesRow['estudiante'].'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Matricula:</b> '.$generalesRow['matricula'].'</td></tr>';  
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Nombre:</b> '.$generalesRow['nombre'].' '.$generalesRow['apellidopat'].$generalesRow['apellidomat'].'</td></tr>';
+        $html2 .= '<tr><td colspan="7"></td></tr>';
+        $html2 .= '<tr><td colspan="7"></td></tr>';
+        $html2 .= '<tr>';
+       
+        foreach ($headers as $index => $header)
+            $html2 .= '<td style="font-size: 9px;" width="' . $columnWidths[$index] . '"><b>' . htmlspecialchars($header) . '</b></td>';
+        $html2 .= '</tr>';
+
+        $matAprobadas=0;
+        $matReprobadas=0;
+        $promedio =0;
+        foreach ($data as $index2 => $row) {
+            $period = 0;
+            $actualPeriodo = isset($row['idPeriodo']) ? $row['idPeriodo'] : 0;  // Acceder directamente a 'periodo'
+
+            // Si no es la última fila de los datos, obtiene el 'periodo' de la siguiente fila
+            if ($index2 + 1 < count($data)) {
+                $nextRow = $data[$index2 + 1];
+                $period =isset($nextRow['idPeriodo']) ? $nextRow['idPeriodo'] : 0; 
+            }
+     
+            if ($actualPeriodo != $period)   
+                $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
+       
             $html2 .= '<tr>';
+
             foreach ($keys as $index => $key) {
                 $value = isset($row[$key]) ? $row[$key] : '';     
-                if($value==1 && $key=='rownum')  
-                     $html2 .= '<br>';    
-                else $html2 .= '<td width="' . $columnWidths[$index] . '">' . htmlspecialchars((string)$value) . '</td>';
+                $html2 .= '<td width="' . $columnWidths[$index] . '">' . htmlspecialchars((string)$value) . '</td>';
+                if ($key == 'calificacion') {
+                    if ((float)$value > 7) 
+                        $matAprobadas++; 
+                    else $matReprobadas++; 
+                    $promedio += (float)$value; // Suma la calificación al promedio (si es necesario)
+                }
             }
-            $html2 .= '</tr>';
+        $html2 .= '</tr>';
         }
+        //detalle
+        $promedioFinal = round($promedio/count($data), 2);
+        $html2 .= '<tr><td colspan="7"></td></tr>';
+        $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
+        $html2 .= '<tr><td colspan="7"></td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias cursadas:</b> '.count($data).'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias aprobadas:</b> '.$matAprobadas.'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias reprobadas:</b> '.$matReprobadas.'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Promedio:</b> '.$promedioFinal.'</td></tr>';
+       
+        $html2 .= '<tr><td colspan="7"></td></tr>';
+        $html2 .= '<tr><td colspan="7"></td></tr>';
+        
         $html2 .= '</table>';
 
         // Escribir la tabla en el PDF
