@@ -56,14 +56,12 @@ class CustomTCPDF extends TCPDF
         if ($this->imagePathPie && $this->CurOrientation === "P") 
             $this->Image($this->imagePathPie, 5, 286, 180, 0, '', '', '', false, 300);  // Imagen pie de página
          else $this->Image($this->imagePathPie, 120, 200, 180, 0, '', '', '', false, 300);  // Imagen en otra posición
-        
+       
         $this->SetY(-15);
         //$this->SetFont('TitilliumWeb-Regular', '', 10);
         $this->SetX(10);
-        $this->Cell(90, 10, date('d/m/Y H:i:s'), 0, 0, 'L');
-        $this->SetX(90);
-        $this->Cell(90, 10, 'SIAWEB', 0, 0, 'C');
-        $this->SetX(180);
+        $this->Cell(90, 10, date('d/m/Y H:i:s'), 0, 0, 'L');            
+        $this->SetX(180);  
         $this->Cell(0, 10, 'Página ' . $this->getAliasNumPage() . ' de ' . $this->getAliasNbPages(), 0, 0, 'R');
     }  
 

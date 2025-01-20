@@ -74,13 +74,12 @@ class KardexController extends Controller
         // Rutas de las imágenes para el encabezado y pie
         $imagePathEnc = public_path('images/encPag.png');
         $imagePathPie = public_path('images/piePag.png');
-
         // Crear una nueva instancia de CustomTCPDF (extendido de TCPDF)
         $pdf = new CustomTCPDF($orientation, PDF_UNIT, $size, true, 'UTF-8', false);
         
         // Configurar los encabezados, las rutas de las imágenes y otros parámetros
         $pdf->setHeaders(null, $columnWidths, $title);
-        $pdf->setImagePaths($imagePathEnc, $imagePathPie, $orientation);
+        $pdf->setImagePaths($imagePathEnc, $imagePathPie,$orientation);
         
         // Configurar las fuentes
         $pdf->SetFont('helvetica', '', 14);
