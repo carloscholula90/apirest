@@ -77,6 +77,7 @@ class AlumnoController extends Controller
             ->where('alumno.uid', '=', $uid)
             ->select(   'alumno.uid',
                         'alumno.idNivel',
+                        'alumno.idCarrera',
                         'nivel.descripcion as nivel',
                         'carrera.descripcion as nombreCarrera',
                         'persona.curp',
