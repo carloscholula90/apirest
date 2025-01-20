@@ -65,9 +65,7 @@ class AlumnoController extends Controller
     }
 
     public function getAlumno($uid){
-        $alumnos = DB::table('alumno')->join('integra', function($join) {
-                    $join->on('integra.uid', '=', 'alumno.uid')
-                    ->on('integra.secuencia', '=', 'alumno.secuencia');})
+        $alumnos = DB::table('alumno')
                     ->join('nivel', 'nivel.idNivel', '=', 'alumno.idNivel')
                     ->join('carrera', 'carrera.idCarrera', '=', 'alumno.idCarrera')
                     ->join('persona', 'persona.uid', '=', 'alumno.uid')
@@ -87,7 +85,6 @@ class AlumnoController extends Controller
                         'persona.segundoapellido',
                         'persona.sexo',
                         'persona.rfc',
-                        DB::raw("CASE WHEN integra.activo = 1 THEN 'ACTIVO' ELSE 'INACTIVO' END as activo"),
                         'estado.descripcion as estado',
                         'pais.descripcion as pais',
                         'edoCivil.descripcion as edocivil'
