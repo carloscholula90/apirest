@@ -56,16 +56,16 @@ class KardexController extends Controller
         if ($results->isEmpty())
             return $this->returnEstatus('No existen datos para generar el kardex',404,null);
         
-        $headers = ['Clave', 'Asignatura','Créditos','Calif','Calificación con letra','Tipo','Periodo'];
-        $columnWidths = [80,150,80,70,110,80,100];   
+        $headers = ['Clave', 'Asignatura','Créditos','Calif','Letra','Tipo','Periodo'];
+        $columnWidths = [40,120,50,50,80,80,80];   
         $keys = ['idAsignatura','asignatura','creditos','calificacion','califConLetra','tipo','periodo',];
        
         $resultsArray = $results->map(function ($item) {
             return (array) $item; // Convertir cada stdClass a un arreglo
         })->toArray();       
     
-        return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX SIMPLE', $headers,'L','letter',
-        'rptKardex'.mt_rand(1, 100).'.pdf');
+        return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX SIMPLE', $headers,'P','letter',
+        'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf');
       
     }
 
@@ -87,7 +87,7 @@ class KardexController extends Controller
         $pdf->SetAuthor('SIAWEB');
         
         // Establecer márgenes y auto-rotura de página
-        $pdf->SetMargins(15, 55, 15);
+        $pdf->SetMargins(15, 30, 15);
         $pdf->SetAutoPageBreak(TRUE, 25);
         $pdf->AddPage();
 
@@ -113,6 +113,8 @@ class KardexController extends Controller
         $matAprobadas=0;
         $matReprobadas=0;
         $promedio =0;
+        $corte = 0;
+
         foreach ($data as $index2 => $row) {
             $period = 0;
             $actualPeriodo = isset($row['idPeriodo']) ? $row['idPeriodo'] : 0;  // Acceder directamente a 'periodo'
@@ -120,19 +122,25 @@ class KardexController extends Controller
             // Si no es la última fila de los datos, obtiene el 'periodo' de la siguiente fila
             if ($index2 + 1 < count($data)) {
                 $nextRow = $data[$index2 + 1];
-                $period =isset($nextRow['idPeriodo']) ? $nextRow['idPeriodo'] : 0; 
+                $period = isset($nextRow['idPeriodo']) ? $nextRow['idPeriodo'] : 0; 
             }
+            if($corte == 1) {
+                $html2 .= '<tr><td colspan="7"></td></tr>';
+                $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
+                $html2 .= '<tr><td colspan="7"></td></tr>'; 
+                $corte = 0; 
+            }    
      
             if ($actualPeriodo != $period)   
-                $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
-       
+                $corte = 1;
+          
             $html2 .= '<tr>';
 
             foreach ($keys as $index => $key) {
                 $value = isset($row[$key]) ? $row[$key] : '';     
                 $html2 .= '<td width="' . $columnWidths[$index] . '">' . htmlspecialchars((string)$value) . '</td>';
                 if ($key == 'calificacion') {
-                    if ((float)$value > 7) 
+                    if ((float)$value >= 7)  
                         $matAprobadas++; 
                     else $matReprobadas++; 
                     $promedio += (float)$value; // Suma la calificación al promedio (si es necesario)

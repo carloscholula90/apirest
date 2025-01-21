@@ -39,7 +39,7 @@ class PdfController extends Controller
                 $value = isset($row[$key]) ? $row[$key] : '';
                 // Formatear las fechas si se encuentra en el dato
                 if (strtotime($value) !== false) {
-                    $value = (new \DateTime($value))->format('d/m/Y');
+                    $value = (new \DateTime($value, new \DateTimeZone('America/Mexico_City')))->format('d/m/Y');
                 }
                 $html2 .= '<td width="' . $columnWidths[$index] . '">' . htmlspecialchars((string)$value) . '</td>';
             }
