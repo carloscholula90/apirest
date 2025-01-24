@@ -74,7 +74,12 @@ class AlumnoController extends Controller
             })
             ->leftJoin('pais', 'pais.idPais', '=', 'persona.idPais')
             ->leftJoin('edoCivil', 'edoCivil.idEdoCivil', '=', 'persona.idEdoCivil')
-            ->where('alumno.uid', '=', $uid)
+            ->where(function ($query) use ($uid) {  
+                $query->whereRaw('LOWER(alumno.uid) LIKE ?', [strtolower("%$uid%")])
+                        ->orWhereRaw('LOWER(persona.nombre) LIKE ?', [strtolower("%$uid%")])
+                        ->orWhereRaw('LOWER(persona.primerapellido) LIKE ?', [strtolower("%$uid%")])
+                        ->orWhereRaw('LOWER(persona.segundoapellido) LIKE ?', [strtolower("%$uid%")]);
+            })
             ->select(   'alumno.uid',
                         'alumno.idNivel',
                         'alumno.idCarrera',
