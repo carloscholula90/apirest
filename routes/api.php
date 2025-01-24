@@ -23,6 +23,10 @@ Route::get('/test-db', function () {
     }
 });
 
+Route::prefix('actas')->group(function () {
+    require base_path('routes/escolar/actas.php');
+});
+
 Route::prefix('aceptaAviso')->group(function () {
     require base_path('routes/general/aceptaAviso.php');
 });
