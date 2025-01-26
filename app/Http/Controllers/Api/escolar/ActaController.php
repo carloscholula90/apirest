@@ -26,7 +26,7 @@ class ActaController extends Controller
         $pdf->SetAuthor('SIAWEB');          
         // Establecer márgenes y auto-rotura de página
         $pdf->SetMargins(10, 4, 16); // Margenes 
-        $pdf->SetAutoPageBreak(TRUE, 20);
+        $pdf->SetAutoPageBreak(FALSE, 0);
         $pdf->AddPage();
 
          // Generar la tabla HTML para los datos
@@ -80,22 +80,30 @@ class ActaController extends Controller
         $html2 .= '<br><p style="font-size: 10pt;">Esta acta autoriza -- sustentantes, con un total de -- alumnos aprobados y -- no aprobados.<br>';
         $html2 .='El acto termino a las -- horas del dia y para constancia firman los miembros del H. Jurado</p>';
 
-        $html2 .= '<br><br><br><br><table border="0" cellpadding="1" style="font-size: 8pt;">';
+        $html2 .= '<table border="0" style="font-size: 8pt; text-align: center; vertical-align: middle;">';
         $html2 .= '<tr>
-                        <td style="width: 5cm; text-align: center; vertical-align: middle;">
-                            <hr style="width: 5.5cm; border: 1px solid black; margin: 0;">
-                            <br><br>SECRETARIO
-                        </td> 
-                        <td style="width: 5cm; text-align: center; vertical-align: middle;">
-                            <hr style="width: 5.5cm; border: 1px solid black; margin: 0;">
-                            <br><br>PRESIDENTE
-                        </td>
-                        <td style="text-align: center; vertical-align: middle;">
-                            <hr style="width: 5.5cm; border: 1px solid black; margin: 0;">
-                            <br><br>VOCAL
-                        </td>
-                    </tr>';
+                    <td style="width: 7cm; height: 1.5cm;"></td>
+                    <td style="width: 7cm;"></td>
+                    <td></td>
+                  </tr>';
+        $html2 .= '<tr>
+                    <td style="width: 7cm; text-align: center;">
+                        <hr style="width: 4cm; border: 1px solid black; margin: 0;">
+                    </td>
+                    <td style="width: 7cm; text-align: center;">
+                        <hr style="width: 4cm; border: 1px solid black; margin: 0;">
+                    </td>
+                    <td style="text-align: center;">
+                        <hr style="width: 4cm; border: 1px solid black; margin: 0;">
+                    </td>
+                </tr>';
+        $html2 .= '<tr>
+                    <td style="width: 4cm; text-align: center;">SECRETARIO</td>
+                    <td style="width: 9.3cm; text-align: center;">PRESIDENTE</td>
+                    <td style="text-align: center;">VOCAL</td>
+                </tr>';
         $html2 .= '</table>';
+
         
         // Escribir la tabla en el PDF
         $pdf->writeHTML($html2, true, false, true, false, '');
