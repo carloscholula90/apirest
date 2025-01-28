@@ -102,6 +102,10 @@ Route::prefix('impuestos')->group(function () {
     require base_path('routes/tesoreria/impuestos.php');
 });
 
+Route::prefix('pasesdelistas')->group(function () {
+    require base_path('routes/escolar/pasesdelistas.php');
+});
+
 Route::prefix('periodos')->group(function () {
     require base_path('routes/escolar/periodos.php');
 });  
