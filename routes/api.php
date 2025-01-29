@@ -23,10 +23,6 @@ Route::get('/test-db', function () {
     }
 });
 
-Route::prefix('actas')->group(function () {
-    require base_path('routes/escolar/actas.php');
-});
-
 Route::prefix('aceptaAviso')->group(function () {
     require base_path('routes/general/aceptaAviso.php');
 });
@@ -102,8 +98,8 @@ Route::prefix('impuestos')->group(function () {
     require base_path('routes/tesoreria/impuestos.php');
 });
 
-Route::prefix('pasesdelistas')->group(function () {
-    require base_path('routes/escolar/pasesdelistas.php');
+Route::prefix('imprimedocumentos')->group(function () {
+    require base_path('routes/escolar/imprimedocumentos.php');
 });
 
 Route::prefix('periodos')->group(function () {
