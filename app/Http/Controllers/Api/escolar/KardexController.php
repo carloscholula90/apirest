@@ -15,7 +15,7 @@ class KardexController extends Controller
        
         $results = DB::table('ciclos as cl')
                         ->join('calificaciones as ca', 'ca.indexCiclo', '=', 'cl.indexCiclo')
-                        ->join('grupos as g', 'g.grupoSec', '=', 'ca.gruposec')
+                        ->join('grupos as g', 'g.grupoSec', '=', 'ca.grupoSec')
                         ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
                         ->join('persona as p', 'p.uid', '=', 'cl.uid')
                         ->leftJoin('alumno', 'alumno.uid', '=', 'p.uid')
@@ -56,10 +56,9 @@ class KardexController extends Controller
                         ->where('alumno.idCarrera', $idCarrera);
 
                        // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
-        if ($order == 'C') {
-            $results = $results->orderBy('det.semestre')
-                                ->orderBy('det.ordenc');
-        }else if ($order == 'K') 
+        if ($order == 'C') 
+            $results = $results->orderBy('det.ordenc');
+        else if ($order == 'K') 
                 $results = $results->orderBy('det.semestre')
                                     ->orderBy('det.ordenk');
 
