@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\general\Persona;
 use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 use Illuminate\Support\Facades\Log;    
-   
+use Illuminate\Support\Facades\DB;
+
 class PersonaController extends Controller{    
 
     protected $pdfController;
@@ -97,7 +98,7 @@ class PersonaController extends Controller{
             ->distinct()
             ->take(50)
             ->get();
-            
+
         Log::info('Número de personas encontradas: ' . $personas->count());
         
         if ($personas->isEmpty()) {
