@@ -87,7 +87,9 @@ class PersonaController extends Controller{
                 'ciudad.descripcion'
             )
             ->where(function($query) use ($var) {
-                $query->where('persona.nombre', 'LIKE', '%'.$var.'%')
+                $query->where(
+                    DB::raw("CONCAT(persona.nombre, ' ', persona.primerApellido, ' ', persona.segundoApellido)"), 'LIKE', '%'.$var.'%')
+                    ->orWhere('persona.nombre', 'LIKE', '%'.$var.'%')
                     ->orWhere('persona.primerApellido', 'LIKE', '%'.$var.'%')
                     ->orWhere('persona.segundoApellido', 'LIKE', '%'.$var.'%')
                     ->orWhere('persona.uid', 'LIKE', '%'.$var.'%');
@@ -95,7 +97,7 @@ class PersonaController extends Controller{
             ->distinct()
             ->take(50)
             ->get();
-        
+            
         Log::info('Número de personas encontradas: ' . $personas->count());
         
         if ($personas->isEmpty()) {

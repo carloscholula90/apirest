@@ -669,5 +669,95 @@ class DocumentosController extends Controller{
 
     }
 
+    public function circularEstudiantil(){
+        $orientation='P';
+        $size='letter';
+        $nameReport='solicitudDesfase'.'_'.mt_rand(100, 999).'.pdf';
+
+        $pdf = new CustomTCPDSFormat($orientation, PDF_UNIT, $size, true, 'UTF-8', false);       
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('SIAWEB');          
+        // Establecer márgenes y auto-rotura de página
+        $pdf->SetMargins(30, 10, 30); // Margenes 
+        $pdf->SetAutoPageBreak(FALSE, 0);
+        $pdf->AddPage();
+        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP1617.png';
+        $pdf->Image($imageUrl, 150, 10, 35);
+            // Generar la tabla HTML para los datos
+        $html = '<table border="0" cellpadding="1" style="font-family: Arial; font-size: 10pt;line-height: 1.5;">  
+            <tr>
+                <td colspan="3">
+                <p style="text-align: right; line-height: 2;">  
+                <b>Heroica Puebla de Zaragoza a -- de -------- de ----<br>Asunto: </b>Solicitud de desfase</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 5cm; height: 2cm;"></td>               
+                <td style="width: 3cm; "></td>
+                <td style="width: 15.5cm;"></td>
+            </tr>
+             <tr>
+                <td style="height: 2cm;" colspan="3"><b>Jorge León Vázquez<br>Rector de Universidad Alva Edison</b>
+                </td>               
+            </tr>
+            
+            <tr>
+                <td style="width: 14.5cm;" colspan="3">
+                <p style="text-align: justify; line-height: 2;">
+                Por medio de la presente reciba un cordial saludo, al mismo tiempo, le solicito de la manera más
+                atenta me permita continuar estudiando, ya que por fecha de examen (es) extraordinario (s) incurro en
+                violación de ciclos escolares, debido a ello la Dirección de Profesiones no admitirá mi expediente para 
+                titulación a la conclusión de mis estudios universitarios. </p>
+                <p style="text-align: justify; line-height: 2; text-indent: 20px;">
+                    Por ello me comprometo a esperar al periodo de un año para mi inscripción ante la Dirección de Control
+                Escolar de la Secretaría de Educación en el ciclo escolar -------, siendo consciente de que el termino
+                de mi licenciatura será durante el ciclo escolar ----- si soy alumno regular ( No haberme dado de baja
+                temporal ni haber reprobado alguna materia).
+                <br><br>
+                    Una vez concluida el programa de estudios y validado ante la Secretaría de Educación, llevaré a cabo mi
+                tramite de titulación el cual tiene un periodo de entraga de diez a nueve meses.
+                <br><br>
+                    Nota: Me comprometo a asistir a todas las clases y obtener calificaciones aprobatorias, en caso de que no
+                aprobar las materias durante el ciclo escolar ------, no se tendrá información que reportar y tendre que 
+                reinscribirme a primer semestre durante el ciclo ------------- sin ninguna responsabilidad para la Universidad.
+                <br></p>
+                <br>Nombre:   ____________________________________
+                <br>Matrícula:____________________________________
+                <br>Grupo:    ____________________________________
+                <br>Número de celular ____________________________ 
+                </td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="height: 2cm;"></td>
+                </tr>
+                <tr>
+                    <td style="width: 10cm;" colspan="2">Firma de conformidad Alumno</td>
+                    <td>Firma de conformidad tutor</td>
+                </tr>
+
+            ';
+        $html .= '</table>';  
+
+        
+        // Escribir la tabla en el PDF
+        $pdf->writeHTML($html, true, false, true, false, '');
+        $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo
+       
+        $pdf->Output($filePath, 'F');  // 'F' para guardar el archivo en el servidor
+    
+        // Ahora puedes verificar si el archivo se ha guardado correctamente en la ruta especificada.
+        if (file_exists($filePath)) {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte'
+            ]);
+        }
+
+    }
 
 }
