@@ -237,6 +237,10 @@ class PersonaController extends Controller{
             $persona->idCiudad = $request->idCiudad;
         if ($request->has('idEdoCivil')) 
             $persona->idEdoCivil = $request->idEdoCivil;
+        if ($request->has('rfc')) 
+            $persona->idEdoCivil = $request->rfc;
+        if ($request->has('bloqueado')) 
+            $persona->idEdoCivil = $request->bloqueado;
         $persona->save();  
         return $this->returnEstatus('El registro fue actualizado con éxito',200,null); 
     }  

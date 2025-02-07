@@ -25,7 +25,8 @@ class persona extends Model{
                             'idEstado',
                             'idCiudad',
                             'idEdoCivil',
-                            'rfc'
+                            'rfc',
+                            'bloqueado'
                             ];
 
     protected $dates = ['fechaNacimiento'];

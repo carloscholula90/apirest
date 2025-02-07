@@ -14,46 +14,53 @@ class KardexController extends Controller
      {
        
         $results = DB::table('ciclos as cl')
-                        ->join('calificaciones as ca', 'ca.indexCiclo', '=', 'cl.indexCiclo')
-                        ->join('grupos as g', 'g.grupoSec', '=', 'ca.grupoSec')
-                        ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
-                        ->join('persona as p', 'p.uid', '=', 'cl.uid')
-                        ->leftJoin('alumno', 'alumno.uid', '=', 'p.uid')
-                        ->join('carrera', function ($join) {
-                            $join->on('carrera.idCarrera', '=', 'alumno.idCarrera')
-                                ->on('carrera.idNivel', '=', 'alumno.idNivel');
-                        })
-                        ->join('periodo as per', function ($join) {
-                            $join->on('per.idNivel', '=', 'cl.idNivel')
-                                ->on('per.idPeriodo', '=', 'cl.idPeriodo');
-                        })
-                        ->join('detasignatura as det', function ($join) {
-                            $join->on('alumno.idPlan', '=', 'det.idPlan')
-                                ->where('alumno.idCarrera', '=', 'det.idCarrera')
-                                ->where('det.idAsignatura', '=', 'a.idAsignatura');
-                        })
-                        ->join('tipoExamen as e', 'e.idExamen', '=', 'ca.idExamen')
-                        ->join('nivel as n', 'n.idNivel', '=', 'cl.idNivel')
-                        ->select(
+                                ->join('calificaciones as ca', 'ca.indexCiclo', '=', 'cl.indexCiclo')
+                                ->join('alumno as al', function($join) {
+                                    $join->on('al.uid', '=', 'cl.uid')
+                                        ->where('al.secuencia', '=', 'cl.secuencia');
+                                })
+                                ->join('plan as plan', function($join) {
+                                    $join->on('plan.idPlan', '=', 'al.idPlan')
+                                        ->where('plan.idNivel', '=', 'al.idNivel')
+                                        ->where('al.idCarrera', '=', 'plan.idCarrera');
+                                })
+                                ->join('grupos as g', 'g.grupoSec', '=', 'ca.gruposec')
+                                ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
+                                ->join('detasignatura as det', function($join) {
+                                    $join->on('al.idPlan', '=', 'det.idPlan')
+                                        ->where('al.idCarrera', '=', 'det.idCarrera')
+                                        ->where('det.idAsignatura', '=', 'g.idAsignatura');
+                                })
+                                ->join('persona as p', 'p.uid', '=', 'cl.uid')
+                                ->join('periodo as per', function($join) {
+                                    $join->on('per.idNivel', '=', 'cl.idNivel')
+                                        ->where('per.idPeriodo', '=', 'cl.idPeriodo');
+                                })
+                                ->join('tipoExamen as e', 'e.idExamen', '=', 'ca.idExamen')
+                                ->join('nivel as n', 'n.idNivel', '=', 'cl.idNivel')
+                                ->select(
+                                    'cl.idNivel',
                                     'n.descripcion',
-                                    'alumno.matricula',
-                                    'carrera.descripcion as carrera',
-                                    'per.descripcion as periodo',
+                                    'cl.idPeriodo',
+                                    'per.descripcion as dscPeriodo',
                                     'p.UID as estudiante',
                                     'p.nombre',
-                                    'p.primerApellido as apellidopat',
-                                    'p.segundoApellido as apellidomat',
+                                    'p.primerApellido as Primerapellido',
+                                    'p.segundoApellido as Segundoapellido',
+                                    'cl.semestre',
                                     'g.idAsignatura',
-                                    'a.descripcion as asignatura',
-                                    'per.idPeriodo',  
+                                    'a.descripcion',
                                     'a.creditos',
-                                    'ca.cf as calificacion',
-                                    'e.descripcion as tipo',
-                                    DB::raw('CONLETRA(ca.cf) as califConLetra')
-                        )
-                        ->where('cl.uid', $id)
-                        ->where('alumno.idNivel', $idNivel)
-                        ->where('alumno.idCarrera', $idCarrera);
+                                    'g.grupo',
+                                    'g.uidPRofesor',
+                                    'ca.cf as Calificación',
+                                    'e.descripcion as tipoExamen',
+                                    'plan.rvoe',
+                                    'al.idPlan'
+                                )
+            ->where('cl.uid', $id)
+            ->where('alumno.idNivel', $idNivel)
+            ->where('alumno.idCarrera', $idCarrera);
 
                        // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
         if ($order == 'C') 
