@@ -90,6 +90,8 @@ class PersonaController extends Controller{
             ->where(function($query) use ($var) {
                 $query->where(
                     DB::raw("CONCAT(persona.nombre, ' ', persona.primerApellido, ' ', persona.segundoApellido)"), 'LIKE', '%'.$var.'%')
+                    ->orWhere(
+                        DB::raw("CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre)"), 'LIKE', '%'.$var.'%')
                     ->orWhere('persona.nombre', 'LIKE', '%'.$var.'%')
                     ->orWhere('persona.primerApellido', 'LIKE', '%'.$var.'%')
                     ->orWhere('persona.segundoApellido', 'LIKE', '%'.$var.'%')
