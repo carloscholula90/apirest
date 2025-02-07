@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class KardexController extends Controller
 {
 
-    public function generaReporte($id,$idNivel,$idCarrera)
+    public function generaReporte($id,$idNivel,$idCarrera,$order)
      {
        
         $results = DB::table('ciclos as cl')
@@ -26,6 +26,11 @@ class KardexController extends Controller
                         ->join('periodo as per', function ($join) {
                             $join->on('per.idNivel', '=', 'cl.idNivel')
                                 ->on('per.idPeriodo', '=', 'cl.idPeriodo');
+                        })
+                        ->join('detasignatura as det', function ($join) {
+                            $join->on('alumno.idPlan', '=', 'det.idPlan')
+                                ->where('alumno.idCarrera', '=', 'det.idCarrera')
+                                ->where('det.idAsignatura', '=', 'a.idAsignatura');
                         })
                         ->join('tipoExamen as e', 'e.idExamen', '=', 'ca.idExamen')
                         ->join('nivel as n', 'n.idNivel', '=', 'cl.idNivel')
@@ -48,9 +53,17 @@ class KardexController extends Controller
                         )
                         ->where('cl.uid', $id)
                         ->where('alumno.idNivel', $idNivel)
-                        ->where('alumno.idCarrera', $idCarrera)
-                        ->orderBy('per.idPeriodo')
-                        ->get();
+                        ->where('alumno.idCarrera', $idCarrera);
+
+                       // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
+        if ($order == 'C') {
+            $results = $results->orderBy('det.semestre')
+                                ->orderBy('det.ordenc');
+        }else if ($order == 'K') 
+                $results = $results->orderBy('det.semestre')
+                                    ->orderBy('det.ordenk');
+
+        $results = $results->get();
 
         // Si no hay personas, devolver un mensaje de error
         if ($results->isEmpty())

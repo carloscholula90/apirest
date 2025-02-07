@@ -124,11 +124,26 @@ class DocumentosController extends Controller{
                             'NSup.primerApellido as PrimerApellidoSup',
                             'g.grupo as grupo',
                             'NSup.segundoApellido as Segundoapellidosup',
+                            'plan.rvoe as rvoe',
                             DB::raw('CONLETRA(c.CF) as califConLetra'))
                                 ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
                                 ->join('calificaciones as c', 'c.grupoSec', '=', 'g.grupoSec')
                                 ->join('tipoExamen as e', 'e.idExamen', '=', 'c.idExamen')
                                 ->join('ciclos as cl', 'cl.indexCiclo', '=', 'c.indexCiclo')
+                                ->join('alumno as al', function ($join) {
+                                    $join->on('al.uid', '=', 'cl.uid')
+                                        ->where('al.secuencia', '=', 'cl.secuencia');
+                                })
+                                ->join('plan as plan', function ($join) {
+                                    $join->on('plan.idPlan', '=', 'al.idPlan')
+                                        ->where('plan.idNivel', '=', 'al.idNivel')
+                                        ->where('plan.idCarrera', '=', 'al.idCarrera');
+                                })
+                                ->join('detasignatura as det', function ($join) {
+                                    $join->on('al.idPlan', '=', 'det.idPlan')
+                                        ->where('al.idCarrera', '=', 'det.idCarrera')
+                                        ->where('det.idAsignatura', '=', 'g.idAsignatura');
+                                })
                                 ->join('persona as Nal', 'Nal.uid', '=', 'cl.uid')
                                 ->leftJoin('persona as p', 'p.uid', '=', 'g.uidProfesor')
                                 ->join('persona as Nsecre', 'Nsecre.uid', '=', 'g.uidSecretario')
@@ -163,16 +178,16 @@ class DocumentosController extends Controller{
         $pdf->SetMargins(10, 4, 16); // Margenes 
         $pdf->SetAutoPageBreak(FALSE, 0);
         $pdf->AddPage();
-
+        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP05.png';
+        $pdf->Image($imageUrl, 10, 5, 50);
 
         if (!empty($results)) {
-
-         // Generar la tabla HTML para los datos
-        $html2 = '<table border="0" cellpadding="1">  
-            <tr>
-                <td style="width: 5cm; height: 2cm;"></td>               
-                <td style="width: 9cm; font-family: Arial; font-size: 8pt; font-weight: bold; text-align: center; vertical-align: middle;">
-                                                    SECRETARÍA DE EDUCACIÓN DEL ESTADO<br>
+                // Generar la tabla HTML para los datos
+                $html2 = '<table border="0" cellpadding="1">  
+                    <tr>
+                        <td style="width: 5cm; height: 2cm;"></td>               
+                        <td style="width: 9cm; font-family: Arial; font-size: 8pt; font-weight: bold; text-align: center; vertical-align: middle;">
+                                                            SECRETARÍA DE EDUCACIÓN DEL ESTADO<br>
                                                     SUBSECRETARÍA DE EDUCACIÓN SUPERIOR<br>
                                                     DIRECCION DE EDUCACIÓN SUPERIOR PARTICULAR<br>
                                                     UNIVERSIDAD ALVA EDISON<br>
@@ -189,10 +204,10 @@ class DocumentosController extends Controller{
                 <td style="height: 2.5cm; font-size: 8pt;" colspan="2">CARRERA:<br>MODALIDAD EDUCATIVA: '.$results[0]['TipoExamen'].'<br>EXAMEN: '.$results[0]['TipoExamen'].'<br>ASIGNATURA: '.$results[0]['idAsignatura'].'<br>DOCENTE DE LA ASIGNATURA: '
                             .$results[0]['nombreProf'].' '.$results[0]['PrimerApellidoProf'].' '.$results[0]['SegundoApellidoProf'].' '.'</td>
                 <td style="font-family: Arial; font-size: 8pt; vertical-align: middle;">
-                                                        RVOE: '.$results[0]['grupo'].'<br>
-                                                        FECHA: '.$results[0]['grupo'].'<br>
+                                                        RVOE: '.$results[0]['rvoe'].'<br>
+                                                        FECHA: '.'<br>
                                                         CICLO ESCOLAR: '.$results[0]['grupo'].'<br>
-                                                        SEMESTRE: '.$results[0]['grupo'].'<br>
+                                                        SEMESTRE: '.'<br>
                                                         GRUPO: '.$results[0]['grupo'].'</td>
             </tr>
             <tr>   
@@ -439,5 +454,220 @@ class DocumentosController extends Controller{
         ]);
        }   
     }
+
+
+    public function cuadroIncripcion(){
+
+        $results = $this->obtenerAlumnos();
+        $orientation='L';
+        $size='Legal';
+        $nameReport='cuadroInscripcion'.'_'.mt_rand(100, 999).'.pdf';
+        // Crear una nueva instancia de CustomTCPDF (extendido de TCPDF)
+        $pdf = new CustomTCPDSFormat($orientation, PDF_UNIT, array(216, 330), true, 'UTF-8', false);       
+        $pdf->SetCreator(PDF_CREATOR);   
+        $pdf->SetAuthor('SIAWEB');          
+        // Establecer márgenes y auto-rotura de página
+        $pdf->SetMargins(10, 4, 16); // Margenes 
+        $pdf->SetAutoPageBreak(FALSE, 0);
+        $pdf->AddPage();
+        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP05.png';
+        $pdf->Image($imageUrl, 10, 5, 50);
+
+        if (!empty($results)) {
+                // Generar la tabla HTML para los datos
+                $html2 = '<table border="0" cellpadding="1">  
+                    <tr>
+                        <td style="width: 5cm; height: 2cm;"></td>               
+                        <td style="width: 22cm; font-family: Arial; font-size: 8pt; font-weight: bold; text-align: center; vertical-align: middle;">
+                                                            SECRETARÍA DE EDUCACIÓN DEL ESTADO<br>
+                                                    SUBSECRETARÍA DE EDUCACIÓN SUPERIOR<br>
+                                                    DIRECCION DE EDUCACIÓN SUPERIOR PARTICULAR<br>
+                                                    <b>UNIVERSIDAD ALVA EDISON</b><br>
+                                                    <b>CUADRO DE INSCRIPCIÓN</b></td>
+                <td></td>    
+            </tr>';
+        $html2 .= '</table><br><br>';
+        $html2 .= '<table border="0.5" cellpadding="0" style="font-size: 8pt; vertical-align: middle; line-height: .5cm;">  
+            <tr>
+                <td style="height: .5cm; width: 24.2cm;" colspan="4"> NOMBRE DE LA CARRERA</td>
+                <td style="width: 5.9cm;"> CLAVE:<b>21MSU1022U</b></td>
+            </tr>
+            <tr>    
+                <td style="height: .5cm; width: 12cm;"> GRADO:</td>
+                <td style="width: 3.5cm;"> GRUPO:</td>  
+                <td style="width: 4.7cm;"> ZONA:</td>  
+                <td style="width: 4cm;"> TURNO:</td>  
+                <td> CICLO ESCOLAR:</td>      
+            </tr>
+            <tr>    
+                <td style="height: .5cm; width: 12cm;"> MUNICIPIO: PUEBLA</td>
+                <td style="width: 6.5cm;" colspan="2"> MODALIDAD:</td>  
+                <td style="width: 5.7cm;"> RVOES:</td>    
+                <td> FECHA:</td>       
+            </tr>
+        ';
+        $html2 .= '</table><br><br>';
+        $html2 .= '<table border="0.5" cellpadding="0" style="font-size: 7pt; vertical-align: middle; line-height: .5cm; text-align: center;">  
+            <tr>    
+                <td style="height: 1.2cm; width: .9cm; vertical-align: middle;"> NP</td>
+                <td style="width: 3.9cm; vertical-align: middle;"> CURP</td>  
+                <td style="width: 7.2cm; vertical-align: middle;"> APELLIDO PATERNO, APELLIDO MATERNO, NOMBRE (S) </td>  
+                <td style="width: 1.7cm; vertical-align: middle;"> ACTA DE NACIMIENTO</td> 
+                <td style="width: 1.7cm; vertical-align: middle;"> CURP</td>  
+                <td style="width: 4.6cm; vertical-align: middle;"> CERTIFICADO DE ESTUDIOS DEL NIVEL INMEDIATO ANTERIOR</td> 
+                <td style="width: 2.1cm; vertical-align: middle;"> EQUIVALENCIA DE ESTUDIOS</td> 
+                <td style="width: 2cm; vertical-align: middle;"> REVALIDACIÓN DE ESTUDIOS</td> 
+                <td style="width: 6cm; vertical-align: middle;"> OBSERVACIONES</td> 
+        </tr>';
+
+        for ($i =1; $i <= 19; $i++) 
+        $html2 .= '<tr><td>'.$i.'</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+
+        $html2 .= '</table>';
+        $html2 .= '<p style="font-size: 10pt; text-align: right;">PUEBLA , PUEBLA A ___________ DE ______________________ DE _________             </p>';
+        $html2 .= '<br><br><br>';
+        $html2 .= '<table border="0" style="font-size: 8pt; text-align: center; vertical-align: middle;">';
+        $html2 .= ' <tr>
+                    <td style="height: 1cm;"></td>
+                    </tr>
+                    <tr>
+                    <td style="width: 9.4cm; text-align: center;">RESPONSABLE DE CONTROL ESCOLAR</td>
+                    <td style="width: 9.4cm; text-align: center;">RECTOR DE LA ESCUELA</td>
+                    <td style="text-align: center;">SUPERVISORA DE LA ZONA 021</td>
+                    </tr>
+                    <tr>
+                    <td style="height: 2cm;"></td>
+                    </tr>
+                    <tr>
+                    <td style="height: 1.2cm; width:9.4cm; text-align: center;">
+                        <span style="border-top: .5px solid black; padding-top: 2px;">LAURA RODRIGUEZ TAPIA</span>
+                    </td>
+                    <td style="width:9.4cm; text-align: center;">
+                        <span style="border-top: .5px solid black; padding-top: 2px;">JOSE LEÓN VAZQUEZ</span>
+                    </td>
+                    <td style="text-align: center;">
+                       <span style="border-top: .5px solid black; padding-top: 2px;">MARIA DEL CARMEN LOBATO MIÑÓN</span>
+                     </td>
+                </tr>';        
+                $html2 .= '</table>';
+
+        
+        // Escribir la tabla en el PDF
+        $pdf->writeHTML($html2, true, false, true, false, '');
+        $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo
+       
+        $pdf->Output($filePath, 'F');  // 'F' para guardar el archivo en el servidor
+    
+        // Ahora puedes verificar si el archivo se ha guardado correctamente en la ruta especificada.
+        if (file_exists($filePath)) {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte'
+            ]);
+        }
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'No existe el acta'
+            ]);
+        }   
+    }
+
+    public function solicituDesfase(){
+        $orientation='P';
+        $size='letter';
+        $nameReport='solicitudDesfase'.'_'.mt_rand(100, 999).'.pdf';
+
+        $pdf = new CustomTCPDSFormat($orientation, PDF_UNIT, $size, true, 'UTF-8', false);       
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('SIAWEB');          
+        // Establecer márgenes y auto-rotura de página
+        $pdf->SetMargins(30, 10, 30); // Margenes 
+        $pdf->SetAutoPageBreak(FALSE, 0);
+        $pdf->AddPage();
+        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP1617.png';
+        $pdf->Image($imageUrl, 150, 10, 35);
+            // Generar la tabla HTML para los datos
+        $html = '<table border="0" cellpadding="1" style="font-family: Arial; font-size: 10pt;line-height: 1.5;">  
+            <tr>
+                <td colspan="3">
+                <p style="text-align: right; line-height: 2;">  
+                <b>Heroica Puebla de Zaragoza a -- de -------- de ----<br>Asunto: </b>Solicitud de desfase</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 5cm; height: 2cm;"></td>               
+                <td style="width: 3cm; "></td>
+                <td style="width: 15.5cm;"></td>
+            </tr>
+             <tr>
+                <td style="height: 2cm;" colspan="3"><b>Jorge León Vázquez<br>Rector de Universidad Alva Edison</b>
+                </td>               
+            </tr>
+            
+            <tr>
+                <td style="width: 14.5cm;" colspan="3">
+                <p style="text-align: justify; line-height: 2;">
+                Por medio de la presente reciba un cordial saludo, al mismo tiempo, le solicito de la manera más
+                atenta me permita continuar estudiando, ya que por fecha de examen (es) extraordinario (s) incurro en
+                violación de ciclos escolares, debido a ello la Dirección de Profesiones no admitirá mi expediente para 
+                titulación a la conclusión de mis estudios universitarios. </p>
+                <p style="text-align: justify; line-height: 2; text-indent: 20px;">
+                    Por ello me comprometo a esperar al periodo de un año para mi inscripción ante la Dirección de Control
+                Escolar de la Secretaría de Educación en el ciclo escolar -------, siendo consciente de que el termino
+                de mi licenciatura será durante el ciclo escolar ----- si soy alumno regular ( No haberme dado de baja
+                temporal ni haber reprobado alguna materia).
+                <br><br>
+                    Una vez concluida el programa de estudios y validado ante la Secretaría de Educación, llevaré a cabo mi
+                tramite de titulación el cual tiene un periodo de entraga de diez a nueve meses.
+                <br><br>
+                    Nota: Me comprometo a asistir a todas las clases y obtener calificaciones aprobatorias, en caso de que no
+                aprobar las materias durante el ciclo escolar ------, no se tendrá información que reportar y tendre que 
+                reinscribirme a primer semestre durante el ciclo ------------- sin ninguna responsabilidad para la Universidad.
+                <br></p>
+                <br>Nombre:   ____________________________________
+                <br>Matrícula:____________________________________
+                <br>Grupo:    ____________________________________
+                <br>Número de celular ____________________________ 
+                </td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="height: 2cm;"></td>
+                </tr>
+                <tr>
+                    <td style="width: 10cm;" colspan="2">Firma de conformidad Alumno</td>
+                    <td>Firma de conformidad tutor</td>
+                </tr>
+
+            ';
+        $html .= '</table>';  
+
+        
+        // Escribir la tabla en el PDF
+        $pdf->writeHTML($html, true, false, true, false, '');
+        $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo
+       
+        $pdf->Output($filePath, 'F');  // 'F' para guardar el archivo en el servidor
+    
+        // Ahora puedes verificar si el archivo se ha guardado correctamente en la ruta especificada.
+        if (file_exists($filePath)) {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte'
+            ]);
+        }
+
+    }
+
 
 }
