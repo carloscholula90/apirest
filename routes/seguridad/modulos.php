@@ -9,4 +9,3 @@ Route::post('/create', [ModuloController::class, 'store']);
 Route::put('/{id}', [ModuloController::class, 'update']);
 Route::delete('/{id}', [ModuloController::class, 'destroy']);
 Route::post('/generaReporte', [ModuloController::class, 'generaReporte']);
-  

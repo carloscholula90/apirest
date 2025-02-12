@@ -140,5 +140,9 @@ class PuestoController extends Controller
             'status' => 200,
         ], 200);
     }
+
+    public function exportaExcel() {
+        return $this->exportaXLS('puestos','idPuesto',['CLAVE', 'DESCRIPCIÓN']);     
+    }
     
 }

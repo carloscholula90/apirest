@@ -90,4 +90,8 @@ class RolController extends Controller
         return $this->returnEstatus('Rol actualizado',200,null); 
 
     }
+
+    public function exportaExcel() {
+        return $this->exportaXLS('rol','idRol',['CLAVE', 'DESCRIPCIÓN']);     
+    }
 }

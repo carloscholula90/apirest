@@ -108,4 +108,9 @@ class TipoDireccionController extends Controller{
         $TipoDireccion->save();
         return $this->returnEstatus('TipoDireccion actualizado',200,null);    
     }
+
+    public function exportaExcel() {
+        return $this->exportaXLS('tipoDireccion','idTipoDireccion', ['CLAVE','DESCRIPCIÓN']);     
+    }
+
 }

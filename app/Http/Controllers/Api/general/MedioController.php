@@ -86,4 +86,8 @@ class MedioController extends Controller
 
         return $this->returnEstatus('Medio actualizao',200,null);
     }
+
+    public function exportaExcel() {
+        return $this->exportaXLS('medio','idMedio',['CLAVE', 'DESCRIPCIÓN']);     
+    }
 }  

@@ -142,4 +142,8 @@ class ParentescoController extends Controller
             'status' => 200,
         ], 200);
     }
+
+    public function exportaExcel() {
+        return $this->exportaXLS('parentesco','idParentesco',['CLAVE', 'DESCRIPCIÓN']);     
+    }
 }

@@ -14,53 +14,47 @@ class KardexController extends Controller
      {
        
         $results = DB::table('ciclos as cl')
-                                ->join('calificaciones as ca', 'ca.indexCiclo', '=', 'cl.indexCiclo')
-                                ->join('alumno as al', function($join) {
-                                    $join->on('al.uid', '=', 'cl.uid')
-                                        ->where('al.secuencia', '=', 'cl.secuencia');
-                                })
-                                ->join('plan as plan', function($join) {
-                                    $join->on('plan.idPlan', '=', 'al.idPlan')
-                                        ->where('plan.idNivel', '=', 'al.idNivel')
-                                        ->where('al.idCarrera', '=', 'plan.idCarrera');
-                                })
-                                ->join('grupos as g', 'g.grupoSec', '=', 'ca.gruposec')
-                                ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
-                                ->join('detasignatura as det', function($join) {
-                                    $join->on('al.idPlan', '=', 'det.idPlan')
-                                        ->where('al.idCarrera', '=', 'det.idCarrera')
-                                        ->where('det.idAsignatura', '=', 'g.idAsignatura');
-                                })
-                                ->join('persona as p', 'p.uid', '=', 'cl.uid')
-                                ->join('periodo as per', function($join) {
-                                    $join->on('per.idNivel', '=', 'cl.idNivel')
-                                        ->where('per.idPeriodo', '=', 'cl.idPeriodo');
-                                })
-                                ->join('tipoExamen as e', 'e.idExamen', '=', 'ca.idExamen')
-                                ->join('nivel as n', 'n.idNivel', '=', 'cl.idNivel')
-                                ->select(
-                                    'cl.idNivel',
+                        ->join('calificaciones as ca', 'ca.indexCiclo', '=', 'cl.indexCiclo')
+                        ->join('grupos as g', 'g.grupoSec', '=', 'ca.grupoSec')
+                        ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
+                        ->join('persona as p', 'p.uid', '=', 'cl.uid')
+                        ->join('alumno', 'alumno.uid', '=', 'p.uid')
+                        ->join('carrera', function ($join) {
+                            $join->on('carrera.idCarrera', '=', 'alumno.idCarrera')
+                                ->on('carrera.idNivel', '=', 'alumno.idNivel');
+                        })
+                        ->join('periodo as per', function ($join) {
+                            $join->on('per.idNivel', '=', 'cl.idNivel')
+                                ->on('per.idPeriodo', '=', 'cl.idPeriodo');
+                        })
+                        ->join('detasignatura as det', function ($join) {
+                            $join->on('alumno.idPlan', '=', 'det.idPlan')
+                                ->where('alumno.idCarrera', '=', 'det.idCarrera')
+                                ->where('det.idAsignatura', '=', 'a.idAsignatura');
+                        })
+                        ->join('tipoExamen as e', 'e.idExamen', '=', 'ca.idExamen')
+                        ->join('nivel as n', 'n.idNivel', '=', 'cl.idNivel')
+                        ->select(
                                     'n.descripcion',
-                                    'cl.idPeriodo',
-                                    'per.descripcion as dscPeriodo',
+                                    'alumno.matricula',
+                                    'carrera.descripcion as carrera',
+                                    'per.descripcion as periodo',
                                     'p.UID as estudiante',
                                     'p.nombre',
-                                    'p.primerApellido as Primerapellido',
-                                    'p.segundoApellido as Segundoapellido',
-                                    'cl.semestre',
+                                    'p.primerApellido as apellidopat',
+                                    'p.segundoApellido as apellidomat',
                                     'g.idAsignatura',
-                                    'a.descripcion',
+                                    'a.descripcion as asignatura',
+                                    'per.idPeriodo',  
                                     'a.creditos',
-                                    'g.grupo',
-                                    'g.uidPRofesor',
-                                    'ca.cf as Calificación',
-                                    'e.descripcion as tipoExamen',
-                                    'plan.rvoe',
-                                    'al.idPlan'
-                                )
-            ->where('cl.uid', $id)
-            ->where('alumno.idNivel', $idNivel)
-            ->where('alumno.idCarrera', $idCarrera);
+                                    'det.semestre as semestre',
+                                    'ca.cf as calificacion',
+                                    'e.descripcion as tipo',
+                                    DB::raw('CONLETRA(ca.cf) as califConLetra')
+                        )
+                        ->where('cl.uid', $id)
+                        ->where('alumno.idNivel', $idNivel)
+                        ->where('alumno.idCarrera', $idCarrera);
 
                        // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
         if ($order == 'C') 
@@ -73,7 +67,7 @@ class KardexController extends Controller
 
         // Si no hay personas, devolver un mensaje de error
         if ($results->isEmpty())
-            return $this->returnEstatus('No existen datos para generar el kardex',404,null);
+            return $this->returnEstatus('No existen datos para generar el kardex id '.$id.' idNivel '.$idNivel.' idCarrera '.$idCarrera,404,null);
         
         $headers = ['Clave', 'Asignatura','Créditos','Calif','Letra','Tipo','Periodo'];
         $columnWidths = [40,120,50,50,80,80,80];   
@@ -136,12 +130,12 @@ class KardexController extends Controller
 
         foreach ($data as $index2 => $row) {
             $period = 0;
-            $actualPeriodo = isset($row['idPeriodo']) ? $row['idPeriodo'] : 0;  // Acceder directamente a 'periodo'
-
+            $actualPeriodo = isset($row['semestre']) ? $row['semestre'] : 0;  // Acceder directamente a 'periodo'
+            Log::info('Semestre '.$row['semestre']);
             // Si no es la última fila de los datos, obtiene el 'periodo' de la siguiente fila
             if ($index2 + 1 < count($data)) {
                 $nextRow = $data[$index2 + 1];
-                $period = isset($nextRow['idPeriodo']) ? $nextRow['idPeriodo'] : 0; 
+                $period = isset($nextRow['semestre']) ? $nextRow['semestre'] : 0; 
             }
             if($corte == 1) {
                 $html2 .= '<tr><td colspan="7"></td></tr>';

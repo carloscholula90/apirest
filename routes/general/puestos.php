@@ -8,4 +8,5 @@ Route::get('/{idPuesto}', [PuestoController::class, 'show']);
 Route::post('/create', [PuestoController::class, 'store']);  
 Route::put('/{idPuesto}', [PuestoController::class, 'update']);
 Route::delete('/{idPuesto}', [PuestoController::class, 'destroy']);
+Route::post('/imprimeXls', [PuestoController::class, 'exportaExcel']);  
   

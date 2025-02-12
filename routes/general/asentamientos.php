@@ -9,4 +9,5 @@ Route::post('/create', [AsentamientoController::class, 'store']);
 Route::put('/{idAsentamiento}', [AsentamientoController::class, 'update']);
 Route::patch('/{idAsentamiento}', [AsentamientoController::class, 'updatePartial']);
 Route::delete('/{idAsentamiento}', [AsentamientoController::class, 'destroy']);
+Route::post('/imprimeXls', [AsentamientoController::class, 'exportaExcel']);  
   

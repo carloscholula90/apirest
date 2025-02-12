@@ -104,4 +104,8 @@ class PaisController extends Controller
             return $this->returnEstatus('Pais no encontrado',404,null); 
         }
     }
+    
+    public function exportaExcel() {
+        return $this->exportaXLS('pais','idPais',['CLAVE', 'DESCRIPCIÓN']);     
+    }
 }

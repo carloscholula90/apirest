@@ -97,6 +97,19 @@ abstract class Controller
      */
     public function exportaXLS($tableName,$nameId,$headers = [])
     {   
-        return Excel::download(new GenericTableExport($tableName,$nameId,$headers), $tableName . '_reporte.xlsx');
+        $path = storage_path('app/public/' . $tableName . '_reporte.xlsx');
+        Excel::store(new GenericTableExport($tableName, $nameId, $headers), '' . $tableName . '_rpt.xlsx', 'public');
+       
+        if (file_exists($path)) {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'. $tableName . '_rpt.xlsx' // Puedes devolver la ruta para fines de depuración
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte'
+            ]);
+        }  
     }  
 }

@@ -140,14 +140,7 @@ class EdoCivilController extends Controller
         $this->imprimeCtl('edoCivil'," ESTADO CIVIL ");
      }   
 
-    /**
-     * Exporta los datos de una tabla a Excel.
-     *
-     * @param string $tableName Nombre de la tabla.
-     * @return Response
-     */
     public function exportaExcel() {
-        $headers = ['Clave', 'Descripción'];                 
-        $this->exportaXLS('edoCivil','idEdoCivil',$headers);     
+        return $this->exportaXLS('edoCivil','idEdoCivil',['CLAVE', 'DESCRIPCIÓN']);     
     }
 }

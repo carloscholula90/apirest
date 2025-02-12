@@ -196,4 +196,8 @@ class NivelController extends Controller
 
         return response()->json($data, 200);
     }
+
+    public function exportaExcel() {
+        return $this->exportaXLS('nivel','idNivel', ['CLAVE','DESCRIPCIÓN']);     
+    }
 }

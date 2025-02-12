@@ -87,4 +87,8 @@ class TipoContactoController extends Controller
         return $this->returnEstatus('Tipo Contacto actualizado',200,null); 
 
     }
+
+    public function exportaExcel() {
+        return $this->exportaXLS('tipocontacto','idTipoContacto', ['CLAVE','DESCRIPCIÓN']);     
+    }
 }

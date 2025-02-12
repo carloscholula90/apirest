@@ -99,4 +99,8 @@ class AsentamientoController extends Controller{
         $asentamiento->save();
         return $this->returnEstatus('Asentamiento actualizado',200,null);    
     }
+
+    public function exportaExcel() {
+        return $this->exportaXLS('asentamiento','idAsentamiento',['CLAVE', 'DESCRIPCIÓN']);     
+    }
 }

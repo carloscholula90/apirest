@@ -86,4 +86,8 @@ class EscolaridadController extends Controller
         return $this->returnEstatus('Escolaridad actualizada',200,null); 
 
     }
+
+    public function exportaExcel() {
+       return $this->exportaXLS('escolaridad','idEscolaridad',['CLAVE', 'DESCRIPCIÓN']);     
+    }
 }

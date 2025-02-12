@@ -129,5 +129,6 @@ class ModuloController extends Controller
         return $this->pdfController->generateReport($modulosArray,$columnWidths,$keys , 'REPORTE DE MÓDULOS', $headers,'L','letter',
         'rptModulos'.mt_rand(1, 100).'.pdf');
       
-    }  
+    } 
+    
 }

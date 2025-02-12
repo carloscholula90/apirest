@@ -9,4 +9,4 @@ Route::post('/create', [NivelController::class, 'store']);
 Route::put('/{idNivel}', [NivelController::class, 'update']);
 Route::patch('/{idNivel}', [NivelController::class, 'updatePartial']);
 Route::delete('/{idNivel}', [NivelController::class, 'destroy']);
-  
+Route::post('/imprimeXls', [NivelController::class, 'exportaExcel']);    

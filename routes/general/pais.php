@@ -10,3 +10,4 @@ Route::get('/{idPais}', [PaisController::class, 'show']);
 Route::post('/create', [PaisController::class, 'store']);  
 Route::patch('/{idPais}', [PaisController::class, 'updatePartial']);
 Route::delete('/{idPais}', [PaisController::class, 'destroy']);
+Route::post('/imprimeXls', [PaisController::class, 'exportaExcel']);  
