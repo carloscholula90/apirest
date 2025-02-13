@@ -19,7 +19,7 @@ class PdfController extends Controller
         $pdf->setImagePaths($imagePathEnc, $imagePathPie, $orientation);
         
         // Configurar las fuentes
-        $pdf->SetFont('helvetica', '', 14);
+        $pdf->SetFont('helvetica', '', 12);
         $pdf->SetCreator(PDF_CREATOR);
         $pdf->SetAuthor('SIAWEB');
         
@@ -29,7 +29,7 @@ class PdfController extends Controller
         $pdf->AddPage();
 
         // Establecer fuente para el cuerpo del documento
-        $pdf->SetFont('helvetica', '', 12);
+        $pdf->SetFont('helvetica', '', 10);
         
         // Generar la tabla HTML para los datos
         $html2 = '<table border="0" cellpadding="5">';

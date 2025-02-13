@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Api\serviciosGenerales\GenericTableExport;   
+use Illuminate\Support\Facades\Log;
 
 abstract class Controller
 {   
@@ -97,7 +98,7 @@ abstract class Controller
      */
     public function exportaXLS($tableName,$nameId,$headers = [])
     {   
-        $path = storage_path('app/public/' . $tableName . '_reporte.xlsx');
+        $path = storage_path('app/public/' . $tableName . '_rpt.xlsx');
         Excel::store(new GenericTableExport($tableName, $nameId, $headers), '' . $tableName . '_rpt.xlsx', 'public');
        
         if (file_exists($path)) {
@@ -108,7 +109,7 @@ abstract class Controller
         } else {
             return response()->json([
                 'status' => 500,
-                'message' => 'Error al generar el reporte'
+                'message' => 'Error al generar el reporte '
             ]);
         }  
     }  

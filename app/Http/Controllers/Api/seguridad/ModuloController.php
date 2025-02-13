@@ -131,4 +131,7 @@ class ModuloController extends Controller
       
     } 
     
+    public function exportaExcel() {  
+        return $this->exportaXLS('modulos','idModulo', ['CLAVE','DESCRIPCIÓN']);     
+    }
 }

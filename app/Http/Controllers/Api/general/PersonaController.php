@@ -51,7 +51,6 @@ class PersonaController extends Controller{
                 'ciudad.descripcion'
             )
             ->distinct()  
-            ->take(50)
             ->get();
         return $personas;
     }
@@ -271,15 +270,15 @@ class PersonaController extends Controller{
         if ($personas->isEmpty())
             return $this->returnEstatus('No se encontraron personas para generar el reporte',404,null);
         
-        $headers = ['UID', 'Primer Apellido', 'Segundo Apellido', 'Nombre','CURP',  'Fecha de Nacimiento', 'Sexo'];
+        $headers = ['UID', 'Primer Apellido', 'Segundo Apellido', 'Nombre', 'Sexo','CURP',  'Fecha de Nacimiento'];
         $columnWidths = [80,100,120, 120, 140, 100, 50];   
-        $keys = ['uid','primerApellido','segundoApellido','nombre','curp','fechaNacimiento','sexo'];
+        $keys = ['uid','primerApellido','segundoApellido','nombre','sexo','curp','fechaNacimiento'];
        
         $personasArray = $personas->map(function ($persona) {
             return $persona->toArray();
         })->toArray();   
     
-        return $this->pdfController->generateReport($personasArray,$columnWidths,$keys , 'REPORTE DE PERSONAS', $headers,'L','letter');
+        return $this->pdfController->generateReport($personasArray,$columnWidths,$keys , 'REPORTE DE PERSONAS', $headers,'L','letter','rpt'.mt_rand(1, 100).'.pdf');
       
     }  
 }
