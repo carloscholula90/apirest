@@ -144,5 +144,10 @@ class PuestoController extends Controller
     public function exportaExcel() {
         return $this->exportaXLS('puestos','idPuesto',['CLAVE', 'DESCRIPCIÓN']);     
     }
+
+    public function generaReporte()
+     {
+        return $this->imprimeCtl('puestos','puestos');
+    }
     
 }

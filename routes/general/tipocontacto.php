@@ -3,6 +3,7 @@ use App\Http\Controllers\Api\general\TipoContactoController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
+Route::post('/generaReporte', [TipoContactoController::class, 'generaReporte']);
 Route::get('/', [TipoContactoController::class, 'index']);
 Route::get('/{idTipoContacto}', [TipoContactoController::class, 'show']);
 Route::post('/create', [TipoContactoController::class, 'store']);  

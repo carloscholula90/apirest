@@ -94,4 +94,8 @@ class RolController extends Controller
     public function exportaExcel() {
         return $this->exportaXLS('rol','idRol',['CLAVE', 'DESCRIPCIÓN']);     
     }
+
+    public function generaReporte(){
+        return $this->imprimeCtl('rol','rol');
+    } 
 }

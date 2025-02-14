@@ -87,7 +87,7 @@ abstract class Controller
             $columns, // Claves
             'CATÁLOGO DE ' . $name, // Título del reporte
             $headers, 'L','letter',// Encabezados   ,
-            'rpt'.$name.mt_rand(1, 100).'.pdf'
+            'rpt'.$tableName.mt_rand(1, 100).'.pdf'
         );
     }
 

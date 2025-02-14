@@ -92,7 +92,13 @@ class PerfilController extends Controller
         return $this->returnEstatus('Perfil actualizado',200,null); 
 
     }
+    
     public function exportaExcel() {
         return $this->exportaXLS('perfil','idPerfil', ['CLAVE','DESCRIPCIÓN']);     
+    }
+
+    public function generaReporte()
+    {
+        return $this->imprimeCtl('perfil','perfil');
     }
 }

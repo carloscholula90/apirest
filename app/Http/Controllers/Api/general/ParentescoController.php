@@ -146,4 +146,9 @@ class ParentescoController extends Controller
     public function exportaExcel() {
         return $this->exportaXLS('parentesco','idParentesco',['CLAVE', 'DESCRIPCIÓN']);     
     }
+    public function generaReporte()
+    {
+       return $this->imprimeCtl('parentesco','parentesco');
+   } 
+
 }

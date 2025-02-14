@@ -113,4 +113,8 @@ class TipoDireccionController extends Controller{
         return $this->exportaXLS('tipoDireccion','idTipoDireccion', ['CLAVE','DESCRIPCIÓN']);     
     }
 
+    public function generaReporte(){
+        return $this->imprimeCtl('tipoDireccion','tipo de direccion');
+    }
+
 }
