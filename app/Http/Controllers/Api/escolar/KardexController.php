@@ -30,7 +30,7 @@ class KardexController extends Controller
                         ->join('detasignatura as det', function ($join) {
                             $join->on('alumno.idPlan', '=', 'det.idPlan')
                                 ->where('alumno.idCarrera', '=', 'det.idCarrera')
-                                ->where('det.idAsignatura', '=', 'a.idAsignatura');
+                                ->where('det.idAsignatura', '=', 'a.idAsignatura'); 
                         })
                         ->join('tipoExamen as e', 'e.idExamen', '=', 'ca.idExamen')
                         ->join('nivel as n', 'n.idNivel', '=', 'cl.idNivel')

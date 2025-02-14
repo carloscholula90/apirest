@@ -63,13 +63,13 @@ abstract class Controller
         if (!Schema::hasTable($tableName)) {
             return $this->returnEstatus('La tabla no existe.', 404, null);
         }
-
+     
         // Obtener las columnas de la tabla
         $columns = Schema::getColumnListing($tableName);
-
+     
         // Consultar los datos de la tabla
         $data = DB::table($tableName)->get();
-
+     
         // Convertir los datos a un formato de arreglo asociativo
         $dataArray = $data->map(function ($item) {
             return (array) $item;
@@ -86,7 +86,8 @@ abstract class Controller
             $columnWidths, // Anchos de columna
             $columns, // Claves
             'CATÁLOGO DE ' . $name, // Título del reporte
-            $headers // Encabezados   
+            $headers, 'L','letter',// Encabezados   ,
+            'rpt'.$name.mt_rand(1, 100).'.pdf'
         );
     }
 

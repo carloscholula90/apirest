@@ -87,4 +87,14 @@ class ModalidadController extends Controller
         return $this->returnEstatus('Modalidad actualizada',200,null); 
 
     }
+
+    // Función para generar el reporte de personas
+    public function generaReporte()
+     {
+        return $this->imprimeCtl('modalidad','modalidades');
+    } 
+    
+    public function exportaExcel() {  
+        return $this->exportaXLS('modalidad','idModalidad', ['CLAVE','DESCRIPCIÓN']);     
+    }
 }

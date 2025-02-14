@@ -15,7 +15,7 @@ class PdfController extends Controller
         $pdf = new CustomTCPDF($orientation, PDF_UNIT, $size, true, 'UTF-8', false);
         
         // Configurar los encabezados, las rutas de las imágenes y otros parámetros
-        $pdf->setHeaders($headers, $columnWidths, $title);
+        $pdf->setHeaders($headers, $columnWidths, strtoupper($title));
         $pdf->setImagePaths($imagePathEnc, $imagePathPie, $orientation);
         
         // Configurar las fuentes
