@@ -22,35 +22,16 @@ class PersonaController extends Controller{
     public function getPersonas()
     {
         // Realizar la consulta y devolver los resultados
-        $personas = Persona::leftJoin('pais', 'persona.idPais', '=', 'pais.idPais')
-            ->leftJoin('edoCivil', 'persona.idEdoCivil', '=', 'edoCivil.idEdoCivil')
-            ->leftJoin('estado', function($join) {
-                $join->on('persona.idPais', '=', 'estado.idPais')
-                     ->on('persona.idEstado', '=', 'estado.idEstado');
-            })
-            ->leftJoin('ciudad', function($join) {
-                $join->on('persona.idPais', '=', 'ciudad.idPais')
-                     ->on('persona.idEstado', '=', 'ciudad.idEstado')
-                     ->on('persona.idCiudad', '=', 'ciudad.idCiudad');
-            })
-            ->select(
-                'persona.uid',
-                'persona.curp',
-                'persona.nombre',
-                'persona.primerApellido',
-                'persona.segundoApellido',
-                'persona.fechaNacimiento',
-                'persona.sexo',
-                'edoCivil.idEdoCivil',
-                'edoCivil.descripcion as descripcionEdoCivil',
-                'pais.idPais',
-                'pais.descripcion as paisDescripcion',
-                'estado.idEstado',
-                'estado.descripcion as estadoDescripcion',
-                'ciudad.idCiudad',
-                'ciudad.descripcion'
-            )
-            ->distinct()  
+        $personas = Persona::select(
+                                    'persona.uid',
+                                    'persona.curp',
+                                    'persona.nombre',
+                                    'persona.primerApellido',
+                                    'persona.segundoApellido',
+                                    'persona.fechaNacimiento',
+                                    'persona.sexo'
+                )
+            ->distinct() 
             ->get();
         return $personas;
     }
@@ -271,14 +252,10 @@ class PersonaController extends Controller{
             return $this->returnEstatus('No se encontraron personas para generar el reporte',404,null);
         
         $headers = ['UID', 'Primer Apellido', 'Segundo Apellido', 'Nombre', 'Sexo','CURP',  'Fecha de Nacimiento'];
-        $columnWidths = [80,100,120, 120, 140, 100, 50];   
+        $columnWidths = [80,100,120, 170, 50, 150, 100];   
         $keys = ['uid','primerApellido','segundoApellido','nombre','sexo','curp','fechaNacimiento'];
        
-        $personasArray = $personas->map(function ($persona) {
-            return $persona->toArray();
-        })->toArray();   
-    
-        return $this->pdfController->generateReport($personasArray,$columnWidths,$keys , 'REPORTE DE PERSONAS', $headers,'L','letter','rpt'.mt_rand(1, 100).'.pdf');
+        return $this->pdfController->generateReport($personas->toArray(),$columnWidths,$keys , 'REPORTE DE PERSONAS', $headers,'L','letter','rptPersonas'.mt_rand(1, 100).'.pdf');
       
     }  
 }

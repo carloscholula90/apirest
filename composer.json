@@ -11,6 +11,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "maatwebsite/excel": "^3.1",
+        "mpdf/mpdf": "^8.2",
         "tecnickcom/tcpdf": "^6.7"
     },
     "require-dev": {

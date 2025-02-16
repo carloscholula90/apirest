@@ -101,7 +101,7 @@ class DocumentosController extends Controller{
                             'g.idAsignatura as ClaveAsig',
                             'a.descripcion as NomAsig',
                             'g.grupo as grupo',
-                            'g.idModalidad as Modalidad',
+                            'plan.idModalidad as Modalidad',
                             'p.nombre as nombreProf',
                             'p.primerApellido as PrimerApellidoProf',
                             'p.segundoApellido as SegundoApellidoProf',
@@ -388,7 +388,7 @@ class DocumentosController extends Controller{
                 <td style="width: 1cm;">No</td>
                 <td style="width: 2cm;">LETRA</td>    
             </tr>';
-        
+        $limite =0;
         foreach ($results as $index2 => $row) {
             $html2 .= '<tr><td style="height: .25cm;">'.$index2.'</td><td></td><td style="text-align: left;">'.' '.$row['PrimerApellidoAl'].' '.$row['SegundoapellidoAl'].' '.$row['NombreAl'].
                         '</td><td></td><td></td>
@@ -399,9 +399,10 @@ class DocumentosController extends Controller{
                            <td></td><td></td><td></td><td></td><td></td>
                            <td></td><td></td><td></td><td></td><td></td><td></td>
                         </tr>';
+            $limite = $index2;    
                     }
-        $index2++;
-        for ($i = $index2; $i <= 27; $i++) 
+        $limite++;
+        for ($i = $limite; $i <= 27; $i++) 
         $html2 .= '<tr><td style="height: .25cm;">'.$i.'</td><td style="text-align: left;">
                     </td><td></td><td></td><td></td>
                     <td></td><td></td><td></td><td></td><td></td>
