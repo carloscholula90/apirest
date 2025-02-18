@@ -26,12 +26,8 @@ class KardexController extends Controller
                         ->join('periodo as per', function ($join) {
                             $join->on('per.idNivel', '=', 'cl.idNivel')
                                 ->on('per.idPeriodo', '=', 'cl.idPeriodo');
-                        })
-                        ->join('detasignatura as det', function ($join) {
-                            $join->on('alumno.idPlan', '=', 'det.idPlan')
-                                ->where('alumno.idCarrera', '=', 'det.idCarrera')
-                                ->where('det.idAsignatura', '=', 'a.idAsignatura'); 
-                        })
+                        })                       
+                        ->leftJoin('detasignatura as det', 'alumno.idPlan', '=', 'det.idPlan')
                         ->join('tipoExamen as e', 'e.idExamen', '=', 'ca.idExamen')
                         ->join('nivel as n', 'n.idNivel', '=', 'cl.idNivel')
                         ->select(
@@ -54,6 +50,8 @@ class KardexController extends Controller
                         )
                         ->where('cl.uid', $id)
                         ->where('alumno.idNivel', $idNivel)
+                        ->where('det.idCarrera',$idCarrera)
+                       // ->where('det.idAsignatura', 'a.idAsignatura')
                         ->where('alumno.idCarrera', $idCarrera);
 
                        // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
@@ -114,7 +112,7 @@ class KardexController extends Controller
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Carrera:</b> '.$generalesRow['carrera'].'</td></tr>';
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>UID:</b> '.$generalesRow['estudiante'].'</td></tr>';
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Matricula:</b> '.$generalesRow['matricula'].'</td></tr>';  
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Nombre:</b> '.$generalesRow['nombre'].' '.$generalesRow['apellidopat'].$generalesRow['apellidomat'].'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Nombre:</b> '.$generalesRow['nombre'].' '.$generalesRow['apellidopat'].' '.$generalesRow['apellidomat'].'</td></tr>';
         $html2 .= '<tr><td colspan="7"></td></tr>';
         $html2 .= '<tr><td colspan="7"></td></tr>';
         $html2 .= '<tr>';
