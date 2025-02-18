@@ -22,7 +22,7 @@ class DocumentosController extends Controller{
         $pdf->SetMargins(30, 10, 15); // Margenes 
         $pdf->SetAutoPageBreak(FALSE, 0);
         $pdf->AddPage();
-        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP1617.png';
+        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/LogoUAE.png';
         $pdf->Image($imageUrl, 150, 10, 35);
             // Generar la tabla HTML para los datos
         $html = '<table border="0" cellpadding="1" style="font-family: Arial; font-size: 10pt;line-height: 1.5;">  
@@ -101,7 +101,8 @@ class DocumentosController extends Controller{
                             'g.idAsignatura as ClaveAsig',
                             'a.descripcion as NomAsig',
                             'g.grupo as grupo',
-                            'plan.idModalidad as Modalidad',
+                            'al.matricula',
+                            'pl.idModalidad as Modalidad',
                             'p.nombre as nombreProf',
                             'p.primerApellido as PrimerApellidoProf',
                             'p.segundoApellido as SegundoApellidoProf',
@@ -124,44 +125,34 @@ class DocumentosController extends Controller{
                             'NSup.primerApellido as PrimerApellidoSup',
                             'g.grupo as grupo',
                             'NSup.segundoApellido as Segundoapellidosup',
-                            'plan.rvoe as rvoe',
+                            'pl.rvoe as rvoe',
                             DB::raw('CONLETRA(c.CF) as califConLetra'))
                                 ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
                                 ->join('calificaciones as c', 'c.grupoSec', '=', 'g.grupoSec')
                                 ->join('tipoExamen as e', 'e.idExamen', '=', 'c.idExamen')
                                 ->join('ciclos as cl', 'cl.indexCiclo', '=', 'c.indexCiclo')
-                                ->join('alumno as al', function ($join) {
-                                    $join->on('al.uid', '=', 'cl.uid')
-                                        ->where('al.secuencia', '=', 'cl.secuencia');
-                                })
-                                ->join('plan as plan', function ($join) {
-                                    $join->on('plan.idPlan', '=', 'al.idPlan')
-                                        ->where('plan.idNivel', '=', 'al.idNivel')
-                                        ->where('plan.idCarrera', '=', 'al.idCarrera');
-                                })
-                                ->join('detasignatura as det', function ($join) {
-                                    $join->on('al.idPlan', '=', 'det.idPlan')
-                                        ->where('al.idCarrera', '=', 'det.idCarrera')
-                                        ->where('det.idAsignatura', '=', 'g.idAsignatura');
-                                })
+                                ->join('alumno as al', 'al.uid', '=', 'cl.uid')
+                                ->join('plan as pl', 'pl.idPlan', '=', 'al.idPlan')
                                 ->join('persona as Nal', 'Nal.uid', '=', 'cl.uid')
                                 ->leftJoin('persona as p', 'p.uid', '=', 'g.uidProfesor')
                                 ->join('persona as Nsecre', 'Nsecre.uid', '=', 'g.uidSecretario')
                                 ->join('persona as Npresi', 'Npresi.uid', '=', 'g.uidPresidente')
                                 ->join('persona as NSup', 'NSup.uid', '=', 'g.uidSupervisor')
+                                ->where('pl.idNivel', '=',5)
+                                ->where('pl.idCarrera', '=',6)                              
                                 ->where('g.idNivel', 5)
                                 ->where('g.idPeriodo', 100)
                                 ->where('g.idAsignatura', 'UAE04.V')
                                 ->where('g.grupo', '06S5A')
                                 ->get();
+
+                                Log::info('Este es un mensaje de información '.$resultsB);
+      
             
             if ($resultsB->isEmpty())
                 return $resultsB;   
-        
-                $results = $resultsB->map(function ($item) {
-                        return (array) $item; // Convertir cada stdClass a un arreglo
-            })->toArray(); 
-        return $results;
+            
+        return $resultsB->toArray();
     }
      
     public function generaActa(){
@@ -179,7 +170,9 @@ class DocumentosController extends Controller{
         $pdf->SetAutoPageBreak(FALSE, 0);
         $pdf->AddPage();
         $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP05.png';
-        $pdf->Image($imageUrl, 10, 5, 50);
+        $imageUrl2 = 'https://pruebas.siaweb.com.mx/images/logos/LogoUAE.png';
+        $pdf->Image($imageUrl2, 160, 3, 30);    
+        $pdf->Image($imageUrl, 10, 5, 35);
 
         if (!empty($results)) {
                 // Generar la tabla HTML para los datos
@@ -201,17 +194,17 @@ class DocumentosController extends Controller{
                 <td></td>
             </tr>
             <tr>  
-                <td style="height: 2.5cm; font-size: 8pt;" colspan="2">CARRERA:<br>MODALIDAD EDUCATIVA: '.$results[0]['TipoExamen'].'<br>EXAMEN: '.$results[0]['TipoExamen'].'<br>ASIGNATURA: '.$results[0]['idAsignatura'].'<br>DOCENTE DE LA ASIGNATURA: '
-                            .$results[0]['nombreProf'].' '.$results[0]['PrimerApellidoProf'].' '.$results[0]['SegundoApellidoProf'].' '.'</td>
+                <td style="height: 2.5cm; font-size: 8pt;" colspan="2">CARRERA:<br>MODALIDAD EDUCATIVA: '.$results[0]->TipoExamen.'<br>EXAMEN: '.$results[0]->TipoExamen.'<br>ASIGNATURA: '.$results[0]->idAsignatura.'<br>DOCENTE DE LA ASIGNATURA: '
+                            .$results[0]->nombreProf.' '.$results[0]->PrimerApellidoProf.' '.$results[0]->SegundoApellidoProf.' '.'</td>
                 <td style="font-family: Arial; font-size: 8pt; vertical-align: middle;">
-                                                        RVOE: '.$results[0]['rvoe'].'<br>
+                                                        RVOE: '.$results[0]->rvoe.'<br>
                                                         FECHA: '.'<br>
-                                                        CICLO ESCOLAR: '.$results[0]['grupo'].'<br>
+                                                        CICLO ESCOLAR: '.$results[0]->grupo.'<br>
                                                         SEMESTRE: '.'<br>
-                                                        GRUPO: '.$results[0]['grupo'].'</td>
+                                                        GRUPO: '.$results[0]->grupo.'</td>
             </tr>
             <tr>   
-                <td style="height: 2cm; font-size: 10pt;" colspan="3">El dia de '.$results[0]['grupo'].' de '.$results[0]['grupo'].' a las '.$results[0]['grupo'].' horas, se reunio el H. Jurado del Examen y procedio a efectuar las pruebas correspondientes, sustentadas por '.$results[0]['grupo'].' alumnos obteniendo cada uno de ellos, la calificacion que a continuacion se asienta.</td>
+                <td style="height: 2cm; font-size: 10pt;" colspan="3">El dia de '.$results[0]->grupo.' de '.$results[0]->grupo.' a las '.$results[0]->grupo.' horas, se reunio el H. Jurado del Examen y procedio a efectuar las pruebas correspondientes, sustentadas por '.$results[0]->grupo.' alumnos obteniendo cada uno de ellos, la calificacion que a continuacion se asienta.</td>
             </tr>';        
         $html2 .= '</table>';
         $html2 .= '<table border="0.5" cellpadding="0" style="font-size: 8pt; vertical-align: middle; text-align: center; line-height: .5cm;">  
@@ -231,10 +224,10 @@ class DocumentosController extends Controller{
         $indexReprobado=0;
 
         foreach ($results as $index2 => $row) {     
-            $html2 .= '<tr><td>'.$indexAct.'</td><td style="text-align: left;">'.' '.$row['PrimerApellidoAl'].' '.$row['SegundoapellidoAl'].' '.$row['NombreAl'].'</td><td>'.$row['califFinal'].'</td><td>'.$row['califConLetra'].'</td><td></td></tr>';
+            $html2 .= '<tr><td>'.$indexAct.'</td><td style="text-align: left;">'.' '.$row->PrimerApellidoAl.' '.$row->SegundoapellidoAl.' '.$row->NombreAl.'</td><td>'.$row->califFinal.'</td><td>'.$row->califConLetra.'</td><td></td></tr>';
             $indexAct++;
             
-            if($row['califFinal']>=7)
+            if($row->califFinal>=7)
                 $indexAprobado++;
             else $indexReprobado++;
         }
@@ -303,17 +296,21 @@ class DocumentosController extends Controller{
         $orientation='P';
         $size='letter';
         $nameReport='paseLista'.'_'.mt_rand(100, 999).'.pdf';
+      
         $results = $this->obtenerAlumnos();
-       
+        
         // Crear una nueva instancia de CustomTCPDF (extendido de TCPDF)
         $pdf = new CustomTCPDSFormat($orientation, PDF_UNIT, $size, true, 'UTF-8', false);       
         $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor('SIAWEB');          
+        $pdf->SetAuthor('SIAWEB');       
+      
         // Establecer márgenes y auto-rotura de página
         $pdf->SetMargins(30, 20, 16); // Margenes 
         $pdf->SetAutoPageBreak(FALSE, 0);
         $pdf->AddPage();
-
+        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/LogoUAE.png';
+        $pdf->Image($imageUrl, 30, 15, 20);
+      
         if (!empty($results)) {
 
          // Generar la tabla HTML para los datos
@@ -389,8 +386,9 @@ class DocumentosController extends Controller{
                 <td style="width: 2cm;">LETRA</td>    
             </tr>';
         $limite =0;
+      
         foreach ($results as $index2 => $row) {
-            $html2 .= '<tr><td style="height: .25cm;">'.$index2.'</td><td></td><td style="text-align: left;">'.' '.$row['PrimerApellidoAl'].' '.$row['SegundoapellidoAl'].' '.$row['NombreAl'].
+            $html2 .= '<tr><td style="height: .25cm;">'.($index2+1).'</td><td>'.' '.$row->matricula.'</td><td style="text-align: left;">'.' '.$row->PrimerApellidoAl.' '.$row->SegundoapellidoAl.' '.$row->NombreAl.
                         '</td><td></td><td></td>
                            <td></td><td></td><td></td><td></td><td></td>
                            <td></td><td></td><td></td><td></td><td></td>
@@ -399,8 +397,8 @@ class DocumentosController extends Controller{
                            <td></td><td></td><td></td><td></td><td></td>
                            <td></td><td></td><td></td><td></td><td></td><td></td>
                         </tr>';
-            $limite = $index2;    
-                    }
+            $limite = $index2+1;    
+        }
         $limite++;
         for ($i = $limite; $i <= 27; $i++) 
         $html2 .= '<tr><td style="height: .25cm;">'.$i.'</td><td style="text-align: left;">
@@ -471,8 +469,8 @@ class DocumentosController extends Controller{
         $pdf->SetMargins(10, 4, 16); // Margenes 
         $pdf->SetAutoPageBreak(FALSE, 0);
         $pdf->AddPage();
-        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP05.png';
-        $pdf->Image($imageUrl, 10, 5, 50);
+        $pdf->Image('https://pruebas.siaweb.com.mx/images/logos/logoSEP05.png', 10, 5, 50);
+        $pdf->Image('https://pruebas.siaweb.com.mx/images/logos/LogoUAE.png', 280, 5, 20);
 
         if (!empty($results)) {
                 // Generar la tabla HTML para los datos
