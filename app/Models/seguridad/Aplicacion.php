@@ -18,6 +18,8 @@ class Aplicacion extends Model
                         'idAplicacion',
                         'descripcion',
                         'activo',
-                        'idModulo'
+                        'idModulo',
+                        'alias',
+                        'icono'
     ];
 }

@@ -114,4 +114,13 @@ class AplicacionController extends Controller
         $aplicacion->save();
         return $this->returnEstatus('Aplicacion actualizada',200,null);
     }
+
+    public function generaReporte()
+    {
+       return $this->imprimeCtl('aplicaciones','aplicaciones',['CLAVE','DESCRIPCIÓN','ACTIVO','ID MODULO','ALIAS','ICONO'],[100,300,100,100,100,100]);
+   }
+       
+    public function exportaExcel() {  
+        return $this->exportaXLS('aplicaciones','idAplicacion', ['CLAVE','DESCRIPCIÓN']);     
+    }
 }

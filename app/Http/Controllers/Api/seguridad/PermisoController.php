@@ -61,4 +61,12 @@ class PermisosController extends Controller
     {
         //
     }
+
+    public function generaReporte(){
+        return $this->imprimeCtl('aplicaciones','aplicaciones');
+    } 
+       
+    public function exportaExcel() {  
+        return $this->exportaXLS('aplicaciones','idAplicacion', ['CLAVE','DESCRIPCIÓN']);     
+    }
 }

@@ -96,4 +96,12 @@ class CarreraController extends Controller
         $carreras->save();
         return $this->returnEstatus('Carrera actualizada',200,null); 
     }
+
+    public function generaReporte(){
+        return $this->imprimeCtl('carrera','carrera');
+    } 
+       
+    public function exportaExcel() {  
+        return $this->exportaXLS('carrera','idCarrera', ['CLAVE','DESCRIPCIÓN']);     
+    }
 }

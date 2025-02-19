@@ -57,7 +57,7 @@ abstract class Controller
     /**
      * 
      */
-    public function imprimeCtl($tableName, $name)
+    public function imprimeCtl($tableName, $name,$headers=null,$columnWidths=null)
     {
         // Verificar si la tabla existe
         if (!Schema::hasTable($tableName)) {
@@ -67,8 +67,17 @@ abstract class Controller
         // Obtener las columnas de la tabla
         $columns = Schema::getColumnListing($tableName);
      
+
         // Consultar los datos de la tabla
         $data = DB::table($tableName)->get();
+
+        if(empty( $data)){
+            return response()->json([
+                'status' => 500,
+                'message' => 'No hay datos para generar el reporte
+                '
+            ]);
+        }
      
         // Convertir los datos a un formato de arreglo asociativo
         $dataArray = $data->map(function ($item) {
@@ -76,8 +85,10 @@ abstract class Controller
         })->toArray();
 
         // Definir los encabezados y anchos de columna para el PDF
-        $headers = ['CLAVE','DESCRIPCIÓN'];
-        $columnWidths = [100,300]; // Ajusta los anchos según sea necesario
+        if($headers==null) {
+            $headers = ['CLAVE','DESCRIPCIÓN'];
+            $columnWidths = [100,300]; // Ajusta los anchos según sea necesario
+        }
 
         // Generar el PDF
         $pdfController = new pdfController();

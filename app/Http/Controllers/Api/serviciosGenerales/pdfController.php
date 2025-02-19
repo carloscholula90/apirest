@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api\serviciosGenerales;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PdfController extends Controller
 {
@@ -43,8 +44,8 @@ class PdfController extends Controller
         $html2 .= '<tr>';
         foreach ($keys as $index => $key) {
             $value = isset($row[$key]) ? $row[$key] : '';
-       // Evitar la inyección de caracteres extraños en el HTML
-            $html2 .= '<td style="height: 0.3cm; width:' . $columnWidths[$index] . '">' . htmlspecialchars((string)$value) . '</td>';
+            Log::info('Este es un mensaje de información '.$index.' '.$row[$key].' '.$columnWidths[$index]);
+            $html2 .= '<td style="height: 0.3cm; width:' . $columnWidths[$index] . '">' .(empty($value)?'': htmlspecialchars((string)$value) ). '</td>';
         }
         $html2 .= '</tr>';
     }
