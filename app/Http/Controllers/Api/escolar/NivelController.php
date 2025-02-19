@@ -198,11 +198,11 @@ class NivelController extends Controller
     }
 
     public function exportaExcel() {
-        return $this->exportaXLS('nivel','idNivel', ['CLAVE','DESCRIPCIÓN']);     
+        return $this->exportaXLS('nivel','idNivel', ['CLAVE','DESCRIPCIÓN'],'descripcion');     
     }
 
     public function generaReporte()
     {
-       return $this->imprimeCtl('nivel','niveles');
+       return $this->imprimeCtl('nivel','niveles',null,null,'descripcion');
    }
 }

@@ -117,10 +117,10 @@ class AplicacionController extends Controller
 
     public function generaReporte()
     {
-       return $this->imprimeCtl('aplicaciones','aplicaciones',['CLAVE','DESCRIPCIÓN','ACTIVO','ID MODULO','ALIAS','ICONO'],[100,300,100,100,100,100]);
+       return $this->imprimeCtl('aplicaciones','aplicaciones',['CLAVE','DESCRIPCIÓN','ACTIVO','ID MODULO','ALIAS','ICONO'],[100,300,100,100,100,100],'descripcion');
    }
        
     public function exportaExcel() {  
-        return $this->exportaXLS('aplicaciones','idAplicacion', ['CLAVE','DESCRIPCIÓN']);     
+        return $this->exportaXLS('aplicaciones','idAplicacion', ['CLAVE','DESCRIPCIÓN'],'descripcion');     
     }
 }

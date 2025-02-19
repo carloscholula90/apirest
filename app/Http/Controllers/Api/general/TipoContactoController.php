@@ -89,10 +89,10 @@ class TipoContactoController extends Controller
     }
 
     public function exportaExcel() {
-        return $this->exportaXLS('tipocontacto','idTipoContacto', ['CLAVE','DESCRIPCIÓN']);     
+        return $this->exportaXLS('tipocontacto','idTipoContacto', ['CLAVE','DESCRIPCIÓN'],'descripcion');     
     }
 
     public function generaReporte(){
-       return $this->imprimeCtl('tipocontacto','tipo contacto');
+       return $this->imprimeCtl('tipocontacto','tipo contacto',null,null,'descripcion');
    }
 }

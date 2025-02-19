@@ -94,11 +94,11 @@ class PerfilController extends Controller
     }
     
     public function exportaExcel() {
-        return $this->exportaXLS('perfil','idPerfil', ['CLAVE','DESCRIPCIÓN']);     
+        return $this->exportaXLS('perfil','idPerfil', ['CLAVE','DESCRIPCIÓN'],'descripcion');     
     }
 
     public function generaReporte()
     {
-        return $this->imprimeCtl('perfil','perfil');
+        return $this->imprimeCtl('perfil','perfil',null,null,'descripcion');
     }
 }

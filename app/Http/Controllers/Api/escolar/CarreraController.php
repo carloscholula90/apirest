@@ -98,10 +98,10 @@ class CarreraController extends Controller
     }
 
     public function generaReporte(){
-        return $this->imprimeCtl('carrera','carrera');
+        return $this->imprimeCtl('carrera','carrera',null,null,'descripcion');
     } 
        
     public function exportaExcel() {  
-        return $this->exportaXLS('carrera','idCarrera', ['CLAVE','DESCRIPCIÓN']);     
+        return $this->exportaXLS('carrera','idCarrera', ['CLAVE','DESCRIPCIÓN'],'descripcion');     
     }
 }

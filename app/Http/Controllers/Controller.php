@@ -57,17 +57,30 @@ abstract class Controller
     /**
      * 
      */
-    public function imprimeCtl($tableName, $name,$headers=null,$columnWidths=null)
+    public function imprimeCtl($tableName, $name,$headers=null,$columnWidths=null,$order=null)
     {
         // Verificar si la tabla existe
         if (!Schema::hasTable($tableName)) {
             return $this->returnEstatus('La tabla no existe.', 404, null);
         }
      
-        // Obtener las columnas de la tabla
         $columns = Schema::getColumnListing($tableName);
-     
 
+        // Consultar los datos de la tabla y ordenar por un campo si se pasa el parámetro
+        $query = DB::table($tableName);
+
+        if ($order) 
+            $query = $query->orderBy($order); // Ordenar por el campo especificado
+            
+        $data = $query->get();
+    
+        if(empty($data)){
+            return response()->json([
+                'status' => 500,
+                'message' => 'No hay datos para generar el reporte'
+            ]);
+        }
+        
         // Consultar los datos de la tabla
         $data = DB::table($tableName)->get();
 
@@ -108,10 +121,10 @@ abstract class Controller
      * @param string $tableName Nombre de la tabla.
      * @return Response
      */
-    public function exportaXLS($tableName,$nameId,$headers = [])
+    public function exportaXLS($tableName,$nameId,$headers = [],$order=null)
     {   
         $path = storage_path('app/public/' . $tableName . '_rpt.xlsx');
-        Excel::store(new GenericTableExport($tableName, $nameId, $headers), '' . $tableName . '_rpt.xlsx', 'public');
+        Excel::store(new GenericTableExport($tableName, $nameId, $headers,$columnWidths,$order), '' . $tableName . '_rpt.xlsx', 'public');
        
         if (file_exists($path)) {
             return response()->json([

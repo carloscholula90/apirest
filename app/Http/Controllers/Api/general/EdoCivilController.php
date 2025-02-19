@@ -137,10 +137,10 @@ class EdoCivilController extends Controller
 
     public function generaReporte()
      {
-        $this->imprimeCtl('edoCivil'," estado civil ");
+        $this->imprimeCtl('edoCivil',' estado civil ',null,null,'descripcion');
      }   
 
     public function exportaExcel() {
-        return $this->exportaXLS('edoCivil','idEdoCivil',['CLAVE', 'DESCRIPCIÓN']);     
+        return $this->exportaXLS('edoCivil','idEdoCivil',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
     }
 }
