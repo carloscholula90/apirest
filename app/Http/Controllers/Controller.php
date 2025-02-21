@@ -73,14 +73,6 @@ abstract class Controller
             $query = $query->orderBy($order); // Ordenar por el campo especificado
             
         $data = $query->get();
-    
-        if(empty($data)){
-            return response()->json([
-                'status' => 500,
-                'message' => 'No hay datos para generar el reporte'
-            ]);
-        }
-        
         // Consultar los datos de la tabla
         $data = DB::table($tableName)->get();
 

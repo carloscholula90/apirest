@@ -103,4 +103,9 @@ class AsentamientoController extends Controller{
     public function exportaExcel() {
         return $this->exportaXLS('asentamiento','idAsentamiento',['CLAVE', 'DESCRIPCIÓN']);     
     }
+
+    public function generaReporte()
+    {
+       return $this->imprimeCtl('asentamiento','idAsentamiento',null,null,'descripcion');
+   }
 }

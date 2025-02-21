@@ -6,6 +6,7 @@ use App\Models\escolar\Documento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\QueryException;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DocumentoController extends Controller{
 

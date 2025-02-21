@@ -5,6 +5,10 @@ use App\Http\Controllers\Controller;
 use App\Models\escolar\Carrera;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Api\serviciosGenerales\pdfController;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
+    
 
 class CarreraController extends Controller
 {
@@ -63,8 +67,6 @@ class CarreraController extends Controller
         return $this->returnEstatus('Carrera eliminada',200,null);        
     }
 
-    
-
     public function updatePartial(Request $request, $idCarrera)
     {
         if ($idCarrera==null) 
@@ -79,29 +81,93 @@ class CarreraController extends Controller
 
         if ($request->has('descripcion')) 
             $carreras->descripcion = $request->descripcion;
-        
-
+   
         if ($request->has('letra')) 
             $carreras->letra = $request->letra;
-        
 
         if ($request->has('diaInicioCargo')) 
             $carreras->diaInicioCargo = $request->diaInicioCargo;
-        
-
+ 
         if ($request->has('diaInicioRecargo')) 
             $carreras->diaInicioRecargo = $request->diaInicioRecargo;
-        
 
         $carreras->save();
         return $this->returnEstatus('Carrera actualizada',200,null); 
     }
 
+    public function obtenerDatos(){
+        return DB::table('carrera as c')
+                            ->select(
+                                    'niv.descripcion as NivelAcad',
+                                    'c.idCarrera',
+                                    'c.descripcion as carrera',
+                                    'c.diaInicioCargo',
+                                    'c.diaInicioRecargo',
+                                    DB::raw('CASE WHEN activo = 1 THEN "S" ELSE "N" END as activo'))
+                                            ->join('nivel as niv', 'niv.idNivel', '=', 'c.idNivel')
+                                            ->orderBy('c.descripcion', 'asc')
+                                            ->get();
+    }    
+
     public function generaReporte(){
-        return $this->imprimeCtl('carrera','carrera',null,null,'descripcion');
+        $data = $this->obtenerDatos();
+
+        if(empty($data)){
+            return response()->json([
+                'status' => 500,
+                'message' => 'No hay datos para generar el reporte'
+            ]);
+        }
+
+         // Convertir los datos a un formato de arreglo asociativo
+         $dataArray = $data->map(function ($item) {
+            return (array) $item;
+        })->toArray();
+
+         // Generar el PDF
+         $pdfController = new pdfController();
+         
+         return $pdfController->generateReport($dataArray,  // Datos
+                                               [100,100,300,100,100,100], // Anchos de columna
+                                               ['NivelAcad','idCarrera','carrera','diaInicioCargo','diaInicioRecargo','activo'], // Claves
+                                               'CATÁLOGO DE CARRERAS', // Título del reporte
+                                               ['NIVEL','ID CARRERA','DESCRIPCIÓN','DIA INICIO DE CARGO','DIA INICIO DE RECARGO','ACTIVO'], 'L','letter',// Encabezados   ,
+                                               'rptCarreras'.mt_rand(1, 100).'.pdf'
+         );
     } 
-       
+      
     public function exportaExcel() {  
-        return $this->exportaXLS('carrera','idCarrera', ['CLAVE','DESCRIPCIÓN'],'descripcion');     
+        // Ruta del archivo a almacenar en el disco público
+        $path = storage_path('app/public/carrera_rpt.xlsx');
+    
+        $order = 'carrera.descripcion'; // Ordenar por la fecha de creación
+        $direction = 'asc'; // Orden descendente
+        $selectColumns = ['nivel.descripcion AS nivelDescripcion', 'carrera.idCarrera', 'carrera.descripcion','carrera.diaInicioCargo','carrera.diaInicioRecargo','activo']; // Seleccionar columnas específicas
+        $namesColumns = ['NIVEL', 'ID CARRERA', 'CARRERA','DIA INICIO CARGO','DIA INICIO RECARGO','ACTIVO']; // Seleccionar columnas específicas
+        
+        $joins = [[ 'table' => 'nivel', // Tabla a unir
+                    'first' => 'carrera.idNivel', // Columna de la tabla principal
+                    'second' => 'nivel.idNivel', // Columna de la tabla unida
+                    'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                 ]];
+
+        $export = new GenericTableExportEsp('carrera', 'descripcion', [], 'carrera.descripcion', 'asc', $selectColumns, $joins,$namesColumns);
+
+        // Guardar el archivo en el disco público
+        Excel::store($export, 'carrera_rpt.xlsx', 'public');
+       
+        // Verifica si el archivo existe usando Storage de Laravel
+        if (file_exists($path))  {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/carrera_rpt.xlsx' // URL pública para descargar el archivo
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte '
+            ]);
+        }  
     }
+    
 }
