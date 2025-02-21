@@ -6,6 +6,10 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\seguridad\Aplicacion;
 use Illuminate\Support\Facades\Validator;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
+use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 
 class AplicacionController extends Controller
 {
@@ -114,13 +118,74 @@ class AplicacionController extends Controller
         $aplicacion->save();
         return $this->returnEstatus('Aplicacion actualizada',200,null);
     }
+    
+   public function obtenerDatos(){
+         return DB::table('aplicaciones as apl')
+                        ->select(
+                                'mod.descripcion as modDescripcion',
+                                'apl.idAplicacion',
+                                'apl.descripcion',
+                                DB::raw('CASE WHEN apl.activo = 1 THEN "S" ELSE "N" END as activo'))
+                                        ->join('modulos as mod', 'mod.idModulo', '=', 'apl.idModulo')
+                                        ->orderBy('apl.descripcion', 'asc')
+                                        ->get();
+}    
 
-    public function generaReporte()
-    {
-       return $this->imprimeCtl('aplicaciones','aplicaciones',['CLAVE','DESCRIPCIÓN','ACTIVO','ID MODULO','ALIAS','ICONO'],[100,300,100,100,100,100],'descripcion');
-   }
-       
-    public function exportaExcel() {  
-        return $this->exportaXLS('aplicaciones','idAplicacion', ['CLAVE','DESCRIPCIÓN'],'descripcion');     
+public function generaReporte(){
+    $data = $this->obtenerDatos();
+
+    if(empty($data)){
+        return response()->json([
+            'status' => 500,
+            'message' => 'No hay datos para generar el reporte'
+        ]);
+    }
+
+     // Convertir los datos a un formato de arreglo asociativo
+     $dataArray = $data->map(function ($item) {
+        return (array) $item;
+    })->toArray();
+
+     // Generar el PDF
+     $pdfController = new pdfController();
+     
+     return $pdfController->generateReport($dataArray,  // Datos
+                                           [100,100,300,100], // Anchos de columna
+                                           ['modDescripcion','idAplicacion','descripcion','activo'], // Claves
+                                           'CATÁLOGO DE APLICACIONES', // Título del reporte
+                                           ['MODULO','CLAVE', 'DESCRIPCION', 'ACTIVO'], 'L','letter',// Encabezados   ,
+                                           'rptAplicaciones.pdf'
+     );
+} 
+         
+   public function exportaExcel() {  
+            // Ruta del archivo a almacenar en el disco público
+            $path = storage_path('app/public/aplicaciones_rpt.xlsx');
+            $selectColumns = ['modulos.descripcion as descrip','aplicaciones.idAplicacion', 'aplicaciones.descripcion', 'activo']; 
+            $namesColumns = ['MODULO','CLAVE', 'DESCRIPCION', 'ACTIVO']; // Seleccionar columnas específicas
+            
+            $joins = [[ 'table' => 'modulos', // Tabla a unir
+                        'first' => 'aplicaciones.idModulo', // Columna de la tabla principal
+                        'second' => 'modulos.idModulo', // Columna de la tabla unida
+                        'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                    ]];
+
+            $export = new GenericTableExportEsp('aplicaciones', 'descripcion', [], 'aplicaciones.descripcion', 'asc', $selectColumns, $joins,$namesColumns);
+
+            // Guardar el archivo en el disco público  
+            Excel::store($export, 'aplicaciones_rpt.xlsx', 'public');
+        
+            // Verifica si el archivo existe usando Storage de Laravel
+            if (file_exists($path))  {
+                return response()->json([
+                    'status' => 200,  
+                    'message' => 'https://reportes.siaweb.com.mx/storage/carrera_rpt.xlsx' // URL pública para descargar el archivo
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 500,
+                    'message' => 'Error al generar el reporte '
+                ]);
+            }  
     }
 }

@@ -139,9 +139,6 @@ class CarreraController extends Controller
     public function exportaExcel() {  
         // Ruta del archivo a almacenar en el disco público
         $path = storage_path('app/public/carrera_rpt.xlsx');
-    
-        $order = 'carrera.descripcion'; // Ordenar por la fecha de creación
-        $direction = 'asc'; // Orden descendente
         $selectColumns = ['nivel.descripcion AS nivelDescripcion', 'carrera.idCarrera', 'carrera.descripcion','carrera.diaInicioCargo','carrera.diaInicioRecargo','activo']; // Seleccionar columnas específicas
         $namesColumns = ['NIVEL', 'ID CARRERA', 'CARRERA','DIA INICIO CARGO','DIA INICIO RECARGO','ACTIVO']; // Seleccionar columnas específicas
         
