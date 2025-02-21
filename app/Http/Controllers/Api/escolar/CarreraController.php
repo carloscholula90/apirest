@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
-    
+use Illuminate\Support\Facades\DB;
 
 class CarreraController extends Controller
 {
