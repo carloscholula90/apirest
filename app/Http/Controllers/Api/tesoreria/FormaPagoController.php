@@ -152,4 +152,8 @@ class FormaPagoController extends Controller{
          return $this->pdfController->generateReport($formasPagosArray,$columnWidths,$keys , 'REPORTE DE FORMA DE PAGO', $headers,'L','letter');
        
      }  
+
+     public function exportaExcel() {
+        return $this->exportaXLS('formaPago','idFormaPago',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
+    }
 }

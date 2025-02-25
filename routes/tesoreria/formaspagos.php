@@ -8,5 +8,7 @@ Route::get('/{idFormaPago}', [FormaPagoController::class, 'show']);
 Route::post('/create', [FormaPagoController::class, 'store']);
 Route::post('/generaReporte', [FormaPagoController::class, 'generaReport']);
 Route::put('/{idFormaPago}', [FormaPagoController::class, 'update']);
-Route::delete('/{idFormaPago}', [FormaPagoController::class, 'destroy']);
+Route::delete('/{idFormaPago}', [FormaPagoController::class, 'destroy']); 
+Route::post('/imprimeXls', [FormaPagoController::class, 'exportaExcel']);  
+
    

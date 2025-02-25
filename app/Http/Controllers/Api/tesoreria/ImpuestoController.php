@@ -108,4 +108,13 @@ class ImpuestoController extends Controller{
         $Impuesto->save();
         return $this->returnEstatus('Impuesto actualizado',200,null);    
     }
+
+    public function generaReporte()
+     {
+        $this->imprimeCtl('impuestos',' impuestos ',null,null,'descripcion');
+     }   
+
+    public function exportaExcel() {
+        return $this->exportaXLS('impuestos','idImpuesto',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
+    }
 }

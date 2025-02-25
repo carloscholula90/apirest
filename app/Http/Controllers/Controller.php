@@ -116,7 +116,7 @@ abstract class Controller
     public function exportaXLS($tableName,$nameId,$headers = [],$order=null)
     {   
         $path = storage_path('app/public/' . $tableName . '_rpt.xlsx');
-        Excel::store(new GenericTableExport($tableName, $nameId, $headers,$columnWidths,$order), '' . $tableName . '_rpt.xlsx', 'public');
+        Excel::store(new GenericTableExport($tableName, $nameId, $headers,$order), '' . $tableName . '_rpt.xlsx', 'public');
        
         if (file_exists($path)) {
             return response()->json([

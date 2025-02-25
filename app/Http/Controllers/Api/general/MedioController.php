@@ -90,4 +90,9 @@ class MedioController extends Controller
     public function exportaExcel() {
         return $this->exportaXLS('medio','idMedio',['CLAVE', 'DESCRIPCIÓN']);     
     }
+
+    public function generaReporte()
+     {
+        $this->imprimeCtl('medio',' medios ',null,null,'descripcion');
+     } 
 }  

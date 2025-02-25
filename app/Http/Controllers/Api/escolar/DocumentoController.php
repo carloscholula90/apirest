@@ -110,4 +110,13 @@ class DocumentoController extends Controller{
         $Documento->save();
         return $this->returnEstatus('Documento actualizado',200,null);    
     }
+
+    public function generaReporte()
+     {
+        $this->imprimeCtl('documento',' documento ',null,null,'descripcion');
+     } 
+
+     public function exportaExcel() {
+        return $this->exportaXLS('documento','idDocumento',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
+    }
 }
