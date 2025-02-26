@@ -5,6 +5,10 @@ use App\Http\Controllers\Controller;
 use App\Models\general\Contacto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
+use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Api\serviciosGenerales\pdfController;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ContactoController extends Controller{
 
@@ -85,4 +89,97 @@ class ContactoController extends Controller{
             return $this->returnEstatus('Contacto no encontrado',404,null);  
         return $this->returnEstatus('Contacto eliminado',200,null); 
     }
+
+    public function obtenerDatos(){
+        return DB::table('contacto as contacto')
+                       ->select(
+                               'p.uid',
+                               'nombre',
+                               'primerApellido',
+                               'segundoApellido',
+                               'parentesco.descripcion as descripcionP',
+                               'tc.descripcion as tcontacto',
+                               'dato'
+                              )
+                             ->join('persona as p', 'p.uid', '=', 'contacto.uid')
+                             ->join('parentesco as parentesco', 'parentesco.idParentesco', '=', 'contacto.idParentesco')
+                             ->join('tipoContacto as tc', 'tc.idTipoContacto', '=', 'contacto.idTipoContacto')                                      
+                             ->orderBy('p.uid', 'asc')
+                             ->get();
+}    
+
+public function generaReporte(){
+   $data = $this->obtenerDatos();
+
+   if(empty($data)){
+       return response()->json([
+           'status' => 500,
+           'message' => 'No hay datos para generar el reporte'
+       ]);
+   }
+
+    // Convertir los datos a un formato de arreglo asociativo
+    $dataArray = $data->map(function ($item) {
+       return (array) $item;
+   })->toArray();
+
+    // Generar el PDF
+    $pdfController = new pdfController();
+    
+    return $pdfController->generateReport($dataArray,  // Datos
+                                          [80,100,100,100,100,100,200], // Anchos de columna
+                                          ['uid','nombre','primerApellido','segundoApellido','descripcionP','tcontacto','dato'], // Claves
+                                          'CONTACTOS', // Título del reporte
+                                          ['UID','NOMBRE', 'APELLIDO PATERNO', 'APELLIDO MATERNO','PARENTESCO','TIPO DE CONTACTO','DATO'], 'L','letter',// Encabezados   ,
+                                          'rptContactos.pdf'
+    );
+} 
+        
+  public function exportaExcel() {  
+           // Ruta del archivo a almacenar en el disco público
+           $path = storage_path('app/public/contactos_rpt.xlsx');
+           $selectColumns = ['p.uid',
+                               'nombre',
+                               'primerApellido',
+                               'segundoApellido',
+                               'parentesco.descripcion as descripcionP',
+                               'tc.descripcion as tcontacto',
+                               'dato']; 
+           $namesColumns = ['UID','NOMBRE', 'APELLIDO PATERNO', 'APELLIDO MATERNO','PARENTESCO','TIPO DE CONTACTO','DATO']; // Seleccionar columnas específicas
+           $joins = [[ 'table' => 'persona as p', // Tabla a unir
+                       'first' => 'p.uid', // Columna de la tabla principal
+                       'second' => 'contacto.uid', // Columna de la tabla unida
+                       'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                    ],
+                    [ 'table' => 'parentesco as parentesco', // Tabla a unir
+                       'first' => 'parentesco.idParentesco', // Columna de la tabla principal
+                       'second' => 'contacto.idParentesco', // Columna de la tabla unida
+                       'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                    ],
+                    [ 'table' => 'tipoContacto as tc', // Tabla a unir
+                       'first' => 'tc.idTipoContacto', // Columna de la tabla principal
+                       'second' => 'contacto.idTipoContacto', // Columna de la tabla unida
+                       'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                    ]                
+                ];
+
+           $export = new GenericTableExportEsp('contacto', 'uid', [], 'p.uid', 'asc', $selectColumns, $joins,$namesColumns);
+
+           // Guardar el archivo en el disco público  
+           Excel::store($export, 'contactos_rpt.xlsx', 'public');
+       
+           // Verifica si el archivo existe usando Storage de Laravel
+           if (file_exists($path))  {
+               return response()->json([
+                   'status' => 200,  
+                   'message' => 'https://reportes.siaweb.com.mx/storage/contactos_rpt.xlsx' // URL pública para descargar el archivo
+               ]);
+           } else {
+               return response()->json([
+                   'status' => 500,
+                   'message' => 'Error al generar el reporte '
+               ]);
+           }  
+   }
+
 }
