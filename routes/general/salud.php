@@ -7,3 +7,5 @@ Route::get('/', [SaludController::class, 'index']);
 Route::get('/{uid}', [SaludController::class, 'show']);
 Route::post('/create', [SaludController::class, 'store']);
 Route::delete('/{uid}/{secuencia}', [SaludController::class, 'destroy']);
+Route::post('/imprimeXls', [SaludController::class, 'exportaExcel']);   
+Route::post('/generaReporte', [SaludController::class, 'generaReporte']);  

@@ -17,7 +17,7 @@ class GenericTableExportEsp implements FromQuery, WithHeadings
     protected $joins;  
     protected $namesColumns;
 
-    public function __construct($tableName, $nameId, $filters = [], $order = null, $direction = 'asc', $selectColumns = ['*'], $joins = [],$namesColumns=[])
+    public function __construct($tableName, $nameId, $filters = [], $order = [], $direction = [], $selectColumns = ['*'], $joins = [],$namesColumns=[])
     {
         $this->tableName = $tableName;
         $this->nameId = $nameId;
@@ -47,18 +47,26 @@ class GenericTableExportEsp implements FromQuery, WithHeadings
         foreach ($this->filters as $column => $value) {
             $query->where($column, '=', $value);
         }
-        $columnsToSelect = $this->selectColumns;
-
-        // Verificar si 'activo' está en las columnas seleccionadas
-        if (in_array('activo', $this->selectColumns)) 
-            $columnsToSelect = array_merge($columnsToSelect, [DB::raw('CASE WHEN activo = 1 THEN "SI" ELSE "NO" END as activo')]);
- 
-        
-        $query->select($columnsToSelect);
+       
+        $query->select($this->selectColumns);
     
-        // Ordenar los resultados
-        if ($this->order) {
-            $query->orderBy($this->order, $this->direction);
+        if (!empty($this->order) && !empty($this->direction)) {
+        // Asegurarse de que ambos arreglos tengan el mismo número de elementos
+            $orderCount = count($this->order);
+            $directionCount = count($this->direction);
+
+            if ($orderCount !== $directionCount) {
+                throw new \Exception('El número de columnas de ordenamiento no coincide con el número de direcciones.');
+            }
+
+            // Recorrer ambos arreglos usando los mismos índices
+            for ($i = 0; $i < $orderCount; $i++) {
+                $orderColumn = $this->order[$i];
+                $orderDirection = $this->direction[$i];
+
+                // Aplicar el ordenamiento para cada par columna-dirección
+                $query->orderBy($orderColumn, $orderDirection);
+            }   
         } else {
             $query->orderBy($this->nameId, $this->direction);
         }

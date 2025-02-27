@@ -8,3 +8,5 @@ Route::get('/{idTurno}', [TurnoController::class, 'show']);
 Route::post('/create', [TurnoController::class, 'store']);
 Route::put('/{idTurno}', [TurnoController::class, 'update']);
 Route::delete('/{idTurno}', [TurnoController::class, 'destroy']);
+Route::post('/imprimeXls', [TurnoController::class, 'exportaExcel']);   
+Route::post('/generaReporte', [TurnoController::class, 'generaReporte']); 

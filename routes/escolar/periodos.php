@@ -3,6 +3,8 @@ use App\Http\Controllers\Api\escolar\PeriodoController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
+Route::post('/imprimeXls', [PeriodoController::class, 'exportaExcel']);   
+Route::post('/generaReporte', [PeriodoController::class, 'generaReporte']);  
 Route::get('/', [PeriodoController::class, 'index']);
 Route::get('/{idPeriodo}/{idNivel}', [PeriodoController::class, 'show']);
 Route::post('/create', [PeriodoController::class, 'store']);

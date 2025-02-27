@@ -5,6 +5,10 @@ use App\Http\Controllers\Controller;
 use App\Models\escolar\Periodo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
+use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 
 class PeriodoController extends Controller{
 
@@ -135,4 +139,88 @@ class PeriodoController extends Controller{
         $periodos->save();
         return $this->returnEstatus('Periodo actualizado',200,null);    
     }
+
+    public function obtenerDatos(){
+        return DB::table('periodo as per')
+                            ->select(
+                                'per.idPeriodo',
+                                'per.descripcion',
+                                'per.fechaInicio',
+                                'per.fechaTermino',
+                                'niv.descripcion as nivel',
+                                DB::raw('CASE WHEN per.activo = 1 THEN "S" ELSE "N" END as activo'),
+                                DB::raw('CASE WHEN per.inmediato = 1 THEN "S" ELSE "N" END as inmediato'),
+                                DB::raw('CASE WHEN per.inscripciones = 1 THEN "S" ELSE "N" END as inscripciones')
+                            )
+                            ->join('nivel as niv', 'niv.idNivel', '=', 'per.idNivel')
+                            ->orderBy('per.idNivel', 'asc')
+                            ->orderBy('per.idPeriodo', 'asc')
+                            ->get();    
+}    
+
+public function generaReporte(){
+   $data = $this->obtenerDatos();
+
+   if(empty($data)){
+       return response()->json([
+           'status' => 500,
+           'message' => 'No hay datos para generar el reporte'
+       ]);
+   }
+
+    // Convertir los datos a un formato de arreglo asociativo
+    $dataArray = $data->map(function ($item) {
+       return (array) $item;
+   })->toArray();
+
+    // Generar el PDF
+    $pdfController = new pdfController();
+    
+    return $pdfController->generateReport($dataArray,  // Datos
+                                          [100,80,100,100,100,80,80,100], // Anchos de columna
+                                          ['nivel','idPeriodo','descripcion','fechaInicio','fechaTermino','activo','inmediato','inscripciones'], // Claves
+                                          'CATÁLOGO DE PERIODOS', // Título del reporte
+                                          ['NIVEL','ID PERIODO', 'DESCRIPCION', 'FECHA INICIO','FECHA FIN','ACTIVO','INMEDIATO','INSCRIPCIONES'], 'L','letter',// Encabezados   ,
+                                          'rptPeriodos.pdf'
+                                        );
+    } 
+        
+  public function exportaExcel() {  
+           // Ruta del archivo a almacenar en el disco público
+           $path = storage_path('app/public/periodos_rpt.xlsx');
+           $selectColumns = [   'nivel.descripcion as nivel',
+                                'periodo.idPeriodo',
+                                'periodo.descripcion',
+                                'periodo.fechaInicio',
+                                'periodo.fechaTermino',                                
+                                DB::raw('CASE WHEN activo = 1 THEN "SI" ELSE "NO" END as activo'),
+                                DB::raw('CASE WHEN inmediato = 1 THEN "SI" ELSE "NO" END as inmediato'),
+                                DB::raw('CASE WHEN inscripciones = 1 THEN "SI" ELSE "NO" END as inscripciones')
+            ]; 
+           $namesColumns = ['NIVEL','ID PERIODO', 'DESCRIPCION', 'FECHA INICIO','FECHA FIN','ACTIVO','INMEDIATO','INSCRIPCIONES']; // Seleccionar columnas específicas
+           
+           $joins = [[ 'table' => 'nivel', // Tabla a unir
+                       'first' => 'nivel.idNivel', // Columna de la tabla principal
+                       'second' => 'periodo.idNivel', // Columna de la tabla unida
+                       'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                   ]];    
+
+           $export = new GenericTableExportEsp('periodo', 'nivel.idNivel', [], ['nivel.idNivel','periodo.idPeriodo'], ['asc','desc'], $selectColumns, $joins,$namesColumns);
+
+           // Guardar el archivo en el disco público  
+           Excel::store($export, 'periodos_rpt.xlsx', 'public');
+       
+           // Verifica si el archivo existe usando Storage de Laravel
+           if (file_exists($path))  {
+               return response()->json([
+                   'status' => 200,  
+                   'message' => 'https://reportes.siaweb.com.mx/storage/periodos_rpt.xlsx' // URL pública para descargar el archivo
+               ]);
+           } else {
+               return response()->json([
+                   'status' => 500,
+                   'message' => 'Error al generar el reporte '
+               ]);
+           }  
+   }
 }

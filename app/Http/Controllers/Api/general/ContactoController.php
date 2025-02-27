@@ -163,7 +163,7 @@ public function generaReporte(){
                     ]                
                 ];
 
-           $export = new GenericTableExportEsp('contacto', 'uid', [], 'p.uid', 'asc', $selectColumns, $joins,$namesColumns);
+           $export = new GenericTableExportEsp('contacto', 'uid', [], ['p.uid'], ['asc'], $selectColumns, $joins,$namesColumns);
 
            // Guardar el archivo en el disco público  
            Excel::store($export, 'contactos_rpt.xlsx', 'public');

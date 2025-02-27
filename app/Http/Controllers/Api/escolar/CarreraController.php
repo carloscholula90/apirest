@@ -148,7 +148,7 @@ class CarreraController extends Controller
                     'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                  ]];
 
-        $export = new GenericTableExportEsp('carrera', 'descripcion', [], 'carrera.descripcion', 'asc', $selectColumns, $joins,$namesColumns);
+        $export = new GenericTableExportEsp('carrera', 'descripcion', [], ['carrera.descripcion'], ['asc'], $selectColumns, $joins,$namesColumns);
 
         // Guardar el archivo en el disco público
         Excel::store($export, 'carrera_rpt.xlsx', 'public');

@@ -170,7 +170,7 @@ public function generaReporte(){
                         'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                     ]];
 
-            $export = new GenericTableExportEsp('aplicaciones', 'descripcion', [], 'aplicaciones.descripcion', 'asc', $selectColumns, $joins,$namesColumns);
+            $export = new GenericTableExportEsp('aplicaciones', 'descripcion', [], ['aplicaciones.descripcion'], ['asc'], $selectColumns, $joins,$namesColumns);
 
             // Guardar el archivo en el disco público  
             Excel::store($export, 'aplicaciones_rpt.xlsx', 'public');

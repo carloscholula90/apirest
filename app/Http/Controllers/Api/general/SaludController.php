@@ -4,6 +4,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\general\Salud;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
+use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Api\serviciosGenerales\pdfController;
+use Maatwebsite\Excel\Facades\Excel;
      
 class SaludController extends Controller
 {
@@ -69,4 +73,85 @@ class SaludController extends Controller
             return $this->returnEstatus('Salud no encontrado',404,null);  
         return $this->returnEstatus('Salud eliminado',200,null); 
     }
+
+    public function obtenerDatos(){
+        return DB::table('salud as salud')
+                       ->select(
+                               'p.uid',
+                               'nombre',
+                               'primerApellido',
+                               'segundoApellido',
+                               'enfermedad',
+                               'medico',
+                               'telefono'
+                              )
+                             ->join('persona as p', 'p.uid', '=', 'salud.uid')
+                             ->orderBy('p.uid', 'asc')
+                             ->get();
+    }    
+
+    public function generaReporte(){
+        $data = $this->obtenerDatos();
+     
+        if(empty($data)){
+            return response()->json([
+                'status' => 500,
+                'message' => 'No hay datos para generar el reporte'
+            ]);
+        }
+     
+         // Convertir los datos a un formato de arreglo asociativo
+         $dataArray = $data->map(function ($item) {
+            return (array) $item;
+        })->toArray();
+     
+         // Generar el PDF
+         $pdfController = new pdfController();
+         
+         return $pdfController->generateReport($dataArray,  // Datos
+                                               [80,100,100,100,100,100,200], // Anchos de columna
+                                               ['uid','nombre','primerApellido','segundoApellido','enfermedad','medico','telefono'], // Claves
+                                               'CONTACTOS', // Título del reporte
+                                               ['UID','NOMBRE', 'APELLIDO PATERNO', 'APELLIDO MATERNO','ENFERMEDAD','MEDICO','TELEFONO'], 'L','letter',// Encabezados   ,
+                                               'rptSalud.pdf'
+         );
+     } 
+             
+       public function exportaExcel() {  
+                // Ruta del archivo a almacenar en el disco público
+                $path = storage_path('app/public/salud_rpt.xlsx');
+                $selectColumns = ['p.uid',
+                               'nombre',
+                               'primerApellido',
+                               'segundoApellido',
+                               'enfermedad',
+                               'medico',
+                               'telefono']; 
+                $namesColumns =  ['UID','NOMBRE', 'APELLIDO PATERNO', 'APELLIDO MATERNO','ENFERMEDAD','MEDICO','TELEFONO']; // Seleccionar columnas específicas
+                $joins = [[ 'table' => 'persona as p', // Tabla a unir
+                            'first' => 'p.uid', // Columna de la tabla principal
+                            'second' => 'salud.uid', // Columna de la tabla unida
+                            'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                         ]          
+                     ];
+     
+                $export = new GenericTableExportEsp('salud', 'uid', [], ['p.uid'], ['asc'], $selectColumns, $joins,$namesColumns);
+     
+                // Guardar el archivo en el disco público  
+                Excel::store($export, 'salud_rpt.xlsx', 'public');
+            
+                // Verifica si el archivo existe usando Storage de Laravel
+                if (file_exists($path))  {
+                    return response()->json([
+                        'status' => 200,  
+                        'message' => 'https://reportes.siaweb.com.mx/storage/salud_rpt.xlsx' // URL pública para descargar el archivo
+                    ]);
+                } else {
+                    return response()->json([
+                        'status' => 500,
+                        'message' => 'Error al generar el reporte '
+                    ]);
+                }  
+        }
+     
 }
