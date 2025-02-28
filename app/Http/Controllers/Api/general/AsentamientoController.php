@@ -106,6 +106,6 @@ class AsentamientoController extends Controller{
 
     public function generaReporte()
     {
-       return $this->imprimeCtl('asentamiento','idAsentamiento',null,null,'descripcion');
+       return $this->imprimeCtl('asentamiento','asentamientos',null,null,'descripcion');
    }
 }
