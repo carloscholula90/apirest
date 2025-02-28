@@ -170,7 +170,7 @@ public function generaReporte(){
                         'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                     ]];
 
-            $export = new GenericTableExportEsp('aplicaciones', 'descripcion', [], ['aplicaciones.descripcion'], ['asc'], $selectColumns, $joins,$namesColumns);
+            $export = new GenericTableExportEsp('aplicaciones', 'descripcion', [], ['modulos.descripcion','aplicaciones.descripcion'], ['asc','asc'], $selectColumns, $joins,$namesColumns);
 
             // Guardar el archivo en el disco público  
             Excel::store($export, 'aplicaciones_rpt.xlsx', 'public');
@@ -179,7 +179,7 @@ public function generaReporte(){
             if (file_exists($path))  {
                 return response()->json([
                     'status' => 200,  
-                    'message' => 'https://reportes.siaweb.com.mx/storage/aplicaciones_rpt.xlsx' // URL pública para descargar el archivo
+                    'message' => 'https://reportes.siaweb.com.mx/storage/app/public/aplicaciones_rpt.xlsx' // URL pública para descargar el archivo
                 ]);
             } else {
                 return response()->json([

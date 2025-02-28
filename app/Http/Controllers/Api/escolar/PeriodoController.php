@@ -214,7 +214,7 @@ public function generaReporte(){
            if (file_exists($path))  {
                return response()->json([
                    'status' => 200,  
-                   'message' => 'https://reportes.siaweb.com.mx/storage/periodos_rpt.xlsx' // URL pública para descargar el archivo
+                   'message' => 'https://reportes.siaweb.com.mx/storage/app/public/periodos_rpt.xlsx' // URL pública para descargar el archivo
                ]);
            } else {
                return response()->json([
