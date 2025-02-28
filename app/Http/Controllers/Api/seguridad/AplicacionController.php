@@ -124,6 +124,7 @@ class AplicacionController extends Controller
    public function obtenerDatos(){
          return DB::table('aplicaciones as apl')
                         ->select(
+                                'mod.idModulo',
                                 'mod.descripcion as modDescripcion',
                                 'apl.idAplicacion',
                                 'apl.descripcion',
