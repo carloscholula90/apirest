@@ -15,8 +15,10 @@ class AplicacionController extends Controller
 {
     public function index()
     {
-        $aplicacion = Aplicacion::all();
-        return $this->returnData('aplicacion',$aplicacion,200);        
+        $aplicacion = $this->obtenerDatos();
+        if (!$aplicacion) 
+            return $this->returnEstatus('No existen datos para mostrar',500,null);
+        return $this->returnData('aplicacion',$aplicacion,200);    
     }
 
     public function store(Request $request)
@@ -125,6 +127,8 @@ class AplicacionController extends Controller
                                 'mod.descripcion as modDescripcion',
                                 'apl.idAplicacion',
                                 'apl.descripcion',
+                                'apl.alias',
+                                'apl.icono',
                                 DB::raw('CASE WHEN apl.activo = 1 THEN "S" ELSE "N" END as activo'))
                                         ->join('modulos as mod', 'mod.idModulo', '=', 'apl.idModulo')
                                         ->orderBy('apl.descripcion', 'asc')
