@@ -4,20 +4,10 @@ namespace App\Http\Controllers\Api\{ruta};
 use App\Http\Controllers\Controller;
 use App\Models\{ruta}\{Nombre};
 use Illuminate\Http\Request;
-use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 
 class {Nombre}Controller extends Controller{
-
-    protected $pdfController;
-
-    // Inyección de la clase PdfReportGenerator
-    public function __construct(pdfController $pdfController)
-    {
-        $this->pdfController = $pdfController;
-    }
-
 
     public function index(){       
         ${nameApi} = {Nombre}::all();
@@ -57,7 +47,7 @@ class {Nombre}Controller extends Controller{
 
     public function show($id{Nombre}){
         try {
-            $${nameApi} = {Nombre}::findOrFail($id{Nombre});
+            ${nameApi} = {Nombre}::findOrFail($id{Nombre});
             return $this->returnData('${nameApi}',${nameApi},200);   
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->returnEstatus('{Nombre} no encontrado',404,null); 
@@ -120,24 +110,13 @@ class {Nombre}Controller extends Controller{
         return $this->returnEstatus('{Nombre} actualizado',200,null);    
     }
 
-      // Función para generar el reporte de personas
-      public function generaReport()
-      {
-        ${nombre} = $this->{Nombre}::all();
      
-         // Si no hay personas, devolver un mensaje de error
-         if (${nombre}->isEmpty())
-             return $this->returnEstatus('No se encontraron datos para generar el reporte',404,null);
-         
-         $headers = ['ID', 'DESCRIPCION'];
-         $columnWidths = [80,500];   
-         $keys = ['id{Nombre}', 'descripcion'];
-        
-         ${nombre}Array = ${nombre}->map(function (${nombre}) {
-             return ${nombre}->toArray();
-         })->toArray();   
-     
-         return $this->pdfController->generateReport(${nombre}Array,$columnWidths,$keys , 'REPORTE DE ...', $headers,'L','letter');
-       
-     }  
+    public function generaReporte()
+    {
+       return $this->imprimeCtl('notas',' notas ',null,null,'descripcion');
+    } 
+
+    public function exportaExcel() {
+       return $this->exportaXLS('{tabla}','id{Nombre}',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
+   }   
 }

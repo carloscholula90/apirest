@@ -118,6 +118,10 @@ Route::prefix('niveles')->group(function () {
     require base_path('routes/escolar/niveles.php');
 });
 
+Route::prefix('notas')->group(function () {
+    require base_path('routes/tesoreria/notas.php');
+});
+
 Route::prefix('pais')->group(function () {
     require base_path('routes/general/pais.php');
 });
@@ -173,6 +177,10 @@ Route::prefix('tipocontacto')->group(function () {
 
 Route::prefix('tipodirecciones')->group(function () {
     require base_path('routes/general/tipodirecciones.php');
+});
+
+Route::prefix('tiposexamenes')->group(function () {
+    require base_path('routes/escolar/tiposexamenes.php');
 });
 
 Route::prefix('turnos')->group(function () {

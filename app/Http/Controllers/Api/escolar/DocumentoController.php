@@ -113,7 +113,7 @@ class DocumentoController extends Controller{
 
     public function generaReporte()
      {
-        $this->imprimeCtl('documento',' documento ',null,null,'descripcion');
+        return $this->imprimeCtl('documento',' documento ',null,null,'descripcion');
      } 
 
      public function exportaExcel() {

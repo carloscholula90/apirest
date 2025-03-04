@@ -64,7 +64,7 @@ class AlergiaController extends Controller
 
     public function generaReporte()
      {
-        $this->imprimeCtl('alergia',' alergia ',null,null,'alergia');
+        return $this->imprimeCtl('alergia',' alergia ',null,null,'alergia');
      }   
 
     public function exportaExcel() {

@@ -93,6 +93,6 @@ class MedioController extends Controller
 
     public function generaReporte()
      {
-        $this->imprimeCtl('medio',' medios ',null,null,'descripcion');
+        return $this->imprimeCtl('medio',' medios ',null,null,'descripcion');
      } 
 }  

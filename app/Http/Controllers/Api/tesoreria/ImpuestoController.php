@@ -111,7 +111,7 @@ class ImpuestoController extends Controller{
 
     public function generaReporte()
      {
-        $this->imprimeCtl('impuestos',' impuestos ',null,null,'descripcion');
+        return $this->imprimeCtl('impuestos',' impuestos ',null,null,'descripcion');
      }   
 
     public function exportaExcel() {
