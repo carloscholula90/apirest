@@ -10,24 +10,25 @@ use Illuminate\Support\Facades\Log;
 class KardexController extends Controller
 {
 
-    public function generaReporte($id,$idNivel,$idCarrera,$order)
-     {
-       
-        $results = DB::table('ciclos as cl')
+    public function generaReporte($id,$idNivel,$idCarrera){
+
+       $result = DB::table('ciclos as cl')
                         ->join('calificaciones as ca', 'ca.indexCiclo', '=', 'cl.indexCiclo')
-                        ->join('grupos as g', 'g.grupoSec', '=', 'ca.grupoSec')
-                        ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
-                        ->join('persona as p', 'p.uid', '=', 'cl.uid')
-                        ->join('alumno', 'alumno.uid', '=', 'p.uid')
+                        ->join('detasignatura as asig', 'asig.secPlan', '=', 'ca.secPlan')
+                        ->join('asignatura as a', 'a.idAsignatura', '=', 'asig.idAsignatura')
+                        ->join('alumno', function ($join) {
+                                                $join->on('alumno.uid', '=', 'cl.uid')
+                                                    ->on('alumno.secuencia', '=', 'cl.secuencia');
+                        })
+                        ->join('persona as p', 'p.uid', '=', 'alumno.uid')
                         ->join('carrera', function ($join) {
-                            $join->on('carrera.idCarrera', '=', 'alumno.idCarrera')
-                                ->on('carrera.idNivel', '=', 'alumno.idNivel');
+                                        $join->on('carrera.idCarrera', '=', 'alumno.idCarrera')
+                                            ->on('carrera.idNivel', '=', 'alumno.idNivel');
                         })
                         ->join('periodo as per', function ($join) {
-                            $join->on('per.idNivel', '=', 'cl.idNivel')
-                                ->on('per.idPeriodo', '=', 'cl.idPeriodo');
-                        })                       
-                        ->leftJoin('detasignatura as det', 'alumno.idPlan', '=', 'det.idPlan')
+                                            $join->on('per.idNivel', '=', 'cl.idNivel')
+                                                ->on('per.idPeriodo', '=', 'cl.idPeriodo');
+                        })
                         ->join('tipoExamen as e', 'e.idExamen', '=', 'ca.idExamen')
                         ->join('nivel as n', 'n.idNivel', '=', 'cl.idNivel')
                         ->select(
@@ -35,32 +36,27 @@ class KardexController extends Controller
                                     'alumno.matricula',
                                     'carrera.descripcion as carrera',
                                     'per.descripcion as periodo',
-                                    'p.UID as estudiante',
+                                    'alumno.UID as estudiante',
                                     'p.nombre',
                                     'p.primerApellido as apellidopat',
                                     'p.segundoApellido as apellidomat',
-                                    'g.idAsignatura',
+                                    'asig.idAsignatura as idAsignatura',
+                                    'asig.ordenk',
                                     'a.descripcion as asignatura',
-                                    'per.idPeriodo',  
+                                    'per.idPeriodo',
                                     'a.creditos',
-                                    'det.semestre as semestre',
+                                    'asig.semestre as semestre',
                                     'ca.cf as calificacion',
                                     'e.descripcion as tipo',
                                     DB::raw('CONLETRA(ca.cf) as califConLetra')
                         )
                         ->where('cl.uid', $id)
                         ->where('alumno.idNivel', $idNivel)
-                        ->where('det.idCarrera',$idCarrera)
-                        ->where('det.idAsignatura', 'a.idAsignatura')
-                        ->where('alumno.idCarrera', $idCarrera);
+                        ->where('alumno.idCarrera', $idCarrera)
+                        ->orderBy('asig.ordenk');                        
 
                        // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
-        if ($order == 'C') 
-            $results = $results->orderBy('det.ordenc');
-        else if ($order == 'K') 
-                $results = $results->orderBy('det.semestre')
-                                    ->orderBy('det.ordenk');
-
+       
         $results = $results->get();
 
         // Si no hay personas, devolver un mensaje de error
