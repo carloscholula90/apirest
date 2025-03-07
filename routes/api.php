@@ -171,6 +171,10 @@ Route::prefix('tipoasignatura')->group(function () {
     require base_path('routes/escolar/tipoasignatura.php');
 });
 
+Route::prefix('tiposexamenes')->group(function () {
+    require base_path('routes/escolar/tiposexamenes.php');
+});
+
 Route::prefix('salud')->group(function () {
     require base_path('routes/general/salud.php');    
 });

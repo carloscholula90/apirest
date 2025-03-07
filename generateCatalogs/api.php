@@ -8,5 +8,5 @@ Route::get('/{id{Nombre}}', [{Nombre}Controller::class, 'show']);
 Route::post('/create', [{Nombre}Controller::class, 'store']);
 Route::put('/{id{Nombre}}', [{Nombre}Controller::class, 'update']);
 Route::delete('/{id{Nombre}}', [{Nombre}Controller::class, 'destroy']);
-Route::post('/generaReporte', {Nombre}Controller::class, 'generaReporte']);
+Route::post('/generaReporte', [{Nombre}Controller::class, 'generaReporte']);
 Route::post('/imprimeXls', [{Nombre}Controller::class, 'exportaExcel']); 
