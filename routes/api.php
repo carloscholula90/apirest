@@ -151,6 +151,10 @@ Route::prefix('puestos')->group(function () {
     require base_path('routes/general/puestos.php');
 });
 
+Route::prefix('productoserviciosat')->group(function () {
+    require base_path('routes/tesoreria/productoserviciosat.php');
+});
+
 Route::prefix('rol')->group(function () {
     require base_path('routes/seguridad/rol.php');
 });
