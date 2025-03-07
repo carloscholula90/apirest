@@ -51,7 +51,7 @@ class KardexController extends Controller
                         ->where('cl.uid', $id)
                         ->where('alumno.idNivel', $idNivel)
                         ->where('det.idCarrera',$idCarrera)
-                       // ->where('det.idAsignatura', 'a.idAsignatura')
+                        ->where('det.idAsignatura', 'a.idAsignatura')
                         ->where('alumno.idCarrera', $idCarrera);
 
                        // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
