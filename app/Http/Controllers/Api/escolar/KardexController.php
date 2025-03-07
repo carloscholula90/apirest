@@ -57,7 +57,7 @@ class KardexController extends Controller
 
                        // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
        
-        $results = $results->get();
+        $results = $result->get();
 
         // Si no hay personas, devolver un mensaje de error
         if ($results->isEmpty())
