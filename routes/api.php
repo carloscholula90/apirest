@@ -79,6 +79,10 @@ Route::prefix('estados')->group(function () {
     require base_path('routes/general/estados.php');
 });
 
+Route::prefix('estatusfacturas')->group(function () {
+    require base_path('routes/tesoreria/estatusfacturas.php');
+});
+
 Route::prefix('formaspagos')->group(function () {
     require base_path('routes/tesoreria/formaspagos.php');
 });
