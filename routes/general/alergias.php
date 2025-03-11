@@ -1,10 +1,11 @@
 <?php
-use App\Http\Controllers\Api\general\AlergiasController;
+use App\Http\Controllers\Api\general\AlergiaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
-Route::get('/', [AlergiasController::class, 'index']);
-Route::get('/{idAlergia}', [AlergiasController::class, 'show']);
-Route::post('/create', [AlergiasController::class, 'store']);
-Route::put('/{idAlergia}', [AlergiasController::class, 'update']);
-Route::delete('/{idAlergia}', [AlergiasController::class, 'destroy']);
+Route::get('/{uid}', [AlergiaController::class, 'show']);
+Route::post('/create', [AlergiaController::class, 'store']);
+Route::put('/{uid}', [AlergiaController::class, 'update']);
+Route::delete('/{uid}/{secuencia}', [AlergiaController::class, 'destroy']);
+Route::post('/generaReporte', [AlergiaController::class, 'generaReporte']);
+Route::post('/imprimeXls', [AlergiaController::class, 'exportaExcel']); 

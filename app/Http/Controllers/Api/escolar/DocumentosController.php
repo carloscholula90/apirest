@@ -146,7 +146,7 @@ class DocumentosController extends Controller{
                                 ->where('g.grupo', '06S5A')
                                 ->get();
 
-                                Log::info('Este es un mensaje de información '.$resultsB);
+                             
       
             
             if ($resultsB->isEmpty())

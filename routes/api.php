@@ -31,6 +31,10 @@ Route::prefix('alumnos')->group(function () {
     require base_path('routes/escolar/alumnos.php');
 });
 
+Route::prefix('alergias')->group(function () {
+    require base_path('routes/general/alergias.php');
+});     
+
 Route::prefix('aplicaciones')->group(function () {
     require base_path('routes/seguridad/aplicaciones.php');
 });
@@ -53,6 +57,10 @@ Route::prefix('carreras')->group(function () {
 
 Route::prefix('ciudades')->group(function () {
     require base_path('routes/general/ciudades.php');
+});
+
+Route::prefix('codigospostales')->group(function () {  
+    require base_path('routes/general/codigospostales.php');
 });
 
 Route::prefix('contactos')->group(function () {
