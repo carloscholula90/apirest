@@ -103,8 +103,8 @@ class AlergiaController extends Controller{
         }
 
          // Convertir los datos a un formato de arreglo asociativo
-         $dataArray = $data->map(function ($item) {  
-            return (array) $item;
+         $dataArray = $data->map(function ($data) {  
+                        return (array) $data;       
         })->toArray();
 
          // Generar el PDF

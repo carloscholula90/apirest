@@ -87,8 +87,7 @@ class IdiomasController extends Controller
         return $this->returnEstatus('Idioma eliminado',200,null);        
     }
 
-    public function generaReporte()
-     {
+    public function generaReporte(){
         return $this->imprimeCtl('idioma',' idiomas ',null,null,'descripcion');
      }   
 

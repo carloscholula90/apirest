@@ -9,11 +9,7 @@ class PdfController extends Controller
 {
     public function generateReport(array $data, array $columnWidths = null, array $keys = null, string $title = 'Reporte PDF', array $headers = null, string $orientation = 'L', string $size = 'letter', string $nameReport = null)
 {
-
-    
-    Log::info('Semestre dddd'.$keys[0]);  
-    foreach ($data as $row)
-    Log::info('Semestre dddd'.$row);      
+  
     // Configurar límites de memoria y tiempo de ejecución para asegurar que no haya interrupciones
     set_time_limit(300);  // 5 minutos
     ini_set('memory_limit', '512M');  // Aumentar el límite de memoria

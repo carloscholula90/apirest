@@ -44,7 +44,7 @@ class KardexController extends Controller
                                     'asig.ordenk',
                                     'a.descripcion as asignatura',
                                     'per.idPeriodo',
-                                    'a.creditos',
+                                    'asig.creditos',
                                     'asig.semestre as semestre',
                                     'ca.cf as calificacion',
                                     'e.descripcion as tipo',

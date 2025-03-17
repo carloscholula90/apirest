@@ -75,6 +75,10 @@ Route::prefix('direcciones')->group(function () {
     require base_path('routes/general/direcciones.php');
 });
 
+Route::prefix('edificios')->group(function () {
+    require base_path('routes/general/edificios.php');
+});
+
 Route::prefix('edocivil')->group(function () {
     require base_path('routes/general/edocivil.php');
 });
@@ -210,5 +214,10 @@ Route::prefix('turnos')->group(function () {
 Route::prefix('usuarios')->group(function () {
     require base_path('routes/general/usuarios.php');
 });
+
+Route::prefix('usoscfdi')->group(function () {
+    require base_path('routes/tesoreria/usoscfdi.php');
+});
+   
    
 #Este es un comentario para probar el fech y el pull..

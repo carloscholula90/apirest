@@ -109,8 +109,7 @@ class PaisController extends Controller
         return $this->exportaXLS('pais','idPais',['CLAVE', 'DESCRIPCIÓN','NACIONALIDAD']);     
     }  
 
-    public function generaReporte()
-     {
+    public function generaReporte(){
         return $this->imprimeCtl('pais',' pais ',['CLAVE', 'DESCRIPCIÓN','NACIONALIDAD'],[100, 200,200],'descripcion');
      }  
 }
