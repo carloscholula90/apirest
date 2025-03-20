@@ -103,7 +103,7 @@ class CarreraController extends Controller
                                     'c.descripcion as carrera',
                                     'c.diaInicioCargo',
                                     'c.diaInicioRecargo',
-                                    DB::raw('CASE WHEN activo = 1 THEN "S" ELSE "N" END as activo'))
+                                    DB::raw('CASE WHEN c.activo = 1 THEN "S" ELSE "N" END as activo'))
                                             ->join('nivel as niv', 'niv.idNivel', '=', 'c.idNivel')
                                             ->orderBy('c.descripcion', 'asc')
                                             ->get();

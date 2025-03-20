@@ -5,97 +5,98 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use App\Models\admisiones\Aspirante;
+use App\Models\general\Persona;  
     
 class AspiranteController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        $aspirantes = Aspirante::all();
-        return $this->returnData('aspirantes',$aspirantes,200);
-    }
+   /**
+    * Show the form for creating a new resource.
+   */
+    public function store(Request $request){   
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function store(Request $request) 
-    {           
         $validator = Validator::make($request->all(), [
-                            'uid' => 'required|numeric|max:11',
-                            'idPeriodo' => 'required|numeric|max:11',
-                            'idCarrera' => 'required|numeric|max:11',
-                            'adeudoAsignaturas' => 'required|numeric|max:11',
-                            'idNivel' => 'required|numeric|max:11',
-                            'idMedio' => 'required|numeric|max:11',
-                            'publica' => 'required|numeric|max:1',
-                            'paisCursoGradoAnterior' => 'required|numeric|max:11',
-                            'estadoCursoGradoAnterior' => 'required|numeric|max:11',
-                            'uidEmpleado' => 'required|numeric|max:11',
-                            'mesReprobada' => 'required|numeric|max:11',
-                            'observaciones' => 'required|max:255'
-
+                            'idNivel' => 'required|numeric',
+                            'idPeriodo' => 'required|numeric',
+                            'idCarrera' => 'required|numeric',
+                            'idTurno' => 'required|numeric',
+                            'fechaSolicitud' => 'required|max:255',
+                            'primerApellido' => 'required|max:255',
+                            'segundoApellido' => 'required|max:255',
+                            'nombre' => 'required|max:255',
+                            'fechaNacimiento' => 'required|date',  
+                            'sexo' => 'required|max:255',
+                            'rfc' => 'required|max:255',
+                            'curp' => 'required|max:255',
+                            'idPais' => 'required|numeric',
+                            'idEstado' => 'required|numeric',
+                            'idCiudad' => 'required|numeric',
+                            'idCp' => 'required|numeric',
+                            'idAsentamiento' => 'required|numeric',
+                            'noExterior' => 'required|numeric',
+                            'noInterior' => 'required|numeric',
+                            'calle' => 'required|max:255',
+                            //'contactos' => 'required|array',
+                            //'familiares' => 'required|array',
+                            'idNivelAnterior' =>'required|numeric',
+                            'paisCursoGradoAnterior' =>'required|numeric',
+                            'estadoCursoGradoAnterior' =>'required|numeric',
+                            'escuelaProcedencia' => 'required|max:255',
+                            'adeudoAsignaturas' => 'required|numeric|max:1',
+                            'matReprobada' =>'required|numeric',
+                            'mesReprobada' =>'required|numeric',
+                            'publica' =>'required|numeric|max:1'
+                            //'alergias' => 'required|array',
+                            //'enfermedades' => 'required|array',
+                            //'uidEmpleado' =>'required|numeric',
+                            //'idMedio' =>  'required|numeric' 
         ]);
 
         if ($validator->fails()) 
         return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+        $maxId = Persona::max('uid');  
+        $newId = $maxId ? $maxId + 1 : 1;  
+        $persona = Persona::create([
+                                'uid' => $newId,
+                                'curp' => strtoupper(trim($request->curp)),
+                                'nombre' => strtoupper(trim($request->nombre)),
+                                'primerApellido' => strtoupper(trim($request->primerApellido)),
+                                'segundoApellido' => strtoupper(trim($request->segundoApellido)),
+                                'fechaNacimiento' => strtoupper(trim($request->fechaNacimiento)),
+                                'sexo' => strtoupper(trim($request->sexo)),
+                                'idPais' =>$request->idPais,
+                                'idEstado' => $request->idEstado,
+                                'idCiudad' => $request->idCiudad
+                ]);
 
-        $maxId = Aspirante::where('uid', $request->uid)  
-                                 ->max('secuencia');  
+                if (!$persona) 
+                    return $this->returnEstatus('Error al crear a la persona',500,null);         
+            
+                else {
+                     $consecutivo = Aspirante::max('consecutivo')
+                                            ->where('uid',$newId);
 
-        $newId = $maxId ? $maxId + 1 : 1; 
-        $aspirante = Aspirante::create([
-                            'secuencia' => $newId,
-                            'uid' => $request->uid,
-                            'idPeriodo' => $request->idPeriodo,
-                            'idCarrera' => $request->idCarrera,
-                            'adeudoAsignaturas' => $request->adeudoAsignaturas,
-                            'idNivel' => $request->idNivel,
-                            'idMedio' => $request->idMedio,
-                            'publica' => $request->publica,
-                            'paisCursoGradoAnterior' => $request->paisCursoGradoAnterior,
-                            'estadoCursoGradoAnterior' => $request->estadoCursoGradoAnterior,
-                            'uidEmpleado' =>$request->uidEmpleado,
-                            'mesReprobada' => $request->mesReprobada,
-                            'observaciones' => $request->observaciones
-        ]);
+                     $aspirante = Aspirante::create([
+                                'uid' => $newId,
+                                'secuencia' => $consecutivo + 1,
+                                'idPeriodo' => $request->idPeriodo,
+                                'idCarrera' => $request->idCarrera,
+                                'adeudoAsignaturas' => $request->adeudoAsignaturas,
+                                'idNivel' => $request->idNivel,
+                                'idMedio' => $request->idMedio,
+                                'publica' => $request->publica,
+                                'paisCursoGradoAnterior' => $request->paisCursoGradoAnterior,
+                                'estadoCursoGradoAnterior' => $request->estadoCursoGradoAnterior,
+                                'uidEmpleado' => $request->uidEmpleado,
+                                'fechaSolicitud' => $request->fechaSolicitud,
+                                'matReprobada' => $request->matReprobada,
+                                'mesReprobada' => $request->mesReprobada,
+                                'idNivelAnterior' => $request->idNivelAnterior,
+                                'escuelaProcedencia' => $request->escuelaProcedencia]);
 
-        if (!$aspirante) 
-            return $this->returnEstatus('Error al crear el asentamiento',500,null); 
-        return $this->returnData('aspirante',$aspirante,201);   
-    }     
+                    if (!$aspirante) 
+                    return $this->returnEstatus('Error al crear al aspirante',500,null);   
+                }
+   }     
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
-    }
-
+   
 }

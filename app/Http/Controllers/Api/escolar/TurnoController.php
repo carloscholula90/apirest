@@ -28,7 +28,9 @@ class TurnoController extends Controller{
         try{
         $turnos = Turno::create([
                         'idTurno' => $newId,
-                        'descripcion' => strtoupper(trim($request->descripcion))
+                        'descripcion' => strtoupper(trim($request->descripcion)),
+                        'letra' => strtoupper(trim($request->letra)),
+                        'parciales' => $request->parciales
         ]);
 
         } catch (QueryException $e) {
@@ -71,7 +73,9 @@ class TurnoController extends Controller{
 
         $validator = Validator::make($request->all(), [
                     'idTurno' => 'required|numeric|max:255',
-                    'descripcion' => 'required|max:255'
+                    'descripcion' => 'required|max:255',
+                    'letra' => 'required|max:255',
+                    'parciales' => 'required|max:255'
         ]);
 
         if ($validator->fails()) 
@@ -92,7 +96,9 @@ class TurnoController extends Controller{
 
         $validator = Validator::make($request->all(), [
                                     'idTurno' => 'required|numeric|max:255',
-                                    'descripcion' => 'required|max:255'
+                                    'descripcion' => 'required|max:255',
+                                    'letra' => 'required|max:255',
+                                    'parciales' => 'required|max:255'
         ]);
 
         if ($validator->fails()) 
@@ -102,9 +108,23 @@ class TurnoController extends Controller{
             $Turno->idTurno = $request->idTurno;        
 
         if ($request->has('descripcion')) 
-            $Turno->descripcion = strtoupper(trim($request->descripcion));        
+            $Turno->descripcion = strtoupper(trim($request->descripcion));  
+
+        if ($request->has('letra')) 
+            $Turno->letra = strtoupper(trim($request->letra));  
+        
+        if ($request->has('parciales')) 
+            $Turno->parciales = strtoupper(trim($request->parciales));   
 
         $Turno->save();
         return $this->returnEstatus('Turno actualizado',200,null);    
     }
+
+    public function generaReporte(){
+        return $this->imprimeCtl('turno',' turnos ',['CLAVE', 'DESCRIPCIÓN','LETRA','PARCIALES'],[100,200,100,100],'descripcion');
+     } 
+ 
+     public function exportaExcel() {
+        return $this->exportaXLS('turno','idTurno',['CLAVE', 'DESCRIPCIÓN','LETRA','PARCIALES'],'descripcion');     
+    } 
 }

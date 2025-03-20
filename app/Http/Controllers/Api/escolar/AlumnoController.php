@@ -64,22 +64,49 @@ class AlumnoController extends Controller
         //
     }
 
+    public function getAvance($uid,$secuencia){
+        $avance = DB::select('SELECT PorcentajeAvance(?, ?) AS avance', [$uid, $secuencia]);
+
+        if (!$avance) {
+            $data = [  
+                'message' => 'Alumno no encontrado',   
+                'status' => 404
+            ];
+            return response()->json($data, 404);
+        }
+
+        $data = [
+            'avance' => $avance,
+            'status' => 200
+        ];
+        return response()->json($data, 200);
+    }
+
     public function getAlumno($uid){
         $alumnos = DB::table('alumno')
                     ->join('nivel', 'nivel.idNivel', '=', 'alumno.idNivel')
                     ->join('carrera', 'carrera.idCarrera', '=', 'alumno.idCarrera')
                     ->join('persona', 'persona.uid', '=', 'alumno.uid')
+                    ->leftJoin('ciudad', function($join) {
+                        $join->on('ciudad.idEstado', '=', 'persona.idEstado')
+                             ->on('ciudad.idPais', '=', 'persona.idPais')
+                             ->on('ciudad.idCiudad', '=', 'persona.idCiudad');
+                        })
                     ->leftJoin('estado', function($join) {
                     $join->on('estado.idEstado', '=', 'persona.idEstado')->on('estado.idPais', '=', 'persona.idPais');
             })
             ->leftJoin('pais', 'pais.idPais', '=', 'persona.idPais')
             ->leftJoin('edoCivil', 'edoCivil.idEdoCivil', '=', 'persona.idEdoCivil')
-            ->where(function ($query) use ($uid) {  
+            ->where(function ($query) use ($uid) {     
                 $query->whereRaw('LOWER(alumno.uid) LIKE ?', [strtolower("%$uid%")])
                         ->orWhereRaw('LOWER(persona.nombre) LIKE ?', [strtolower("%$uid%")])
                         ->orWhereRaw('LOWER(persona.primerapellido) LIKE ?', [strtolower("%$uid%")])
-                        ->orWhereRaw('LOWER(persona.segundoapellido) LIKE ?', [strtolower("%$uid%")]);
+                        ->orWhereRaw('LOWER(persona.segundoapellido) LIKE ?', [strtolower("%$uid%")])   
+                        ->orWhereRaw('LOWER(persona.primerapellido)||\' \'||LOWER(persona.segundoapellido)  LIKE ?', [strtolower("%$uid%")])
+                        ->orWhereRaw('LOWER(persona.nombre)||\' \'||LOWER(persona.primerapellido)||\' \'||LOWER(persona.segundoapellido) LIKE ?', [strtolower("%$uid%")])
+                        ->orWhereRaw('LOWER(persona.nombre)||\' \'||LOWER(persona.primerapellido) LIKE ?', [strtolower("%$uid%")]) ;
             })
+
             ->select(   'alumno.uid',
                         'alumno.idNivel',
                         'alumno.idCarrera',
@@ -91,11 +118,12 @@ class AlumnoController extends Controller
                         'persona.segundoapellido',
                         'persona.sexo',
                         'persona.rfc',
+                        'persona.fechaNacimiento',
+                        'ciudad.descripcion as ciudad',
                         'estado.descripcion as estado',
                         'pais.descripcion as pais',
                         'edoCivil.descripcion as edocivil'
             )
-            ->orderBy('nivel.idNivel', 'desc')
             ->get();
 
             if (!$alumnos) {

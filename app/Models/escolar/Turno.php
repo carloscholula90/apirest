@@ -16,6 +16,8 @@ class Turno extends Model
 
     protected $fillable = [
                         'idTurno',
-                        'descripcion'
+                        'descripcion',
+                        'letra',
+                        'parciales'
     ];
 }

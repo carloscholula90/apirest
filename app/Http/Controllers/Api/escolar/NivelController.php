@@ -5,6 +5,10 @@ use App\Http\Controllers\Controller;
 use App\Models\escolar\Nivel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Api\serviciosGenerales\pdfController;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
+use Illuminate\Support\Facades\DB;
 
 class NivelController extends Controller
 {
@@ -197,12 +201,67 @@ class NivelController extends Controller
         return response()->json($data, 200);
     }
 
-    public function exportaExcel() {
-        return $this->exportaXLS('nivel','idNivel', ['CLAVE','DESCRIPCIÓN'],'descripcion');     
-    }
+    public function obtenerDatos(){
+        return DB::table('nivel')
+                            ->select(
+                                    'nivel.descripcion',
+                                    'nivel.idNivel',
+                                    DB::raw('CASE WHEN activo = 1 THEN "S" ELSE "N" END as activo'))
+                                            ->orderBy('nivel.descripcion', 'asc')
+                                            ->get();
+    }    
 
-    public function generaReporte()
-    {
-       return $this->imprimeCtl('nivel','niveles',null,null,'descripcion');
-   }
+    public function generaReporte(){
+        $data = $this->obtenerDatos();
+
+        if(empty($data)){
+            return response()->json([
+                'status' => 500,
+                'message' => 'No hay datos para generar el reporte'
+            ]);
+        }
+
+         // Convertir los datos a un formato de arreglo asociativo
+         $dataArray = $data->map(function ($item) {
+            return (array) $item;
+        })->toArray();
+
+         // Generar el PDF
+         $pdfController = new pdfController();
+         
+         return $pdfController->generateReport($dataArray,  // Datos
+                                               [100,300,100], // Anchos de columna
+                                               ['idNivel','descripcion','activo'], // Claves
+                                               'CATÁLOGO DE NIVELES', // Título del reporte
+                                               ['NIVEL','DESCRIPCIÓN','ACTIVO'], 'L','letter',// Encabezados   ,
+                                               'rptNiveles'.mt_rand(1, 100).'.pdf'
+         );
+    } 
+      
+    public function exportaExcel() {  
+        // Ruta del archivo a almacenar en el disco público
+        $path = storage_path('app/public/niveles_rpt.xlsx');
+        $selectColumns =  ['idNivel','descripcion','activo']; // Seleccionar columnas específicas
+        $namesColumns = ['NIVEL','DESCRIPCIÓN','ACTIVO']; // Seleccionar columnas específicas
+        
+        $joins = [];
+
+        $export = new GenericTableExportEsp('nivel', 'descripcion', [], ['nivel.descripcion'], ['asc'], $selectColumns, $joins,$namesColumns);
+
+        // Guardar el archivo en el disco público
+        Excel::store($export, 'niveles_rpt.xlsx', 'public');
+       
+        // Verifica si el archivo existe usando Storage de Laravel
+        if (file_exists($path))  {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/niveles_rpt.xlsx' // URL pública para descargar el archivo
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte '
+            ]);
+        }  
+    }
 }

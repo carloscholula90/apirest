@@ -11,8 +11,8 @@ class PdfController extends Controller
 {
   
     // Configurar límites de memoria y tiempo de ejecución para asegurar que no haya interrupciones
-    set_time_limit(300);  // 5 minutos
-    ini_set('memory_limit', '512M');  // Aumentar el límite de memoria
+    //set_time_limit(300);  // 5 minutos
+   // ini_set('memory_limit', '512M');  // Aumentar el límite de memoria
     
     // Rutas de las imágenes para el encabezado y pie
     $imagePathEnc = public_path('images/encPag.png');
