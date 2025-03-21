@@ -97,17 +97,18 @@ class AlumnoController extends Controller
             })
             ->leftJoin('pais', 'pais.idPais', '=', 'persona.idPais')
             ->leftJoin('edoCivil', 'edoCivil.idEdoCivil', '=', 'persona.idEdoCivil')
-            ->where(function ($query) use ($uid) {     
-                $query->whereRaw('LOWER(alumno.uid) LIKE ?', [strtolower("%$uid%")])
-                        ->orWhereRaw('LOWER(persona.nombre) LIKE ?', [strtolower("%$uid%")])
-                        ->orWhereRaw('LOWER(persona.primerapellido) LIKE ?', [strtolower("%$uid%")])
-                        ->orWhereRaw('LOWER(persona.segundoapellido) LIKE ?', [strtolower("%$uid%")])   
-                        ->orWhereRaw('LOWER(persona.primerapellido)||\' \'||LOWER(persona.segundoapellido)  LIKE ?', [strtolower("%$uid%")])
-                        ->orWhereRaw('LOWER(persona.nombre)||\' \'||LOWER(persona.primerapellido)||\' \'||LOWER(persona.segundoapellido) LIKE ?', [strtolower("%$uid%")])
-                        ->orWhereRaw('LOWER(persona.nombre)||\' \'||LOWER(persona.primerapellido) LIKE ?', [strtolower("%$uid%")]) ;
-            })
 
-            ->select(   'alumno.uid',
+            ->where(function($query) use ($uid) {
+                $query->where(
+                    DB::raw("CONCAT(persona.nombre, ' ', persona.primerApellido, ' ', persona.segundoApellido)"), 'LIKE', '%'.$uid.'%')
+                    ->orWhere(
+                        DB::raw("CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre)"), 'LIKE', '%'.$uid.'%')
+                            ->orWhere('persona.nombre', 'LIKE', '%'.$uid.'%')
+                            ->orWhere('persona.primerApellido', 'LIKE', '%'.$uid.'%')
+                            ->orWhere('persona.segundoApellido', 'LIKE', '%'.$uid.'%')
+                            ->orWhere('persona.uid', 'LIKE', '%'.$uid.'%');
+                    })
+                    ->select(   'alumno.uid',
                         'alumno.idNivel',
                         'alumno.idCarrera',
                         'nivel.descripcion as nivel',
