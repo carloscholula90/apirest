@@ -81,7 +81,7 @@ class AspiranteController extends Controller{
                         $maxSeq = isset($maxSeq) ? $maxSeq + 1: 1;    
                         $integra = Integra::create(['uid' => $newId,'secuencia' =>$maxSeq,'idRol'=> 3]);
                         
-                        Log::info('uid:'.$newId);  
+                        /*Log::info('uid:'.$newId);  
                         Log::info('secuencia:'.$maxSeq);
                         Log::info('idPeriodo:'.$request->idPeriodo);
                         Log::info('idCarrera:'.$request->idCarrera);
@@ -96,7 +96,7 @@ class AspiranteController extends Controller{
                         Log::info('matReprobada:'.$request->matReprobada);        
                         Log::info('mesReprobada:'.$request->mesReprobada);        
                         Log::info('idNivelAnterior:'.$request->idNivelAnterior);        
-                        Log::info('escuelaProcedencia:'.$request->escuelaProcedencia);        
+                        Log::info('escuelaProcedencia:'.$request->escuelaProcedencia); */       
 
                         $aspirante = Aspirante::create([
                                                 'uid' => $newId,
