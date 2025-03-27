@@ -41,7 +41,7 @@ class AspiranteController extends Controller{
                             'noInterior' => 'required|numeric',
                             'calle' => 'required|max:255',
                             'contactos' => 'required|array',
-                            'familiares' => 'required|array',
+                            'familias' => 'required|array',
                             'idNivelAnterior' =>'required|numeric',
                             'paisCursoGradoAnterior' =>'required|numeric',
                             'estadoCursoGradoAnterior' =>'required|numeric',
@@ -120,7 +120,7 @@ class AspiranteController extends Controller{
                         if (!$aspirante) 
                             return $this->returnEstatus('Error al crear al aspirante',500,null);   
                         else {
-
+                            if(isset($request->alergias))
                             foreach ($request->alergias as $alergia) {
                                 $maxSeq = Alergia::where('uid', $newId)->max('consecutivo');
                                 $nextSeq = ($maxSeq === null) ? 1 : $maxSeq + 1;
@@ -133,8 +133,7 @@ class AspiranteController extends Controller{
                             }
                             
                             if(isset($request->enfermedades))
-                            foreach ($request->enfermedades as $enfermedadJson) {
-                                $enfermedadData = json_decode($enfermedadJson, true);
+                            foreach ($request->enfermedades as $enfermedadData) {
                                 $maxSeq = Salud::where('uid', $newId)->max('consecutivo');
                                 $nextSeq = ($maxSeq === null) ? 1 : $maxSeq + 1;
                                 
@@ -144,32 +143,29 @@ class AspiranteController extends Controller{
                                                'medico' => $enfermedadData['medico'],  
                                                'telefono' => $enfermedadData['telefono']]);
                             }
-
+                                    
                             if(isset($request->contactos))
-                            foreach ($request->contactos as $contactosJson) {
-                                $contactosData = json_decode($contactosJson, true);
+                            foreach ($request->contactos as $contactosData) {
                                 $maxSeq = Contacto::where('uid', $newId)
                                                         ->where('idParentesco', 0)
                                                         ->where('idTipoContacto',$contactosData['idTipoContacto'])
                                                         ->where('uid', $newId)
                                                         ->max('consecutivo');
-                                $nextSeq = ($maxSeq === null) ? 1 : $maxSeq + 1;
-                                
+                               
+                                                        $nextSeq = ($maxSeq === null) ? 1 : $maxSeq + 1;
+                                Log::info('contacto:'.$contactosData['dato']);
                                 Contacto::create([  'uid' => $newId,
                                                     'consecutivo' => $nextSeq,
                                                     'idParentesco' => 0,
                                                     'idTipoContacto' => $contactosData['idTipoContacto'],  
-                                                    'consecutivo' => $contactosData['consecutivo'],  
                                                     'dato' => strtoupper(trim($contactosData['dato']))
                                             ]);                                               
                             }
 
                             if(isset($request->familias))
-                            foreach ($request->familias as $familiasJson) {
-                                $familiasData = json_decode($familiasJson, true);
-                                
-                                $existe = Familia::findComposite($newId,$familiasData['idParentesco']);
-                                if(!$existe)
+                            foreach ($request->familias as $familiasData) {                                
+                                Log::info('familia:'.$familiasData['nombre']);
+                               
                                 Familia::create([  'uid' => $newId,
                                                    'idParentesco' => $familiasData['idParentesco'],
                                                     'tutor' => $familiasData['tutor'],

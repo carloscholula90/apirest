@@ -4,7 +4,6 @@ namespace App\Models\general;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-namespace App\Models\general;
 
 class Salud extends Model{
 
@@ -18,7 +17,7 @@ class Salud extends Model{
 
     protected $fillable = [
                             'uid',
-                            'secuencia',
+                            'consecutivo',
                             'enfermedad',
                             'medico',
                             'telefono'

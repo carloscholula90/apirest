@@ -4,7 +4,6 @@ namespace App\Models\general;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-namespace App\Models\general;
 
 class Contacto extends Model{
     use HasFactory;
