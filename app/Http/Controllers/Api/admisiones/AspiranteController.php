@@ -11,6 +11,8 @@ use App\Models\general\Integra;
 use App\Models\general\Salud;
 use App\Models\general\Contacto;
 use App\Models\general\Familia;
+use App\Models\general\DetMedio;  
+use App\Models\general\Direccion;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;     
     
@@ -51,8 +53,8 @@ class AspiranteController extends Controller{
                             'mesReprobada' =>'required|numeric',
                             'publica' =>'required|numeric|max:1',  
                             'uidEmpleado' =>'required|numeric',
-                            'idMedio' =>  'required|numeric' 
-        ]);
+                            'medios' =>  'required|array' 
+        ]);   
         
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
@@ -78,8 +80,8 @@ class AspiranteController extends Controller{
             
                 else {
                         $maxSeq= Integra::where('uid', $newId)->where('idRol',3)->max('secuencia');
-                        $maxSeq = isset($maxSeq) ? $maxSeq + 1: 1;    
-                        $integra = Integra::create(['uid' => $newId,'secuencia' =>$maxSeq,'idRol'=> 3]);
+                        $secuencialPers = isset($maxSeq) ? $maxSeq + 1: 1;    
+                        $integra = Integra::create(['uid' => $newId,'secuencia' =>$secuencialPers,'idRol'=> 3]);
                         
                         /*Log::info('uid:'.$newId);  
                         Log::info('secuencia:'.$maxSeq);
@@ -100,7 +102,7 @@ class AspiranteController extends Controller{
 
                         $aspirante = Aspirante::create([
                                                 'uid' => $newId,
-                                                'secuencia' => $maxSeq,
+                                                'secuencia' => $secuencialPers,
                                                 'idPeriodo' => $request->idPeriodo,
                                                 'idCarrera' => $request->idCarrera,
                                                 'adeudoAsignaturas' => $request->adeudoAsignaturas,
@@ -131,6 +133,19 @@ class AspiranteController extends Controller{
                                     'alergia' => strtoupper(trim($alergia)) 
                                 ]);
                             }
+
+                            Direccion::create([
+                                    'uid'=>$newId,
+                                    'idParentesco'=>0,
+                                    'idTipoDireccion'=>1, //Direccion Principal
+                                    'consecutivo'=>1,
+                                    'idPais'=>$request->idPais,
+                                    'idEstado'=>$request->idEstado,
+                                    'idCiudad'=>$request->idCiudad,
+                                    'idCp'=>$request->idCp,
+                                    'noExterior'=>$request->noExterior,
+                                    'noInterior'=>$request->noInterior
+                                ]);
                             
                             if(isset($request->enfermedades))
                             foreach ($request->enfermedades as $enfermedadData) {
@@ -152,7 +167,7 @@ class AspiranteController extends Controller{
                                                         ->where('uid', $newId)
                                                         ->max('consecutivo');
                                
-                                                        $nextSeq = ($maxSeq === null) ? 1 : $maxSeq + 1;
+                                $nextSeq = ($maxSeq === null) ? 1 : $maxSeq + 1;
                                 Log::info('contacto:'.$contactosData['dato']);
                                 Contacto::create([  'uid' => $newId,
                                                     'consecutivo' => $nextSeq,
@@ -161,20 +176,48 @@ class AspiranteController extends Controller{
                                                     'dato' => strtoupper(trim($contactosData['dato']))
                                             ]);                                               
                             }
+                            $index=2;
 
                             if(isset($request->familias))
                             foreach ($request->familias as $familiasData) {                                
                                 Log::info('familia:'.$familiasData['nombre']);
                                
-                                Familia::create([  'uid' => $newId,
-                                                   'idParentesco' => $familiasData['idParentesco'],
-                                                    'tutor' => $familiasData['tutor'],
-                                                    'nombre' => strtoupper(trim($familiasData['nombre'])),
-                                                    'primerApellido' => strtoupper(trim($familiasData['primerApellido'])),
-                                                    'segundoApellido' => strtoupper(trim($familiasData['segundoApellido'])),
-                                                    'fechaNacimiento' => $familiasData['fechaNacimiento'],  
-                                                    'finado' => $familiasData['finado']                                                    
-                                            ]);                        
+                                Familia::create([
+                                                'uid' => $newId,
+                                                'idParentesco' => $familiasData['idParentesco'],
+                                                'tutor' => $familiasData['tutor'],
+                                                'ocupacion' => $familiasData['ocupacion'],
+                                                'nombre' => strtoupper(trim($familiasData['nombre'])),
+                                                'primerApellido' => strtoupper(trim($familiasData['primerApellido'])),
+                                                'segundoApellido' => strtoupper(trim($familiasData['segundoApellido'])),
+                                                'fechaNacimiento' => $familiasData['fechaNacimiento'],  
+                                                'finado' => $familiasData['finado']                                                    
+                                            ]); 
+
+                                Direccion::create([
+                                                'uid'=>$newId,
+                                                'idParentesco'=>$familiasData['idParentesco'],
+                                                'idTipoDireccion'=>1, //Direccion Principal
+                                                'consecutivo'=>$index,
+                                                'idPais'=>$request->idPais,
+                                                'idEstado'=>$request->idEstado,
+                                                'idCiudad'=>$request->idCiudad,
+                                                'idCp'=>$request->idCp,
+                                                'noExterior'=>$request->noExterior,
+                                                'noInterior'=>$request->noInterior
+                                            ]);
+                                            $index= $index + 1;
+                                                           
+                            }
+
+
+                            if(isset($request->medios))
+                            foreach ($request->medios as $medio) {  
+                                   
+                                DetMedio::create([ 'uid' => $newId,
+                                                   'idMedio' => $medio,
+                                                   'secuencia' => $secuencialPers                                                
+                                            ]);                          
                             }
                             return $this->returnEstatus('Registro guardado',200,null); 
                     }
