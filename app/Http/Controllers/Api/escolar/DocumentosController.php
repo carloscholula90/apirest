@@ -305,18 +305,18 @@ class DocumentosController extends Controller{
         $pdf->SetAuthor('SIAWEB');       
       
         // Establecer márgenes y auto-rotura de página
-        $pdf->SetMargins(30, 20, 16); // Margenes 
+        $pdf->SetMargins(15, 20, 15); // Margenes 
         $pdf->SetAutoPageBreak(FALSE, 0);
         $pdf->AddPage();
         $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/LogoUAE.png';
-        $pdf->Image($imageUrl, 30, 15, 20);
+        $pdf->Image($imageUrl, 15, 15, 20);
       
         if (!empty($results)) {
 
          // Generar la tabla HTML para los datos
         $html2 = '<table border="0" cellpadding="1" style ="font-family: Arial; font-size: 9pt; font-weight: bold; text-align: center; vertical-align: middle;">    
             <tr>
-                <td style="width: 2cm;"></td>               
+                <td style="width: 4cm;"></td>               
                 <td style="width: 12cm;">
                                                     UNIVERSIDAD ALVA EDISON<br>
                                                     DIRECCIÓN DE LICENCIATURAS-CLAVE SEP 21MSU1022U
@@ -345,43 +345,35 @@ class DocumentosController extends Controller{
                 <td style="height: .5cm; width: .4cm;" rowspan="2">No</td>
                 <td style="width: 1.4cm;" rowspan="2">MATRICULA</td>
                 <td style="width: 4cm;" rowspan="2">NOMBRE DEL ALUMNO</td>
-                <td style="width: 6cm;" colspan="30">ASISTENCIAS</td>
+                <td style="width: 8.8cm;" colspan="22">ASISTENCIAS</td>
                 <td style="width: 1cm;" rowspan="2">FALTAS</td> 
                 <td style="width: 3cm;" colspan="2">CALIFICACIÓN</td>    
             </tr>
             <tr>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
 
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
 
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
-                <td style="height: .5cm; width: .2cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
+                <td style="height: .5cm; width: .4cm;"></td>
                 <td style="width: 1cm;">No</td>
                 <td style="width: 2cm;">LETRA</td>    
             </tr>';
@@ -394,8 +386,7 @@ class DocumentosController extends Controller{
                            <td></td><td></td><td></td><td></td><td></td>
                            <td></td><td></td><td></td><td></td><td></td>
                            <td></td><td></td><td></td><td></td><td></td>
-                           <td></td><td></td><td></td><td></td><td></td>
-                           <td></td><td></td><td></td><td></td><td></td><td></td>
+                           <td></td><td></td><td></td>
                         </tr>';
             $limite = $index2+1;    
         }
@@ -407,8 +398,7 @@ class DocumentosController extends Controller{
                     <td></td><td></td><td></td><td></td><td></td>
                     <td></td><td></td><td></td><td></td><td></td>
                     <td></td><td></td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td><td></td><td></td><td></td>
+                    <td></td><td></td><td></td>
                     </tr>';
             
         $html2 .='</table>';
@@ -418,13 +408,13 @@ class DocumentosController extends Controller{
 
         $html2 .='<table border="0.5" cellpadding="0" style="font-size: 6pt;">
                  <tr>
-                    <td style="height: 1.5cm; width: 3.975cm;">ELABORÓ:</td>
-                    <td style="width: 3.975cm;">REVISÓ:</td>
-                    <td rowspan="2" style="width: 3.975cm;">FECHA:<br><br><br></td>
-                    <td rowspan="2" style="width: 3.975cm;text-align: center; vertical-align: middle;font-weight: bold;"><br><br><br><br>UAEL01</td>
+                    <td style="height: 1.5cm; width: 4.65cm;">ELABORÓ:</td>
+                    <td style="width: 4.65cm;">REVISÓ:</td>
+                    <td rowspan="2" style="width: 4.65cm;">FECHA:<br><br><br></td>
+                    <td rowspan="2" style="width: 4.65cm;text-align: center; vertical-align: middle;font-weight: bold;"><br><br><br><br>UAEL01</td>
                  </tr>';
-        $html2 .='<tr><td style="height: 0.5cm; width: 3.975cm;">Aqui nombre y firma del Docente</td>
-                      <td style="height: 0.5cm; width: 3.975cm;">Prof. Raymundo Hernandez T.</td>
+        $html2 .='<tr><td style="height: 0.5cm; width: 4.65cm;">Aqui nombre y firma del Docente</td>
+                      <td style="height: 0.5cm; width: 4.65cm;">Prof. Raymundo Hernandez T.</td>
                       </tr></table>';
         
         // Escribir la tabla en el PDF

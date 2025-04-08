@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class KardexController extends Controller
 {
 
-    public function generaReporte($id,$idNivel,$idCarrera){
+    public function generaReporte($id,$idNivel,$idCarrera,$tipoKardex){
 
        $result = DB::table('ciclos as cl')
                         ->join('calificaciones as ca', 'ca.indexCiclo', '=', 'cl.indexCiclo')
@@ -70,13 +70,15 @@ class KardexController extends Controller
         $resultsArray = $results->map(function ($item) {
             return (array) $item; // Convertir cada stdClass a un arreglo
         })->toArray();       
-    
-        return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX SIMPLE', $headers,'P','letter',
-        'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf');
+        if($tipoKardex == 'AP')
+        return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX TIPO AP', $headers,'P','letter',
+                        'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex);
+        else return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX TIPO C', $headers,'P','letter',
+                        'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex);
       
     }
 
-    public function generateReport(array $data, array $columnWidths = null, array $keys = null, string $title = 'Kardex simple', array $headers = null, string $orientation = 'L', string $size = 'letter',string $nameReport=null)
+    public function generateReport(array $data, array $columnWidths = null, array $keys = null, string $title = 'Kardex simple', array $headers = null, string $orientation = 'L', string $size = 'letter',string $nameReport=null,string $tipoKardex)
     {
         // Rutas de las imágenes para el encabezado y pie
         $imagePathEnc = public_path('images/encPag.png');
@@ -143,31 +145,37 @@ class KardexController extends Controller
           
             $html2 .= '<tr>';
 
-            foreach ($keys as $index => $key) {
+            $valueCalif = isset($row['calificacion']) ? $row['calificacion'] : ''; 
+            if($tipoKardex=='AP' && (float)$valueCalif < 7)
+                continue;
+         
+            foreach ($keys as $index => $key) {                
                 $value = isset($row[$key]) ? $row[$key] : '';     
                 $html2 .= '<td width="' . $columnWidths[$index] . '">' . htmlspecialchars((string)$value) . '</td>';
+
                 if ($key == 'calificacion') {
-                    if ((float)$value >= 7)  
+                    if ((float)$value >= 7) { 
                         $matAprobadas++; 
-                    else $matReprobadas++; 
-                    $promedio += (float)$value; // Suma la calificación al promedio (si es necesario)
+                        $promedio += (float)$value; // Suma la calificación al promedio (si es necesario)
+                    }
+                else $matReprobadas++;
                 }
             }
+
         $html2 .= '</tr>';
         }
         //detalle
-        $promedioFinal = round($promedio/count($data), 2);
+        $promedioFinal = $matAprobadas>0?round($promedio/$matAprobadas, 2):0;
         $html2 .= '<tr><td colspan="7"></td></tr>';
         $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
         $html2 .= '<tr><td colspan="7"></td></tr>';
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias cursadas:</b> '.count($data).'</td></tr>';
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias aprobadas:</b> '.$matAprobadas.'</td></tr>';
+        if($tipoKardex=='C')
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias reprobadas:</b> '.$matReprobadas.'</td></tr>';
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Promedio:</b> '.$promedioFinal.'</td></tr>';
-       
+        $html2 .= '<tr><td colspan="7"></td></tr>';   
         $html2 .= '<tr><td colspan="7"></td></tr>';
-        $html2 .= '<tr><td colspan="7"></td></tr>';
-        
         $html2 .= '</table>';
 
         // Escribir la tabla en el PDF
