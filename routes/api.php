@@ -43,6 +43,10 @@ Route::prefix('asentamientos')->group(function () {
     require base_path('routes/general/asentamientos.php');
 });
 
+Route::prefix('asignaturas')->group(function () {
+    require base_path('routes/escolar/asignaturas.php');
+});
+
 Route::prefix('aspirantes')->group(function () {
     require base_path('routes/admisiones/aspirantes.php');
 });
