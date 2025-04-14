@@ -61,7 +61,19 @@ class AspiranteController extends Controller{
         
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
-
+ 
+ 
+        $existe = DB::table('persona')   
+                    ->select(['uid'])
+                    ->whereNull('curp')                    
+                    ->get() ;    
+        if(isset($existe))
+        foreach ($existe as $row) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Ya se encuentra registrado con el UID '.$row->uid
+                ]); 
+        }
         //Agregamos el registro de integra
         $maxId = Persona::max('uid');  
         $newId = $maxId ? $maxId + 1 : 1;  
@@ -222,7 +234,10 @@ class AspiranteController extends Controller{
                                                    'secuencia' => $secuencialPers                                                
                                             ]);                          
                             }
-                            return $this->returnEstatus('Registro guardado',200,null); 
+                            return response()->json([
+                                'status' => 200,
+                                'uid' => $newId
+                                ]);  
                     }
                 }
    }  
