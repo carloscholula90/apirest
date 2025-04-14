@@ -66,6 +66,11 @@ class PerfilController extends Controller
         if (!$perfiles) 
             return $this->returnEstatus('Perfil no encontrado',404,null);         
         
+         $actualiza = DB::table('integra')
+                        ->where('idPerfil', $idPerfil)
+                         ->update(['idPerfil' => null]);
+
+       
         $perfiles->delete();
 
         return $this->returnEstatus('Perfil eliminado',200,null); 

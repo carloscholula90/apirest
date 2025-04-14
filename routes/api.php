@@ -154,6 +154,10 @@ Route::prefix('perfiles')->group(function () {
     require base_path('routes/seguridad/perfiles.php');
 });
 
+Route::prefix('perfilesaplicaciones')->group(function () {
+    require base_path('routes/seguridad/perfilesaplicaciones.php');
+});
+
 Route::prefix('permisosrol')->group(function () {
     require base_path('routes/seguridad/permisosrol.php');
 });

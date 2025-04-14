@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
 Route::get('/', [PerfilAplicacionController::class, 'index']);
-Route::get('/{idPerfil}', [PerfilAplicacionController::class, 'show']);
+Route::get('/aplicaciones', [PerfilAplicacionController::class, 'index2']);     
 Route::post('/create', [PerfilAplicacionController::class, 'store']);
 Route::put('/{idPerfil}', [PerfilAplicacionController::class, 'update']);
-Route::delete('/{idPerfil}', [PerfilAplicacionController::class, 'destroy']);
+Route::delete('/{idPerfil}/{idAplicacion}', [PerfilAplicacionController::class, 'destroy']);

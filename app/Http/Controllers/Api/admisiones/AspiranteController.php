@@ -42,8 +42,7 @@ class AspiranteController extends Controller{
                             'idCiudad' => 'required|numeric',
                             'idCp' => 'required|numeric',
                             'idAsentamiento' => 'required|numeric',
-                            'noExterior' => 'required|numeric',
-                            'noInterior' => 'required|numeric',
+                            'noExterior' => 'required|max:255',
                             'calle' => 'required|max:255',
                             'contactos' => 'required|array',
                             'familias' => 'required|array',
@@ -51,9 +50,6 @@ class AspiranteController extends Controller{
                             'paisCursoGradoAnterior' =>'required|numeric',
                             'estadoCursoGradoAnterior' =>'required|numeric',
                             'escuelaProcedencia' => 'required|max:255',
-                            'adeudoAsignaturas' => 'required|numeric|max:1',
-                            'matReprobada' =>'required|numeric',
-                            'mesReprobada' =>'required|numeric',
                             'publica' =>'required|numeric|max:1',  
                             'uidEmpleado' =>'required|numeric',
                             'medios' =>  'required|array' 
@@ -63,10 +59,11 @@ class AspiranteController extends Controller{
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
  
  
-        $existe = DB::table('persona')   
-                    ->select(['uid'])
-                    ->whereNull('curp')                    
-                    ->get() ;    
+            $existe = DB::table('persona')   
+                            ->select(['uid'])
+                            ->where('curp', strtoupper(trim($request->curp)))
+                            ->first();
+
         if(isset($existe))
         foreach ($existe as $row) {
             return response()->json([
@@ -188,7 +185,7 @@ class AspiranteController extends Controller{
                                                     'consecutivo' => $nextSeq,
                                                     'idParentesco' => 0,
                                                     'idTipoContacto' => $contactosData['idTipoContacto'],  
-                                                    'dato' => strtoupper(trim($contactosData['dato']))
+                                                    'dato' => trim($contactosData['dato'])
                                             ]);                                               
                             }
                             $index=2;
@@ -354,10 +351,10 @@ class AspiranteController extends Controller{
                         $join->on('alumno.uid', '=', 'aspirante.uid')
                             ->on('aspirante.idNivel', '=', 'alumno.idNivel');
                     })
-                    ->whereNull('alumno.uid')
                     ->when(isset($uid), function ($query) use ($uid) {
                         return $query->where('aspirante.uid', $uid);
                     }) 
+                    ->distinct()
                     ->get() ;    
 
    }
@@ -378,7 +375,7 @@ class AspiranteController extends Controller{
         })->toArray();
 
         $keys = ['uid','nombre','curp','correo','telefono','nivel'];
-        $columnWidths = [80,200,120,150,100,100];         
+        $columnWidths = [70,200,130,150,100,100];         
         $headers = ['UID','NOMBRE','CURP','CORREO','TELEFONO','NIVEL'];
        
         $pdfController = new pdfController();
@@ -388,6 +385,22 @@ class AspiranteController extends Controller{
 
     }
 
+    public function index2(){
+        $results = $this->obtenerAspirantes(null);
+            // Si no hay personas, devolver un mensaje de error
+            if(empty($results)){
+                return response()->json([
+                    'status' => 500,
+                    'message' => 'No hay datos para generar el reporte'
+                ]);
+            } 
+            else return response()->json([
+                'status' => 200,
+                'aspirantes' => $results
+                ]); 
+        }
+
+        
     public function generaReporte($uid){
 
         $results = $this->obtenerAspirantes($uid);

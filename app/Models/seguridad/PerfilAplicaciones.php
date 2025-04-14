@@ -5,19 +5,19 @@ namespace App\Models\seguridad;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class RolSeg extends Model
+class PerfilAplicaciones extends Model
 {
     use HasFactory;
 
-    protected $table = 'rolesseg';
-    protected $primaryKey = 'idRol';
-    public $incrementing = true;
+    protected $table = 'perfilAplicaciones';
+    protected $primaryKey = null;
+    public $incrementing = false;
     protected $keyType = 'int';
     public $timestamps = false;
 
     protected $fillable = [
-        'idRol',
-        'nombre'
+        'idPerfil',
+        'idAplicacion'
     ];
 
 }

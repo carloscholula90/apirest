@@ -17,7 +17,8 @@ class Integra extends Model
     protected $fillable = [
         'uid',
         'secuencia',
-        'idRol'
+        'idRol',
+        'idPerfil'
     ];
 
     // Sobreescribir el método `setAttribute`
