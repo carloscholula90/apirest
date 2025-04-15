@@ -11,12 +11,10 @@ class PerfilAplicacionController extends Controller
 {
     public function index(){
        return DB::table('perfilAplicaciones as perfilApl')
-                    ->select(
-                                'perfilApl.idPerfil',
-                                'perfilApl.idAplicacion',
-                                'perfil.descripcion as perfil',
-                                'aplicaciones.descripcion as aplicacion'
-                    )
+                    ->select('perfilApl.idPerfil',
+                             'perfilApl.idAplicacion',
+                             'perfil.descripcion as perfil',
+                             'aplicaciones.descripcion as aplicacion')
                     ->join('perfil', 'perfilApl.idPerfil', '=', 'perfil.idPerfil')
                     ->join('aplicaciones', 'perfilApl.idAplicacion', '=', 'aplicaciones.idAplicacion')
                     ->orderBy('perfilApl.idPerfil', 'asc')
@@ -27,16 +25,17 @@ class PerfilAplicacionController extends Controller
     public function index2(){
         return DB::table('integra')
                      ->select(  
-                                 'perfil.idPerfil',
-                                 'aplicaciones.idAplicacion',
-                                 'perfil.descripcion as perfil',
-                                 'aplicaciones.descripcion as aplicacion',
-                                 DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre')
+                            'perfil.idPerfil',
+                            'aplicaciones.idAplicacion',
+                            'perfil.descripcion as perfil',
+                            'aplicaciones.descripcion as aplicacion',
+                            DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre')
                                 
                      )
                      ->join('persona', 'persona.uid', '=', 'integra.uid')
+                     ->join('perfilAplicaciones', 'perfilAplicaciones.idPerfil', '=', 'integra.idPerfil')
                      ->join('perfil', 'integra.idPerfil', '=', 'perfil.idPerfil')
-                     ->join('aplicaciones', 'aplicaciones.idAplicacion', '=', 'perfil.idAplicacion')                     
+                     ->join('aplicaciones', 'aplicaciones.idAplicacion', '=', 'perfilAplicaciones.idAplicacion')                     
                      ->get(); 
      }
 
