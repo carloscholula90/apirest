@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\seguridad\Perfil;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class PerfilController extends Controller
 {
@@ -67,7 +68,7 @@ class PerfilController extends Controller
             return $this->returnEstatus('Perfil no encontrado',404,null);         
         
          $actualiza = DB::table('integra')
-                        ->where('idPerfil', $idPerfil)
+                        ->where('idPerfil', $id)
                          ->update(['idPerfil' => null]);
 
        

@@ -275,6 +275,7 @@ class AspiranteController extends Controller{
                         'gradoAnt.descripcion as edoGradoAnt',
                         'paisAsp.descripcion as pais',
                         'aspirante.estadoCursoGradoAnterior',
+                        'carrera.descripcion as carrera',
                         DB::raw('CONCAT(direccionTutor.calle, " ", direccionTutor.noExterior, " ", direccionTutor.noInterior," ",
                                  cpTutor.descripcion, " ",cpTutor.cp) AS direccionTutor'),                        
                          DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre'),
@@ -284,6 +285,9 @@ class AspiranteController extends Controller{
                          DB::raw('CASE WHEN aspirante.publica = 1 THEN "PUBLICA" ELSE "PRIVADA" END AS publica')
                     ])
                     ->join('aspirante', 'persona.uid', '=', 'aspirante.uid')
+                   
+                    ->join('carrera', 'carrera.idCarrera', '=', 'aspirante.idCarrera')
+                    
                     ->join('persona AS asesor', 'asesor.uid', '=', 'aspirante.uidEmpleado')
                     ->leftJoin('estado as gradoAnt', function($join) {
                         $join->on('gradoAnt.idEstado', '=', 'aspirante.estadoCursoGradoAnterior')
@@ -534,13 +538,17 @@ class AspiranteController extends Controller{
                 <td style="text-align: center;font-size: 8px;width: 250px; height: 10px;"></td>  
                 <td style="text-align: center;font-size: 8px;width: 100px; height: 10px;">Semestre</td>  
                 <td style="text-align: center;font-size: 8px;width: 100px; height: 10px;">Horario</td>  
-        </tr>';
+        </tr>';        
         $html2 .='<tr>
         <td style="text-align: center;font-size: 8px;width: 50px; height: 15px; background-color: lightgray;border: 1px solid black;"></td>
         <td style="text-align: center;font-size: 8px;width: 250px; height: 15px; border: 1px solid black;"></td>  
         <td style="text-align: center;font-size: 8px;width: 100px; height: 15px; border: 1px solid black;"></td>  
         <td style="text-align: center;font-size: 8px;width: 107px; height: 15px; border: 1px solid black;"></td>  
         </tr>';   
+        $html2 .='<tr>
+                <td style="text-align: left;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;"> CARRERA</td>
+                <td style="text-align: left;font-size: 10px;width: 414px; height: 15px; border: 1px solid black;">'.$generalesRow['carrera'].'</td>  
+                </tr>';
             $html2 .= '<tr><td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Numero de grupo</td>
                 <td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Fecha de inscripcion</td>
                 <td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Fecha de inicio de clases</td>
