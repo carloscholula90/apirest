@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
 Route::get('/', [PerfilesPersonaController::class, 'index']);
-Route::post('/', [PerfilesPersonaController::class, 'update']);
+Route::post('/create', [PerfilesPersonaController::class, 'store']);
+Route::put('/{id}/{idPerfil}', [PerfilesPersonaController::class, 'update']);
 Route::delete('/{id}', [PerfilesPersonaController::class, 'destroy']);
+  
   

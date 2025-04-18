@@ -13,7 +13,18 @@ class PermisoPersonaController extends Controller
      */
     public function index()
     {
-      
+       $permisos = DB::table('integra')
+                    ->select('integra.uid',
+                                DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre'),
+                                'aplicaciones.descripcion as aplicacion')
+                    ->join('permisosPersona', 'permisosPersona.uid', '=', 'integra.uid')
+                    ->join('persona', 'persona.uid', '=', 'integra.uid')   
+                    ->join('aplicaciones', 'aplicaciones.idAplicacion', '=', 'permisosPersona.idAplicacion')                      
+                    ->get();
+       
+       DB::table('permisosPersona')
+                        ->get();
+        return $this->returnData('Permisos',$permisos,200);  
     }
 
     /**
@@ -21,7 +32,27 @@ class PermisoPersonaController extends Controller
      */
     public function create()
     {
-        //
+        $validator = Validator::make($request->all(), [
+            'uid' => 'required|max:255',
+            'idAplicacion' => 'required|max:255'
+        ]);
+
+        if ($validator->fails()) 
+        return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+
+        $maxSecuencial = $persona->contactos
+        ->where('idTipoContacto', $tipo)
+        ->max('consecutivo');
+
+        
+        $actualiza = DB::table('integra')
+                ->where('uid', $request->uid)
+                ->update(['idPerfil' => $request->idPerfil]);
+
+        if ($actualiza === 0) 
+        return $this->returnEstatus('No se encontró el perfil o no hubo cambios', 404, null);
+                
+        return $this->returnEstatus('Perfil actualizado',200,null); 
     }
 
     /**
