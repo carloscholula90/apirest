@@ -4,7 +4,7 @@ namespace App\Models\seguridad;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class PermisosPersona extends Model
+class PermisoPersona extends Model
 {
     use HasFactory;  
     protected $table = 'permisosPersona';

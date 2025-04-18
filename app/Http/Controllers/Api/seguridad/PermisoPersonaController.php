@@ -30,7 +30,7 @@ class PermisoPersonaController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'uid' => 'required|max:255',
@@ -40,27 +40,19 @@ class PermisoPersonaController extends Controller
         if ($validator->fails()) 
         return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        $maxSecuencial = $persona->contactos
-        ->where('idTipoContacto', $tipo)
-        ->max('consecutivo');
+        $maxSeq = PermisoPersona::where('uid', $request->uid)->max('secuencia');        
+        $nextSeq = ($maxSeq === null) ? 1 : $maxSeq + 1;
 
-        
-        $actualiza = DB::table('integra')
-                ->where('uid', $request->uid)
-                ->update(['idPerfil' => $request->idPerfil]);
+        $create= PermisoPersona::create([
+                                    'uid' => $request->uid,
+                                    'secuencia' => $nextSeq,
+                                    'idAplicacion' => $request->idAplicacion 
+                                ]);
 
-        if ($actualiza === 0) 
-        return $this->returnEstatus('No se encontró el perfil o no hubo cambios', 404, null);
+        if ($create === 0) 
+            return $this->returnEstatus('Error en la insercion', 404, null);
                 
-        return $this->returnEstatus('Perfil actualizado',200,null); 
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+        return $this->returnEstatus('Registro creado',200,null); 
     }
 
     /**
@@ -78,27 +70,19 @@ class PermisoPersonaController extends Controller
           return $this->returnData('Permisos',$permisos,200);  
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
+       /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy($uid,$secuencia)
     {
-        //
+        $destroy = DB::table('permisosPersona')
+                            ->where('uid', $uid  )
+                            ->where('secuencia', $secuencia)
+                            ->delete();
+
+        if ($destroy === 0) 
+            return $this->returnEstatus('Error en la eliminacion', 404, null);
+                
+        return $this->returnEstatus('Registro eliminado',200,null); 
     }
 }
