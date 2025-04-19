@@ -7,3 +7,7 @@ Route::get('/aplicaciones', [PerfilAplicacionController::class, 'index']);
 Route::get('/', [PerfilAplicacionController::class, 'index']);    
 Route::post('/create', [PerfilAplicacionController::class, 'store']);
 Route::delete('/{idPerfil}/{idAplicacion}', [PerfilAplicacionController::class, 'destroy']);
+Route::post('/generaReporte', [PerfilAplicacionController::class, 'generaReporte']);
+Route::post('/imprimeXls', [PerfilAplicacionController::class, 'exportaExcel']);  
+
+

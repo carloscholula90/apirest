@@ -7,5 +7,7 @@ Route::get('/', [PerfilesPersonaController::class, 'index']);
 Route::post('/create', [PerfilesPersonaController::class, 'store']);
 Route::put('/{id}/{idPerfil}', [PerfilesPersonaController::class, 'update']);
 Route::delete('/{id}', [PerfilesPersonaController::class, 'destroy']);
+Route::post('/generaReporte', [PerfilesPersonaController::class, 'generaReporte']);
+Route::post('/imprimeXls', [PerfilesPersonaController::class, 'exportaExcel']);  
   
   
