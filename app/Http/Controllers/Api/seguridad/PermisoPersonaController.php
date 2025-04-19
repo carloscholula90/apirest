@@ -16,7 +16,7 @@ class PermisoPersonaController extends Controller
        $permisos = DB::table('integra')
                     ->select('integra.uid',
                                 DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre'),
-                                'aplicaciones.descripcion as aplicacion')
+                                'aplicaciones.descripcion as aplicacion','aplicaciones.secuencia')
                     ->join('permisosPersona', 'permisosPersona.uid', '=', 'integra.uid')
                     ->join('persona', 'persona.uid', '=', 'integra.uid')   
                     ->join('aplicaciones', 'aplicaciones.idAplicacion', '=', 'permisosPersona.idAplicacion')                      
