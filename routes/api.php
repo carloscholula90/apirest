@@ -175,6 +175,10 @@ Route::prefix('personas')->group(function () {
     require base_path('routes/general/personas.php');
 });
 
+Route::prefix('planes')->group(function () {
+    require base_path('routes/escolar/planes.php');
+});
+
 Route::prefix('puestos')->group(function () {
     require base_path('routes/general/puestos.php');
 });
