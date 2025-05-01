@@ -65,7 +65,15 @@ class PerfilController extends Controller
         $perfiles = Perfil::find($id);
 
         if (!$perfiles) 
-            return $this->returnEstatus('Perfil no encontrado',404,null);         
+            return $this->returnEstatus('Perfil no encontrado',404,null);  
+        
+            $existe = DB::table('perfilAplicaciones')
+                            ->select( 'idPerfil')
+                            ->where('idPerfil',$id)
+                            ->get(); 
+
+            if($existe->count()>0)
+            return $this->returnEstatus('No se puede eliminar el perfil tiene asignada aplicaciones ',400,null);    
         
          $actualiza = DB::table('integra')
                         ->where('idPerfil', $id)

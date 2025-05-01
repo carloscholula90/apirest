@@ -271,6 +271,8 @@ class AspiranteController extends Controller{
                         'ciudadAsp.descripcion as ciudad', 
                         'estado.descripcion as estado', 
                         'direcciones.idCp', 
+                        'periodo.idPeriodo as idPeriodo',
+                        'periodo.descripcion as periodo',
                         'aspirante.observaciones',
                         'gradoAnt.descripcion as edoGradoAnt',
                         'paisAsp.descripcion as pais',
@@ -298,7 +300,7 @@ class AspiranteController extends Controller{
                             ->on('ciudad.idEstado', '=', 'persona.idEstado')
                             ->on('ciudad.idPais', '=', 'persona.idPais');
                     })
-                    ->leftJoin('pais', 'pais.idPais', '=', 'persona.idPais')
+                    ->leftJoin('pais', 'pais.idPais', '=', 'persona.idPais')  
                     ->leftJoin('contacto as correo', function($join) {
                         $join->on('correo.uid', '=', 'persona.uid')
                             ->where('correo.idParentesco', 0)
@@ -346,6 +348,7 @@ class AspiranteController extends Controller{
                             ->on('ciudadAsp.idEstado', '=', 'direcciones.idEstado')
                             ->on('ciudadAsp.idPais', '=', 'direcciones.idPais');
                     })
+                    ->leftJoin('periodo as periodo', 'periodo.idPeriodo', '=', 'aspirante.idPeriodo')
                     ->leftJoin('pais as paisAsp', 'paisAsp.idPais', '=', 'ciudadAsp.idPais')
                     ->leftJoin('estado', function($join) {
                         $join->on('estado.idEstado', '=', 'direcciones.idEstado')

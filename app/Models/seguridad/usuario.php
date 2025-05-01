@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models\seguridad;
+use App\Models\general\Persona;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 

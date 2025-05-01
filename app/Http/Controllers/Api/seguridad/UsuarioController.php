@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Validator;
 
 class UsuarioController extends Controller{
     
-    public function index() {  
+    public function index() {     
         $usuarios = Usuario::all();
         return $this->returnData('usuarios',$usuarios,200);
     }
