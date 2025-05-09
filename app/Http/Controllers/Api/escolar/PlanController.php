@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use App\Models\escolar\Plan;
 use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 
 class PlanController extends Controller{    
@@ -79,9 +80,9 @@ class PlanController extends Controller{
      * Show the form for creating a new resource.
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-        $validator = Validator::make($request->all(), [
+    public function store(Request $request){      
+            
+            $validator = Validator::make($request->all(), [
                                                     'idPlan' => 'required|max:1',
                                                     'idCarrera' => 'required|numeric',
                                                     'descripcion' => 'required|max:255',
@@ -96,11 +97,11 @@ class PlanController extends Controller{
                                                     'minAprobatoria' => 'required|numeric',
                                                     'grado' => 'required|max:255'
             ]);
-
+           
             if ($validator->fails()) 
                 return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
             try{                                  
-                    $plan = Plan::create([
+                $plan = Plan::create([
                                         'idPlan' => $request->idPlan,
                                         'idCarrera' => $request->idCarrera,
                                         'descripcion' => $request->descripcion,
@@ -119,19 +120,11 @@ class PlanController extends Controller{
                     if ($e->getCode() == '23000') 
                         return $this->returnEstatus('El plan ya se encuentra dado de alta',400,null);
                     return $this->returnEstatus('Error al insertar la plan',400,null);
-                    }    
+                    }      
                 if (!$plan) 
                     return $this->returnEstatus('Error al crear el plan',500,null); 
                 return $this->returnEstatus('El plan se creo',200,null); 
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+    }   
 
     /**
      * Display the specified resource.
