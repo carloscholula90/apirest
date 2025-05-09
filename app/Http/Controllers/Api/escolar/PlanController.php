@@ -68,7 +68,7 @@ class PlanController extends Controller{
             }
     
             $data = [
-                'alumnos' => $result,
+                'planes' => $result,
                 'status' => 200
             ];
     
@@ -81,7 +81,48 @@ class PlanController extends Controller{
      */
     public function create()
     {
-        //
+        $validator = Validator::make($request->all(), [
+                                                    'idPlan' => 'required|max:1',
+                                                    'idCarrera' => 'required|numeric',
+                                                    'descripcion' => 'required|max:255',
+                                                    'rvoe' => 'required|max:255',
+                                                    'fechainicio' => 'required|date',
+                                                    'idNivel' => 'required|numeric',
+                                                    'idModalidad' => 'required|numeric',
+                                                    'semestres' => 'required|numeric',
+                                                    'vigente' => 'required|numeric',
+                                                    'estatal' => 'required|numeric',
+                                                    'decimales' => 'required|numeric',
+                                                    'minAprobatoria' => 'required|numeric',
+                                                    'grado' => 'required|max:255'
+            ]);
+
+            if ($validator->fails()) 
+                return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+            try{                                  
+                    $plan = Plan::create([
+                                        'idPlan' => $request->idPlan,
+                                        'idCarrera' => $request->idCarrera,
+                                        'descripcion' => $request->descripcion,
+                                        'rvoe' => $request->rvoe,
+                                        'fechainicio' => $request->fechainicio,
+                                        'idNivel' => $request->idNivel,
+                                        'idModalidad' => $request->idModalidad,
+                                        'semestres' =>$request->semestres,
+                                        'vigente' => $request->vigente,
+                                        'estatal' => $request->estatal,
+                                        'decimales' => $request->decimales,
+                                        'minAprobatoria' => $request->minAprobatoria,
+                                        'grado' => $request->grado
+                                    ]);
+                } catch (QueryException $e) {                                
+                    if ($e->getCode() == '23000') 
+                        return $this->returnEstatus('El plan ya se encuentra dado de alta',400,null);
+                    return $this->returnEstatus('Error al insertar la plan',400,null);
+                    }    
+                if (!$plan) 
+                    return $this->returnEstatus('Error al crear el plan',500,null); 
+                return $this->returnEstatus('El plan se creo',200,null); 
     }
 
     /**
