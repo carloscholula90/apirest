@@ -75,7 +75,6 @@ class PlanController extends Controller{
     
             return response()->json($data, 200);  
     }
-
     /**
      * Show the form for creating a new resource.
      * Show the form for creating a new resource.
@@ -124,38 +123,79 @@ class PlanController extends Controller{
                 if (!$plan) 
                     return $this->returnEstatus('Error al crear el plan',500,null); 
                 return $this->returnEstatus('El plan se creo',200,null); 
-    }   
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
+    } 
+    
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request)
     {
-        //
+        $validator = Validator::make($request->all(), [
+                                'idPlan' => 'required|max:1',
+                                'idCarrera' => 'required|numeric',
+                                'descripcion' => 'required|max:255',
+                                'rvoe' => 'required|max:255',
+                                'fechainicio' => 'required|date',
+                                'idNivel' => 'required|numeric',
+                                'idModalidad' => 'required|numeric',
+                                'semestres' => 'required|numeric',
+                                'vigente' => 'required|numeric',
+                                'estatal' => 'required|numeric',
+                                'decimales' => 'required|numeric',
+                                'minAprobatoria' => 'required|numeric',
+                                'grado' => 'required|max:255'
+                    ]);
+
+                    if ($validator->fails()) 
+                        return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+                   
+                    $plan = Plan::where('idPlan', $request->idPlan)
+                                                ->where('idCarrera', $request->idCarrera)
+                                                ->first();
+
+                    try{                             
+                        $plan->idPlan = $request->idPlan;
+                        $plan->idCarrera = $request->idCarrera;
+                        $plan->descripcion = $request->descripcion;
+                        $plan->fechainicio = $request->fechainicio;
+                        $plan->idNivel = $request->idNivel;
+                        $plan->idModalidad = $request->idModalidad;
+                        $plan->semestres = $request->semestres;
+                        $plan->vigente = $request->vigente;
+                        $plan->estatal = $request->estatal;
+                        $plan->decimales = $request->decimales;
+                        $plan->minAprobatoria = $request->minAprobatoria;
+                        $plan->grado = $request->grado;
+                        $plan->save();
+                          
+                    } catch (QueryException $e) {                                
+                        if ($e->getCode() == '23000') 
+                            return $this->returnEstatus('Error al actualizar el plan',400,null);
+                        return $this->returnEstatus('Error al actualizar el plan',400,null);
+                    }      
+                    if (!$plan) 
+                        return $this->returnEstatus('Error al actualizar el plan',500,null); 
+                    return $this->returnEstatus('El plan se actualizo',200,null); 
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy($idPlan,$idCarrera)
     {
-        //
+        
+        $plan = Plan::where('idPlan', $idPlan)
+                    ->where('idCarrera', $idCarrera)
+                    ->first();
+                    
+        if (!$plan)
+            return $this->returnEstatus('Plan no encontrado',404,null); 
+        
+        $plan = Plan::where('idPlan', $idPlan)
+                    ->where('idCarrera', $idCarrera)
+                    ->delete();
+                    
+        return $this->returnEstatus('Plan eliminado',200,null);
     }
 
 }
