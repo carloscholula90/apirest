@@ -69,7 +69,11 @@ Route::prefix('codigospostales')->group(function () {
 
 Route::prefix('contactos')->group(function () {
     require base_path('routes/general/contactos.php');
-});  
+}); 
+
+Route::prefix('detallesplanes')->group(function () {
+    require base_path('routes/escolar/detallesplanes.php');
+});
   
 Route::prefix('documentos')->group(function () {
     require base_path('routes/escolar/documentos.php');

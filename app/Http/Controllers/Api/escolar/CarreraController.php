@@ -29,9 +29,9 @@ class CarreraController extends Controller
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
         
          $maxIdCarrera = Carrera::max('idCarrera');
-        $newIdCarrera = $maxIdCarrera ? $maxIdCarrera + 1 : 1;
+         $newIdCarrera = $maxIdCarrera ? $maxIdCarrera + 1 : 1;
 
-        $carreras = Carrera::create([
+         $carreras = Carrera::create([
                                     'idCarrera' => $newIdCarrera,
                                     'descripcion' => strtoupper(trim($request->descripcion)),
                                     'letra'=> strtoupper(trim($request->letra)),
