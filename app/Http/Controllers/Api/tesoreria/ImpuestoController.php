@@ -41,7 +41,7 @@ class ImpuestoController extends Controller{
 
         if (!$impuestos) 
             return $this->returnEstatus('Error al crear el Impuesto',500,null); 
-        return $this->returnData('$impuestos',$impuestos,201);   
+        return $this->returnData('$impuestos',$impuestos,200);   
     }
 
     public function show($idImpuesto){

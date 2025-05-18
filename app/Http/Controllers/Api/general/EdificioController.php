@@ -44,7 +44,7 @@ class EdificioController extends Controller{
 
         if (!$edificios) 
             return $this->returnEstatus('Error al crear el Edificio',500,null); 
-        return $this->returnData('$edificios',$edificios,201);   
+        return $this->returnData('$edificios',$edificios,200);   
     }
 
     public function show($idEdificio){

@@ -65,7 +65,7 @@ class EdoCivilController extends Controller
             'edoCivil' => $edoCiviles,
             'status' => 201
         ];
-        return response()->json($data, 201);
+        return response()->json($data, 200);
     }
 
     public function show($idEdoCivil){

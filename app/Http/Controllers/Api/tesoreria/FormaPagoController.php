@@ -52,7 +52,7 @@ class FormaPagoController extends Controller{
 
         if (!$formaspagos) 
             return $this->returnEstatus('Error al crear la forma de pago',500,null); 
-        return $this->returnData('formaspagos',$formaspagos,201);   
+        return $this->returnData('formaspagos',$formaspagos,200);   
     }
 
     public function show($idFormaPago){

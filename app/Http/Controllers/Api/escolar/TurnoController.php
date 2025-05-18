@@ -42,7 +42,7 @@ class TurnoController extends Controller{
         }
         if (!$turnos) 
             return $this->returnEstatus('Error al crear el Turno',500,null); 
-        return $this->returnData('$turnos',$turnos,201);   
+        return $this->returnData('$turnos',$turnos,200);   
     }
 
     public function show($idTurno){

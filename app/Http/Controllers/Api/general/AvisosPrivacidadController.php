@@ -54,10 +54,10 @@ class AvisosPrivacidadController extends Controller
     
         $data = [
             'Aviso de Privacidad' => $avisos,
-            'status' => 201
+            'status' => 200
         ];
 
-        return response()->json($data, 201);
+        return response()->json($data, 200);
 
     }
 

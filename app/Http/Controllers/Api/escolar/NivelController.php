@@ -68,10 +68,10 @@ class NivelController extends Controller
 
         $data = [
             'niveles' => $niveles,
-            'status' => 201
+            'status' => 200
         ];
 
-        return response()->json($data, 201);
+        return response()->json($data, 200);
 
     }
 

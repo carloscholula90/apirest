@@ -42,7 +42,7 @@ class EstatusFacturaController extends Controller{
 
         if (!$estatusfacturas) 
             return $this->returnEstatus('Error al crear el EstatusFactura',500,null); 
-        return $this->returnData('$estatusfacturas',$estatusfacturas,201);   
+        return $this->returnData('$estatusfacturas',$estatusfacturas,200);   
     }
 
     public function show($idEstatusFactura){

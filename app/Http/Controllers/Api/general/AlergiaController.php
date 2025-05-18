@@ -40,7 +40,7 @@ class AlergiaController extends Controller{
 
         if (!$alergias) 
             return $this->returnEstatus('Error al crear la alergia',500,null); 
-        return $this->returnData('alergias',$alergias,201);   
+        return $this->returnData('alergias',$alergias,200);   
     }
 
     public function show($uid){

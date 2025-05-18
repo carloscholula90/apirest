@@ -41,7 +41,7 @@ class TipoDireccionController extends Controller{
 
         if (!$tipodirecciones) 
             return $this->returnEstatus('Error al crear el TipoDireccion',500,null); 
-        return $this->returnData('$tipodirecciones',$tipodirecciones,201);   
+        return $this->returnData('$tipodirecciones',$tipodirecciones,200);   
     }
 
     public function show($idTipoDireccion){

@@ -52,7 +52,7 @@ class PeriodoController extends Controller{
 
         if (!$periodos) 
             return $this->returnEstatus('Error al crear el Periodo',500,null); 
-        return $this->returnData('$periodos',$periodos,201);   
+        return $this->returnData('$periodos',$periodos,200);   
     }
 
     public function show($idPeriodo,$idNivel){
@@ -193,9 +193,9 @@ public function generaReporte(){
                                 'periodo.descripcion',
                                 'periodo.fechaInicio',
                                 'periodo.fechaTermino',                                
-                                DB::raw('CASE WHEN activo = 1 THEN "SI" ELSE "NO" END as activo'),
-                                DB::raw('CASE WHEN inmediato = 1 THEN "SI" ELSE "NO" END as inmediato'),
-                                DB::raw('CASE WHEN inscripciones = 1 THEN "SI" ELSE "NO" END as inscripciones')
+                                DB::raw('CASE WHEN periodo.activo = 1 THEN "SI" ELSE "NO" END as activo'),
+                                DB::raw('CASE WHEN periodo.inmediato = 1 THEN "SI" ELSE "NO" END as inmediato'),
+                                DB::raw('CASE WHEN periodo.inscripciones = 1 THEN "SI" ELSE "NO" END as inscripciones')
             ]; 
            $namesColumns = ['NIVEL','ID PERIODO', 'DESCRIPCION', 'FECHA INICIO','FECHA FIN','ACTIVO','INMEDIATO','INSCRIPCIONES']; // Seleccionar columnas específicas
            

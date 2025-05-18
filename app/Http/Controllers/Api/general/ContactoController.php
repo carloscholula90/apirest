@@ -63,7 +63,7 @@ class ContactoController extends Controller{
 
         if (!$contactos) 
             return $this->returnEstatus('Error al crear el Contacto',500,null); 
-        return $this->returnData('contactos',$contactos,201);   
+        return $this->returnData('contactos',$contactos,200);   
     }
 
     public function show($uid,$idParentesco,$idTipoContacto){

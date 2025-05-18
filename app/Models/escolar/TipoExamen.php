@@ -9,13 +9,13 @@ class TipoExamen extends Model
 {
     use HasFactory;
     protected $table = 'tipoExamen';
-    protected $primaryKey = 'idTipoExamen';    
+    protected $primaryKey = 'idExamen';    
     protected $keyType = 'int';
     public $timestamps = false;
     public $incrementing = true;
 
     protected $fillable = [
-                        'idTipoExamen',
+                        'idExamen',
                         'descripcion'
     ];
 }

@@ -42,7 +42,7 @@ class AsignaturaController extends Controller{
 
         if (!$asignaturas) 
             return $this->returnEstatus('Error al crear la asignatura',500,null); 
-        return $this->returnData('asignaturas',$asignaturas,201);   
+        return $this->returnData('asignaturas',$asignaturas,200);   
     }
 
     public function show($idAsignatura){

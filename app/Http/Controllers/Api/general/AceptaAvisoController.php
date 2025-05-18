@@ -47,7 +47,7 @@ class AceptaAvisoController extends Controller
 
             if (!$avisos)
                 return $this->returnEstatus('Error al crear el registro',500,null);
-            return $this->returnData('Aviso de Privacidad',$avisos,201);
+            return $this->returnData('Aviso de Privacidad',$avisos,200);
 
         } catch (QueryException $e) {
 

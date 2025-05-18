@@ -42,7 +42,7 @@ class NotaController extends Controller{
 
         if (!$notas) 
             return $this->returnEstatus('Error al crear la nota',500,null); 
-        return $this->returnData('$notas',$notas,201);   
+        return $this->returnData('$notas',$notas,200);   
     }
 
     public function show($idNota){
@@ -72,7 +72,6 @@ class NotaController extends Controller{
             return $this->returnEstatus('Nota no encontrada',404,null);             
 
         $validator = Validator::make($request->all(), [
-                    'idNota' => 'required|numeric|max:255',
                     'descripcion' => 'required|max:255'
         ]);
 
@@ -85,30 +84,6 @@ class NotaController extends Controller{
         return $this->returnData('Nota',$Nota,200);
     }
 
-    public function updatePartial(Request $request, $idNota){
-
-        $Nota = Nota::find($idNota);
-        
-        if (!$Nota) 
-            return $this->returnEstatus('Nota no encontrada',404,null);             
-
-        $validator = Validator::make($request->all(), [
-                                    'idNota' => 'required|numeric|max:255',
-                                    'descripcion' => 'required|max:255'
-        ]);
-
-        if ($validator->fails()) 
-            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
-            
-        if ($request->has('idNota')) 
-            $Nota->idNota = $request->idNota;        
-
-        if ($request->has('descripcion')) 
-            $Nota->descripcion = strtoupper(trim($request->descripcion));        
-
-        $Nota->save();
-        return $this->returnEstatus('Nota actualizado',200,null);    
-    }
      public function generaReporte()
      {
        return $this->imprimeCtl('notas',' notas ',null,null,'descripcion');

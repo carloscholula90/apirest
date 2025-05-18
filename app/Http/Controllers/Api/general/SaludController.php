@@ -48,7 +48,7 @@ class SaludController extends Controller
 
         if (!$salud) 
             return $this->returnEstatus('Error al crear el registro',500,null); 
-        return $this->returnData('salud',$salud,201);   
+        return $this->returnData('salud',$salud,200);   
     }
 
     public function show($uid){

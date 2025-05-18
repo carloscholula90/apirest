@@ -43,7 +43,7 @@ class DocumentoController extends Controller{
 
         if (!$documentos) 
             return $this->returnEstatus('Error al crear el Documento',500,null); 
-        return $this->returnData('$documentos',$documentos,201);   
+        return $this->returnData('$documentos',$documentos,200);   
     }
 
     public function show($idDocumento){

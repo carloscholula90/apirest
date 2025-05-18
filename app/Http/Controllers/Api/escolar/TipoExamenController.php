@@ -24,11 +24,11 @@ class TipoExamenController extends Controller{
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        $maxId = TipoExamen::max('idTipoExamen');  
+        $maxId = TipoExamen::max('idExamen');  
         $newId = $maxId ? $maxId + 1 : 1; 
         try {
             $tiposexamenes = TipoExamen::create([
-                            'idTipoExamen' => $newId,
+                            'idExamen' => $newId,
                             'descripcion' => strtoupper(trim($request->descripcion))
             ]);
         } catch (QueryException $e) {
@@ -42,20 +42,20 @@ class TipoExamenController extends Controller{
 
         if (!$tiposexamenes) 
             return $this->returnEstatus('Error al crear el TipoExamen',500,null); 
-        return $this->returnData('$tiposexamenes',$tiposexamenes,201);   
+        return $this->returnData('$tiposexamenes',$tiposexamenes,200);   
     }
 
-    public function show($idTipoExamen){
+    public function show($idExamen){
         try {
-            $tiposexamenes = TipoExamen::findOrFail($idTipoExamen);
+            $tiposexamenes = TipoExamen::findOrFail($idExamen);
             return $this->returnData('$tiposexamenes',$tiposexamenes,200);   
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->returnEstatus('TipoExamen no encontrado',404,null); 
         }
     }
     
-    public function destroy($idTipoExamen){
-        $TipoExamen = TipoExamen::find($idTipoExamen);
+    public function destroy($idExamen){
+        $TipoExamen = TipoExamen::find($idExamen);
 
         if (!$TipoExamen) 
             return $this->returnEstatus('TipoExamen no encontrado',404,null);             
@@ -64,52 +64,25 @@ class TipoExamenController extends Controller{
         return $this->returnEstatus('TipoExamen eliminado',200,null); 
     }
 
-    public function update(Request $request, $idTipoExamen){
+    public function update(Request $request, $idExamen){
 
-        $TipoExamen = TipoExamen::find($idTipoExamen);
+        $TipoExamen = TipoExamen::find($idExamen);
         
         if (!$TipoExamen) 
-            return $this->returnEstatus('TipoExamen no encontrado',404,null);             
+            return $this->returnEstatus('Tipo de examen no encontrado',400,null);             
 
         $validator = Validator::make($request->all(), [
-                    'idTipoExamen' => 'required|numeric|max:255',
                     'descripcion' => 'required|max:255'
         ]);
 
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
             
-        $TipoExamen->idTipoExamen = $request->idTipoExamen;
+        $TipoExamen->idExamen = $request->idExamen;
         $TipoExamen->descripcion = strtoupper(trim($request->descripcion));
         $TipoExamen->save();
         return $this->returnData('TipoExamen',$TipoExamen,200);
     }
-
-    public function updatePartial(Request $request, $idTipoExamen){
-
-        $TipoExamen = TipoExamen::find($idTipoExamen);
-        
-        if (!$TipoExamen) 
-            return $this->returnEstatus('TipoExamen no encontrado',404,null);             
-
-        $validator = Validator::make($request->all(), [
-                                    'idTipoExamen' => 'required|numeric|max:255',
-                                    'descripcion' => 'required|max:255'
-        ]);
-
-        if ($validator->fails()) 
-            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
-            
-        if ($request->has('idTipoExamen')) 
-            $TipoExamen->idTipoExamen = $request->idTipoExamen;        
-
-        if ($request->has('descripcion')) 
-            $TipoExamen->descripcion = strtoupper(trim($request->descripcion));        
-
-        $TipoExamen->save();
-        return $this->returnEstatus('TipoExamen actualizado',200,null);    
-    }
-
      
     public function generaReporte()
     {
@@ -117,6 +90,6 @@ class TipoExamenController extends Controller{
     } 
 
     public function exportaExcel() {
-       return $this->exportaXLS('tipoExamen','idTipoExamen',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
+       return $this->exportaXLS('tipoExamen','idExamen',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
    }   
 }
