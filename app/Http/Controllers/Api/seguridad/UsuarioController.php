@@ -65,4 +65,13 @@ class UsuarioController extends Controller{
         $usuario->save();
         return $this->returnEstatus('Contraseña actualizada',200,null); 
     }
+    
+    public function destroy($uid){
+        $usuario = Usuario::find($uid);
+        if (!$usuario)
+            return $this->returnEstatus('Usuario no encontrado',404,null); 
+        
+        $usuario->delete();
+        return $this->returnEstatus('Usuario eliminado',200,null); 
+    }
 }
