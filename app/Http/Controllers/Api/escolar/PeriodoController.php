@@ -13,8 +13,22 @@ use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 class PeriodoController extends Controller{
 
     public function index(){       
-        $periodos = Periodo::all();
-        return $this->returnData('periodos',$periodos,200);
+        $datos = DB::table('periodo')
+                        ->join('nivel', 'nivel.idNivel', '=', 'periodo.idNivel')
+                        ->select(
+                            'nivel.idNivel',
+                            'periodo.idPeriodo',
+                            'periodo.descripcion',
+                            'periodo.activo',
+                            'periodo.inscripciones',
+                            'periodo.fechaInicio',
+                            'periodo.fechaTermino',
+                            'periodo.inmediato',
+                            'periodo.logoGob',
+                            DB::raw('nivel.descripcion as nivel')
+                        )
+                        ->get();
+        return $this->returnData('periodos',$datos,200);
     }
 
     public function store(Request $request)
