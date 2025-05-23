@@ -87,6 +87,11 @@ class EscolaridadController extends Controller
 
     }
 
+    public function generaReporte()
+     {
+        return $this->imprimeCtl('escolaridad',' escolaridad ',null,null,'descripcion');
+     } 
+
     public function exportaExcel() {
        return $this->exportaXLS('escolaridad','idEscolaridad',['CLAVE', 'DESCRIPCIÓN']);     
     }

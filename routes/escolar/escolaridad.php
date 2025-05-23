@@ -9,3 +9,4 @@ Route::post('/create', [EscolaridadController::class, 'store']);
 Route::put('/{idEscolaridad}', [EscolaridadController::class, 'update']);
 Route::delete('/{idEscolaridad}', [EscolaridadController::class, 'destroy']);
 Route::post('/imprimeXls', [EscolaridadController::class, 'exportaExcel']);  
+Route::post('/generaReporte', [EscolaridadController::class, 'generaReporte']);

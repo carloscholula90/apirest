@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Validator;
 class UsuarioController extends Controller{
     
     public function index() {     
-        $usuarios = Usuario::all();
+        $usuarios = Usuario::join('persona as p', 'p.uid', '=', 'usuario.uid')
+                            ->select('usuario.uid', 'usuario.contrasena', 'usuario.contrasena', 'p.nombre', 'p.primerApellido', 'p.segundoApellido')
+                            ->get();
         return $this->returnData('usuarios',$usuarios,200);
     }
 
