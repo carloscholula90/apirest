@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\escolar;
-
+namespace App\Http\Controllers\Api\escolar;  
+use App\Http\Controllers\Controller;
 use App\Models\escolar\Grupo;
-use Illuminate\Http\Request;
+use Illuminate\Http\Request;  
+use Illuminate\Support\Facades\Validator;
 
 class GrupoController extends Controller
 {
@@ -12,7 +13,8 @@ class GrupoController extends Controller
      */
     public function index()
     {
-        //
+       $grupos = Grupo::all();
+       return $this->returnData('grupos',$grupos,200);
     }
 
     /**

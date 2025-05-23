@@ -107,6 +107,10 @@ Route::prefix('formaspagos')->group(function () {
     require base_path('routes/tesoreria/formaspagos.php');
 });
 
+Route::prefix('grupos')->group(function () {
+    require base_path('routes/escolar/grupos.php');
+});
+
 Route::prefix('idiomas')->group(function () {
     require base_path('routes/escolar/idiomas.php');
 });

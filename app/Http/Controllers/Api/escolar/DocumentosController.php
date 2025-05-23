@@ -6,9 +6,80 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDSFormat;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
   
 class DocumentosController extends Controller{
 
+    public function obtenerDatosAlumnos($nivel,$carrera,$periodo,$asignatura,$grupo){
+        $resultsB = DB::table('grupos as g')
+                        ->select(
+                            'g.idNivel as NivelAcad',
+                            'g.idPeriodo as ciclo',
+                            'g.idAsignatura as ClaveAsig',
+                            'a.descripcion as NomAsig',
+                            'g.grupo as grupo',
+                            'al.matricula',
+                            'pl.idModalidad as Modalidad',
+                            'p.nombre as nombreProf',
+                            'p.primerApellido as PrimerApellidoProf',
+                            'p.segundoApellido as SegundoApellidoProf',
+                            'Nal.nombre as NombreAl',
+                            'Nal.primerApellido as PrimerApellidoAl',
+                            'Nal.segundoApellido as SegundoapellidoAl',
+                            'c.Parcial1 as Parcial1',
+                            'c.Parcial2 as Parcial2',
+                            'c.Parcial3 as Parcial3',
+                            'c.CF as califFinal',
+                            'turno.descripcion AS turno',
+                            'g.idAsignatura as idAsignatura',
+                            'e.descripcion as TipoExamen',
+                            'Nsecre.nombre as Nombresecre',
+                            'Nsecre.primerApellido as PrimerApellidosecre',
+                            'Nsecre.segundoApellido as Segundoapellidosecre',
+                            'Npresi.nombre as NombrePresi',
+                            'Npresi.primerApellido as PrimerApellidoPresi',
+                            'Npresi.segundoApellido as SegundoapellidoPresi',
+                            'NSup.nombre as NombreSup',
+                            'NSup.primerApellido as PrimerApellidoSup',
+                            'g.grupo as grupo',
+                            'NSup.segundoApellido as Segundoapellidosup',
+                            'pl.rvoe as rvoe',
+                            'carrera.descripcion as carrera',
+                            DB::raw('CONLETRA(c.CF) as califConLetra'))
+                                ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
+                                ->join('calificaciones as c', 'c.grupoSec', '=', 'g.grupoSec')
+                                ->join('tipoExamen as e', 'e.idExamen', '=', 'c.idExamen')
+                                ->join('ciclos as cl', 'cl.indexCiclo', '=', 'c.indexCiclo')
+                                ->join('alumno as al', 'al.uid', '=', 'cl.uid')
+                                ->join('plan as pl', 'pl.idPlan', '=', 'al.idPlan')
+                                ->join('persona as Nal', 'Nal.uid', '=', 'cl.uid')
+                                ->join('nivel as niv', 'niv.idNivel', '=', 'pl.idNivel')
+                                ->join('carrera', function ($join) {
+                                        $join->on('carrera.idCarrera', '=', 'pl.idCarrera')
+                                             ->on('carrera.idNivel', '=', 'pl.idNivel');
+                                })  
+                                ->leftJoin('persona as p', 'p.uid', '=', 'g.uidProfesor')
+                                ->join('persona as Nsecre', 'Nsecre.uid', '=', 'g.uidSecretario')
+                                ->join('persona as Npresi', 'Npresi.uid', '=', 'g.uidPresidente')
+                                ->join('turno as turno', 'turno.idTurno', '=', 'g.idTurno')
+                                ->join('persona as NSup', 'NSup.uid', '=', 'g.uidSupervisor')
+                                ->where('pl.idNivel', '=',$nivel)
+                                ->where('pl.idCarrera', '=',$carrera)                              
+                                ->where('g.idNivel', $nivel)
+                                ->where('g.idPeriodo', $periodo)
+                                ->where('g.idAsignatura', $asignatura)
+                                ->where('g.grupo', $grupo)
+                                ->get();
+
+                             
+      
+            
+            if ($resultsB->isEmpty())
+                return $resultsB;   
+            
+        return $resultsB->toArray();
+    }
+    
 
     public function generaAdeudoDoctos(){
         $orientation='P';
@@ -291,13 +362,24 @@ class DocumentosController extends Controller{
         }   
     }
 
-    public function generatePaseLista(){
+    public function generatePaseLista(Request $request){
 
+        $validator = Validator::make($request->all(), [
+                                        'nivel' => 'required|max:255',
+                                        'carrera' => 'required|max:255',
+                                        'periodo' => 'required|max:255',
+                                        'asignatura' => 'required|max:255',
+                                        'grupo' => 'required|max:255'
+        ]);
+
+         if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+     
         $orientation='P';
         $size='letter';
         $nameReport='paseLista'.'_'.mt_rand(100, 999).'.pdf';
       
-        $results = $this->obtenerAlumnos();
+        $results = $this->obtenerDatosAlumnos($request->nivel,$request->carrera,$request->periodo,$request->asignatura,$request->grupo);
         
         // Crear una nueva instancia de CustomTCPDF (extendido de TCPDF)
         $pdf = new CustomTCPDSFormat($orientation, PDF_UNIT, $size, true, 'UTF-8', false);       
@@ -312,7 +394,7 @@ class DocumentosController extends Controller{
         $pdf->Image($imageUrl, 15, 15, 20);
       
         if (!empty($results)) {
-
+        $primerElemento = $results[0];
          // Generar la tabla HTML para los datos
         $html2 = '<table border="0" cellpadding="1" style ="font-family: Arial; font-size: 9pt; font-weight: bold; text-align: center; vertical-align: middle;">    
             <tr>
@@ -329,14 +411,14 @@ class DocumentosController extends Controller{
                 <td></td>            
             </tr>
             <tr>
-                <td style="height: .6cm; width: 9cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">ASIGNATURA O MATERIA:</td>               
-                <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">GRUPO:</td>
+                <td style="height: .6cm; width: 9cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">ASIGNATURA O MATERIA: '.$primerElemento->idAsignatura.'</td>               
+                <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">GRUPO: '.$request->carrera.'</td>
                 <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">SEMESTRE:</td>
             </tr>
             <tr>
-                <td style="height: .6cm; width: 7cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">CARRERA:</td>               
-                <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">TURNO:</td>
-                <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">No HRS.:</td>
+                <td style="height: .6cm; width: 7cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">CARRERA: '.$primerElemento->carrera.'</td>               
+                <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">TURNO: '.$primerElemento->turno.'</td>
+                <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">No HRS.: </td>
             </tr>';         
             $html2 .= '</table><br><br>';
 
