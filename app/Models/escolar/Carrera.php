@@ -17,7 +17,6 @@ class Carrera extends Model
                         'idCarrera',
                         'descripcion',
                         'letra',
-                        'diaInicioCargo',
-                        'diaInicioRercargo'
+                        'diaInicioCargo'
     ];
 }

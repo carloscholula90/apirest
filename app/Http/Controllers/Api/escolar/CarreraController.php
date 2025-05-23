@@ -35,8 +35,7 @@ class CarreraController extends Controller
                                     'idCarrera' => $newIdCarrera,
                                     'descripcion' => strtoupper(trim($request->descripcion)),
                                     'letra'=> strtoupper(trim($request->letra)),
-                                    'diaInicioCargo'=>$request->diaInicioCargo,
-                                    'diaInicioRecargo'=>$request->diaInicioRecargo
+                                    'diaInicioCargo'=>$request->diaInicioCargo
         ]);
 
         if (!$carreras) 
@@ -88,10 +87,7 @@ class CarreraController extends Controller
         if ($request->has('diaInicioCargo')) 
             $carreras->diaInicioCargo = $request->diaInicioCargo;
  
-        if ($request->has('diaInicioRecargo')) 
-            $carreras->diaInicioRecargo = $request->diaInicioRecargo;
-
-        $carreras->save();
+          $carreras->save();
         return $this->returnEstatus('Carrera actualizada',200,null); 
     }
 
@@ -102,7 +98,6 @@ class CarreraController extends Controller
                                     'c.idCarrera',
                                     'c.descripcion as carrera',
                                     'c.diaInicioCargo',
-                                    'c.diaInicioRecargo',
                                     DB::raw('CASE WHEN c.activo = 1 THEN "S" ELSE "N" END as activo'))
                                             ->join('nivel as niv', 'niv.idNivel', '=', 'c.idNivel')
                                             ->orderBy('c.descripcion', 'asc')
@@ -129,7 +124,7 @@ class CarreraController extends Controller
          
          return $pdfController->generateReport($dataArray,  // Datos
                                                [100,100,300,100,100,100], // Anchos de columna
-                                               ['NivelAcad','idCarrera','carrera','diaInicioCargo','diaInicioRecargo','activo'], // Claves
+                                               ['NivelAcad','idCarrera','carrera','diaInicioCargo','activo'], // Claves
                                                'CATÁLOGO DE CARRERAS', // Título del reporte
                                                ['NIVEL','ID CARRERA','DESCRIPCIÓN','DIA INICIO DE CARGO','DIA INICIO DE RECARGO','ACTIVO'], 'L','letter',// Encabezados   ,
                                                'rptCarreras'.mt_rand(1, 100).'.pdf'
@@ -139,7 +134,7 @@ class CarreraController extends Controller
     public function exportaExcel() {  
         // Ruta del archivo a almacenar en el disco público
         $path = storage_path('app/public/carrera_rpt.xlsx');
-        $selectColumns = ['nivel.descripcion AS nivelDescripcion', 'carrera.idCarrera', 'carrera.descripcion','carrera.diaInicioCargo','carrera.diaInicioRecargo','activo']; // Seleccionar columnas específicas
+        $selectColumns = ['nivel.descripcion AS nivelDescripcion', 'carrera.idCarrera', 'carrera.descripcion','carrera.diaInicioCargo','activo']; // Seleccionar columnas específicas
         $namesColumns = ['NIVEL', 'ID CARRERA', 'CARRERA','DIA INICIO CARGO','DIA INICIO RECARGO','ACTIVO']; // Seleccionar columnas específicas
         
         $joins = [[ 'table' => 'nivel', // Tabla a unir
