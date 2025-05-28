@@ -10,7 +10,7 @@ class Direccion extends Model
 {
     use HasFactory;  
     protected $table = 'direcciones';    
-    protected $fillable = ['uid', 'idParentesco','idTipoDireccion','consecutivo',
+    protected $fillable = ['uid', 'idParentesco','idTipoDireccion','consecutivo','calle',
                            'idPais', 'idEstado', 'idCiudad','idCp','noExterior','noInterior'];
     public $timestamps = false; 
     public $incrementing = false;

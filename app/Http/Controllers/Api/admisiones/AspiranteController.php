@@ -59,18 +59,6 @@ class AspiranteController extends Controller{
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
  
  
-            $existe = DB::table('persona')   
-                            ->select(['uid'])
-                            ->where('curp', strtoupper(trim($request->curp)))
-                            ->first();
-
-        if(isset($existe))
-        foreach ($existe as $row) {
-            return response()->json([
-                'status' => 500,
-                'message' => 'Ya se encuentra registrado con el UID '.$row->uid
-                ]); 
-        }
         //Agregamos el registro de integra
         $maxId = Persona::max('uid');  
         $newId = $maxId ? $maxId + 1 : 1;  
@@ -155,6 +143,7 @@ class AspiranteController extends Controller{
                                     'idEstado'=>$request->idEstado,
                                     'idCiudad'=>$request->idCiudad,
                                     'idCp'=>$request->idCp,
+                                    'calle'=>$request->calle,
                                     'noExterior'=>$request->noExterior,
                                     'noInterior'=>$request->noInterior
                                 ]);
@@ -211,12 +200,13 @@ class AspiranteController extends Controller{
                                                 'idParentesco'=>$familiasData['idParentesco'],
                                                 'idTipoDireccion'=>1, //Direccion Principal
                                                 'consecutivo'=>$index,
-                                                'idPais'=>$request->idPais,
-                                                'idEstado'=>$request->idEstado,
-                                                'idCiudad'=>$request->idCiudad,
-                                                'idCp'=>$request->idCp,
-                                                'noExterior'=>$request->noExterior,
-                                                'noInterior'=>$request->noInterior
+                                                'idPais'=>$familiasData['idPais'],
+                                                'idEstado'=>$familiasData['idEstado'],
+                                                'idCiudad'=>$familiasData['idCiudad'],
+                                                'idCp'=>$familiasData['idCp'],
+                                                'noExterior'=>$familiasData['noExterior'],
+                                                'noInterior'=>$familiasData['noInterior'],
+                                                'calle'=>$familiasData['calle']
                                             ]);
                                             $index= $index + 1;
                                                            
@@ -473,7 +463,7 @@ class AspiranteController extends Controller{
                 </tr>';
             $html2 .='<tr>
                 <td style="text-align: left;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;"> Direccion</td>
-                <td style="text-align: left;font-size: 10px;width: 414px; height: 15px; border: 1px solid black;">'.$generalesRow['calle'].'</td>  
+                <td style="text-align: left;font-size: 10px;width: 414px; height: 15px; border: 1px solid black;">'.$generalesRow['calle'].(isset($generalesRow['noExterior'])?' No. exterior '.$generalesRow['noExterior']:'').' '.(isset($generalesRow['noInterior'])?' No. Interior '.$generalesRow['noInterior']:'').'</td>  
                 </tr>';
             $html2 .='<tr>
                 <td style="text-align: left;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;"> Colonia</td>
@@ -584,24 +574,31 @@ class AspiranteController extends Controller{
            $html2 .= '<br>IMPORTANTE: El pago de la colegiatura empezara a patir del mes de AGOSTO, fecha indicada de inicio de clases.';
            $html2 .= '<br><br><br><br><br><br><br><br><br><br><br><br>';
            $html2 .= '<table cellpadding="1" style="text-align: center;vertical-align: middle;border-collapse: separate; border-spacing: 3px;">';
-           $html2 .='<tr>
-                    <td style="text-align: center;font-size: 8px;width: 120px; height: 1px;"><hr style="border: 1px solid black; width: 80%;"></td>
-                    <td style="text-align: center;font-size: 8px;width: 120px; height: 2px;"><hr style="border: 1px solid black; width: 80%;"></td>  
-                    <td style="text-align: center;font-size: 8px;width: 130px; height: 2px;"><hr style="border: 1px solid black; width: 80%;"></td> '.
-                    (intval($generalesRow['idNivel'])<=4? 
-                    '<td style="text-align: center;font-size: 8px;width: 130px; height: 2px;"><hr style="border: 1px solid black; width: 80%;"></td> ':'').
-                    '</tr>';
-           $html2 .='<tr>
-                    <td style="text-align: center;font-size: 8px;width: 100px; height: 7px;">Control escolar</td>
-                    <td style="text-align: center;font-size: 8px;width: 130px; height: 7px;">Relaciones Publicas</td>'.
-                    (intval($generalesRow['idNivel'])<=4?
-                    '<td style="text-align: center;font-size: 8px;width: 140px; height: 7px;">Padre o tutor<br>Nombre y firma</td> ':'').
-                    '<td style="text-align: center;font-size: 8px;width: 140px; height: 7px;">Alumno</td>  
-                    </tr>           
+           $html2 .='<tr>'.
+                      (intval($generalesRow['idNivel'])<=4? 
+                       '<td style="text-align: center;font-size: 8px;width: 120px; height: 1px;"><hr style="border: 1px solid black; width: 80%;"></td>
+                        <td style="text-align: center;font-size: 8px;width: 120px; height: 2px;"><hr style="border: 1px solid black; width: 80%;"></td>  
+                        <td style="text-align: center;font-size: 8px;width: 130px; height: 2px;"><hr style="border: 1px solid black; width: 80%;"></td> 
+                        <td style="text-align: center;font-size: 8px;width: 130px; height: 2px;"><hr style="border: 1px solid black; width: 80%;"></td> ':
+                       '<td><hr style="border: 1px solid black; width: 90%; margin-left: 60px;"></td>                      
+                        <td><hr style="border: 1px solid black; width: 90%; margin-left: 60px;"></td>                        
+                        <td><hr style="border: 1px solid black; width: 90%;"></td>'       
+                    ).
+                    '</tr>';   
+           $html2 .='<tr>'.
+                     (intval($generalesRow['idNivel'])<=4?
+                    '<td style="text-align: center;font-size: 8px;width: 100px; height: 7px;">Control escolar</td>
+                     <td style="text-align: center;font-size: 8px;width: 130px; height: 7px;">Relaciones Publicas</td>               
+                     <td style="text-align: center;font-size: 8px;width: 140px; height: 7px;">Padre o tutor<br>Nombre y firma</td> 
+                     <td style="text-align: center;font-size: 8px;width: 140px; height: 7px;">Alumno</td> ' :
+                    '<td style="text-align: center; font-size: 8px; width: 150px; height: 7px; margin-left: 60px;">Control escolar</td>
+                        <td style="text-align: center; font-size: 8px; width: 180px; height: 7px; margin-left: 60px;">Relaciones Públicas</td>
+                        <td style="text-align: center; font-size: 8px; width: 140px; height: 7px;">Alumno</td> ').                       
+                    '</tr>           
                     <tr>
-                    <td style="text-align: center;font-size: 8px;width: 120px; height: 10px;"></td>
-                    <td style="text-align: center;font-size: 8px;width: 120px; height: 10px;"></td>  
-                    <td style="text-align: left;font-size: 8px;width: 240px; height: 10px;">'.
+                    <td style="text-align: center;font-size: 8px;width: 150px; height: 10px;"></td>
+                    <td style="text-align: center;font-size: 8px;width: 180px; height: 10px;"></td>  
+                    <td style="text-align: left;font-size: 8px;width: 200px; height: 10px;">'.
                     (intval($generalesRow['idNivel'])<=4?
                     'Firmamos de leido y aceptado reglamento interno para alumnos de Universidad Alva Edison, sin protesta alguna':
                     'Firmo de leido y aceptado reglamento interno para alumnos de Universidad Alva Edison, sin protesta alguna').

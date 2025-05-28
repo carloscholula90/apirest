@@ -261,7 +261,6 @@ class PersonaController extends Controller{
     // Valida los datos de la solicitud
     private function validatePersona(Request $request){
         return Validator::make($request->all(), [
-                                        'uid' => 'required|max:255',
                                         'curp' => 'required|min:18|max:18',
                                         'nombre' => 'required|max:255',
                                         'primerApellido' => 'required|max:255',
