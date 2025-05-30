@@ -22,6 +22,7 @@ class Familia extends Model
         'idParentesco', 
         'tutor', 
         'nombre', 
+        'ocupacion',
         'primerApellido', 
         'segundoApellido', 
         'fechaNacimiento', 

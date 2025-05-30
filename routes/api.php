@@ -95,6 +95,10 @@ Route::prefix('escolaridad')->group(function () {
     require base_path('routes/escolar/escolaridad.php');
 });
 
+Route::prefix('empleados')->group(function () {
+    require base_path('routes/general/empleados.php');
+});
+
 Route::prefix('estados')->group(function () {
     require base_path('routes/general/estados.php');
 });
@@ -213,6 +217,10 @@ Route::prefix('tipoasignatura')->group(function () {
 
 Route::prefix('tiposexamenes')->group(function () {
     require base_path('routes/escolar/tiposexamenes.php');
+});
+
+Route::prefix('tiposcontratos')->group(function () {
+    require base_path('routes/general/tiposcontratos.php');
 });
 
 Route::prefix('turnos')->group(function () {
