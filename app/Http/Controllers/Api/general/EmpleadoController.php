@@ -11,6 +11,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Log;     
 use App\Models\general\Persona;    
 use App\Models\general\Empleado;    
+use App\Models\general\Integra;
+use App\Models\general\AceptaAviso;
 
 class EmpleadoController extends Controller{
 
@@ -68,11 +70,15 @@ class EmpleadoController extends Controller{
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
       
-          
-        $maxId = Persona::max('uid');  
-        $newId = $maxId ? $maxId + 1 : 1;  
-        
-        $persona = Persona::create([
+         //Valido si la persona ya existe
+         $personas = Persona::select('persona.uid' )
+                                        ->where('uid', $uid)
+                                        ->get();   
+
+        if ($personas->isEmpty()) {
+                $maxId = Persona::max('uid');  
+                $newId = $maxId ? $maxId + 1 : 1;  
+                $persona = Persona::create([
                                 'uid' => $newId,
                                 'curp' => strtoupper(trim($request->curp)),
                                 'nombre' => strtoupper(trim($request->nombre)),
@@ -85,7 +91,11 @@ class EmpleadoController extends Controller{
                                 'idCiudad' => $request->idCiudad,
                                 'idEdoCivil' => $request->idEdoCivil
                 ]);
-                
+            }            
+         else { // Ya existe como empleado entonces si tiene creamos el integra
+                $integra = Integra::create(['uid' => $newId,'secuencia' =>1,'idRol'=> 1]);
+            } 
+       
         $empleado = Empleado::create([
                                 'uid'=> $newId,
                                 'secuencia'=>1,
@@ -151,15 +161,20 @@ class EmpleadoController extends Controller{
      }
     
     public function destroy($uid){
-        $deletedRows = Empleado::where('uid', $uid)
-                                         ->delete();
-        
-        $persona = Persona::find($uid);
 
-        if (!$persona) 
-            return $this->returnEstatus('Empleado no encontrada',404,null);
+       $count = Integra::where('uid', $uid)->where('idRol',1)->count();
 
-        $persona->delete();
+        if ($count > 1) {
+            // Hay más de un registro
+        } else{
+              $deletedRows = AceptaAviso::where('uid', $uid)->delete();
+              $persona = Persona::find($uid);
+        }                        
+        $deletedRows = Empleado::where('uid', $uid)->delete();       
+        $integra = Integra::where('uid', $uid)->delete();
+
+        if (!$integra) 
+            return $this->returnEstatus('Empleado no encontrada',404,null);       
         return $this->returnEstatus('Empleado eliminada exitosamente',200,null);   
     }
 }
