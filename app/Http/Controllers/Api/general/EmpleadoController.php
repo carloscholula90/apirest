@@ -57,7 +57,6 @@ class EmpleadoController extends Controller{
                 'tc.descripcion as puesto'
             )
             ->distinct()
-            ->take(50)
             ->get();   
 
         if ($personas->isEmpty()) 
