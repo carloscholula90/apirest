@@ -7,4 +7,5 @@ Route::get('/', [EmpleadoController::class, 'index']);
 Route::post('/create', [EmpleadoController::class, 'store']);  
 Route::put('/', [EmpleadoController::class, 'update']);
 Route::delete('/{uid}', [EmpleadoController::class, 'destroy']);
-      
+Route::post('/generaReporte', [EmpleadoController::class, 'generaReporte']);
+Route::post('/imprimeXls', [EmpleadoController::class, 'exportaExcel']);       
