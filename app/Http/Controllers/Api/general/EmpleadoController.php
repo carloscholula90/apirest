@@ -54,7 +54,7 @@ class EmpleadoController extends Controller{
                 'empleado.idTipoContrato',
                 'empleado.gradoestudios',
                 'empleado.idPuesto',
-                'puesto.descripcion as puesto'
+                'tc.descripcion as puesto'
             )
             ->distinct()
             ->take(50)
