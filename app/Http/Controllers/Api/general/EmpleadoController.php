@@ -16,6 +16,7 @@ use App\Models\general\AceptaAviso;
 use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
 
 
+
 class EmpleadoController extends Controller{
 
     public function index(){       
@@ -218,7 +219,7 @@ class EmpleadoController extends Controller{
                                                ['uid','nombre','curp','fechaNacimiento','descripcionEdoCivil','puesto'], // Claves
                                                'CATÁLOGO DE EMPLEADOS', // Título del reporte
                                                ['UID','NOMBRE','CURP','FCH NACIMIENTO','EDO CIVIL','PUESTO'], 'L','letter',// Encabezados   ,
-                                               'rptEmpleados'.mt_rand(1, 100).'.pdf'
+                                               'empleados_rpt.pdf'
          );
     } 
       
@@ -256,7 +257,7 @@ class EmpleadoController extends Controller{
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/carrera_rpt.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/empleados_rpt.xlsx' // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([

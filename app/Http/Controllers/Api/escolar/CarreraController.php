@@ -127,7 +127,7 @@ class CarreraController extends Controller
                                                ['NivelAcad','idCarrera','carrera','diaInicioCargo','activo'], // Claves
                                                'CATÁLOGO DE CARRERAS', // Título del reporte
                                                ['NIVEL','ID CARRERA','DESCRIPCIÓN','DIA INICIO DE CARGO','DIA INICIO DE RECARGO','ACTIVO'], 'L','letter',// Encabezados   ,
-                                               'rptCarreras'.mt_rand(1, 100).'.pdf'
+                                               'rptCarreras.pdf'
          );
     } 
       
