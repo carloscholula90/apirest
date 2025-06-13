@@ -12,7 +12,8 @@ class KardexController extends Controller
 
     public function generaReporte($id,$idNivel,$idCarrera,$tipoKardex){
 
-       $result = DB::table('ciclos as cl')
+       if($tipoKardex!='F')
+       $results = DB::table('ciclos as cl')
                         ->join('calificaciones as ca', 'ca.indexCiclo', '=', 'cl.indexCiclo')
                         ->join('detasignatura as asig', 'asig.secPlan', '=', 'ca.secPlan')
                         ->join('asignatura as a', 'a.idAsignatura', '=', 'asig.idAsignatura')
@@ -53,26 +54,66 @@ class KardexController extends Controller
                         ->where('cl.uid', $id)
                         ->where('alumno.idNivel', $idNivel)
                         ->where('alumno.idCarrera', $idCarrera)
-                        ->orderBy('asig.ordenk');                        
+                        ->orderBy('asig.ordenk')->get();                        
 
                        // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
+        else  $results =  DB::table('alumno as al')
+                            ->join('persona as pers', 'al.uid', '=', 'pers.uid')
+                            ->join('nivel', 'nivel.idNivel', '=', 'al.idNivel')
+                            ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
+                            ->join('detasignatura as det', function($join) {
+                                $join->on('det.idPlan', '=', 'al.idPlan')
+                                    ->on('det.idCarrera', '=', 'al.idCarrera');
+                            })
+                            ->join('asignatura as asig', 'asig.idAsignatura', '=', 'det.idAsignatura')
+                            ->leftJoin('calificaciones as calif', 'calif.secPlan', '=', 'det.secPlan')
+                            ->leftJoin('ciclos as c', 'c.indexCiclo', '=', 'calif.indexCiclo')
+                            ->where('al.uid', $id)
+                            ->where('al.idNivel', $idNivel)
+                            ->where('al.idCarrera', $idCarrera)
+                            ->whereNull('calif.secPlan')
+                                    ->select(
+                                                'pers.nombre',
+                                                'nivel.descripcion',
+                                                'det.ordenk',
+                                                'det.creditos',
+                                                'al.matricula',
+                                                'pers.nombre',
+                                                'pers.primerApellido as apellidopat',
+                                                'pers.segundoApellido as apellidomat',                                 
+                                                'pers.uid AS estudiante',
+                                                'det.idAsignatura',
+                                                'asig.descripcion as asignatura',
+                                                'det.semestre',
+                                                'al.idPlan',
+                                                'al.idCarrera',
+                                                'carrera.descripcion as carrera',
+                                                'nivel.descripcion as nivel'
+                            )->orderBy('det.semestre')->get();
        
-        $results = $result->get();
-
-        // Si no hay personas, devolver un mensaje de error
+    // Si no hay personas, devolver un mensaje de error
         if ($results->isEmpty())
             return $this->returnEstatus('No existen datos para generar el kardex id '.$id.' idNivel '.$idNivel.' idCarrera '.$idCarrera,404,null);
         
         $headers = ['Clave', 'Asignatura','Créditos','Calif','Letra','Tipo','Periodo'];
         $columnWidths = [40,120,50,50,80,80,80];   
-        $keys = ['idAsignatura','asignatura','creditos','calificacion','califConLetra','tipo','periodo',];
+        $keys = ['idAsignatura','asignatura','creditos','calificacion','califConLetra','tipo','periodo'];
        
+        if($tipoKardex == 'F'){
+                    $headers = ['Clave', 'Asignatura','Créditos','Semestre'];
+                    $columnWidths = [40,300,50,80];   
+                    $keys = ['idAsignatura','asignatura','creditos','semestre'];     
+        }    
+
         $resultsArray = $results->map(function ($item) {
             return (array) $item; // Convertir cada stdClass a un arreglo
         })->toArray();       
         if($tipoKardex == 'AP')
         return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX TIPO AP', $headers,'P','letter',
                         'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex);
+        else if($tipoKardex == 'F')
+         return $this->generateReport($resultsArray,$columnWidths,$keys , 'ASIGNATURAS PENDIENTES POR CURSAR',$headers,'P','letter',
+                        'rptPendientesCursar_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex);      
         else return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX TIPO C', $headers,'P','letter',
                         'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex);
       
@@ -165,17 +206,20 @@ class KardexController extends Controller
         $html2 .= '</tr>';
         }
         //detalle
-        $promedioFinal = $matAprobadas>0?round($promedio/$matAprobadas, 2):0;
-        $html2 .= '<tr><td colspan="7"></td></tr>';
-        $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
-        $html2 .= '<tr><td colspan="7"></td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias cursadas:</b> '.count($data).'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias aprobadas:</b> '.$matAprobadas.'</td></tr>';
-        if($tipoKardex=='C')
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias reprobadas:</b> '.$matReprobadas.'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Promedio:</b> '.$promedioFinal.'</td></tr>';
-        $html2 .= '<tr><td colspan="7"></td></tr>';   
-        $html2 .= '<tr><td colspan="7"></td></tr>';
+        if($tipoKardex!='F'){
+            $promedioFinal = $matAprobadas>0?round($promedio/$matAprobadas, 2):0;
+            $html2 .= '<tr><td colspan="7"></td></tr>';
+            $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
+            $html2 .= '<tr><td colspan="7"></td></tr>';
+            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias cursadas:</b> '.count($data).'</td></tr>';
+            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias aprobadas:</b> '.$matAprobadas.'</td></tr>';
+            
+            if($tipoKardex=='C')
+                $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias reprobadas:</b> '.$matReprobadas.'</td></tr>';
+                $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Promedio:</b> '.$promedioFinal.'</td></tr>';
+                $html2 .= '<tr><td colspan="7"></td></tr>';   
+                $html2 .= '<tr><td colspan="7"></td></tr>';
+        }
         $html2 .= '</table>';
 
         // Escribir la tabla en el PDF
