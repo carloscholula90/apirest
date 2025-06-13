@@ -24,6 +24,8 @@ class EmpleadoController extends Controller{
             $personas = Persona::leftJoin('pais', 'persona.idPais', '=', 'pais.idPais')
                                 ->join('empleado', 'empleado.uid', '=', 'persona.uid')
                                 ->leftJoin('puestos as tc', 'tc.idPuesto', '=', 'empleado.idPuesto')                                
+                                ->leftJoin('tipoContrato', 'tipoContrato.idTipoContrato', '=', 'empleado.idTipoContrato')                                
+                              
                                 ->leftJoin('edoCivil', 'persona.idEdoCivil', '=', 'edoCivil.idEdoCivil')
                                 ->leftJoin('estado', function($join) {
                                     $join->on('persona.idPais', '=', 'estado.idPais')
@@ -55,7 +57,8 @@ class EmpleadoController extends Controller{
                 'empleado.idTipoContrato',
                 'empleado.gradoestudios',
                 'empleado.idPuesto',
-                'tc.descripcion as puesto'
+                'tc.descripcion as puesto',
+                'tipoContrato.descripcion as tipoContrato'
             )
             ->distinct()
             ->get();   
@@ -180,8 +183,10 @@ class EmpleadoController extends Controller{
         return $this->returnEstatus('Empleado eliminada exitosamente',200,null);   
     }
 
-    public function obtenerDatos(){
-    return Persona::join('empleado', 'empleado.uid', '=', 'persona.uid')
+   
+    public function generaReporte(){
+        $data = DB::table('empleado')
+        ->leftJoin('persona', 'empleado.uid', '=', 'persona.uid')
                                 ->leftJoin('edoCivil', 'persona.idEdoCivil', '=', 'edoCivil.idEdoCivil')
                                 ->leftJoin('puestos as tc', 'tc.idPuesto', '=', 'empleado.idPuesto')  
                                 ->select(
@@ -193,11 +198,7 @@ class EmpleadoController extends Controller{
                                         'tc.descripcion as puesto'
                                     )
                                     ->distinct()
-                                    ->get();      
-    } 
-
-    public function generaReporte(){
-        $data = $this->obtenerDatos();
+                                    ->get();  
 
         if(empty($data)){
             return response()->json([
@@ -206,16 +207,17 @@ class EmpleadoController extends Controller{
             ]);
         }
 
-         // Convertir los datos a un formato de arreglo asociativo
+        // Convertir los datos a un formato de arreglo asociativo
          $dataArray = $data->map(function ($item) {
+             Log::info('Data para PDF:',  (array) $item);
             return (array) $item;
         })->toArray();
 
          // Generar el PDF
          $pdfController = new pdfController();
-         
+        
          return $pdfController->generateReport($dataArray,  // Datos
-                                               [50,200,100,150,100,100], // Anchos de columna
+                                               [50,200,150,150,100,100], // Anchos de columna
                                                ['uid','nombre','curp','fechaNacimiento','descripcionEdoCivil','puesto'], // Claves
                                                'CATÁLOGO DE EMPLEADOS', // Título del reporte
                                                ['UID','NOMBRE','CURP','FCH NACIMIENTO','EDO CIVIL','PUESTO'], 'L','letter',// Encabezados   ,
@@ -226,12 +228,12 @@ class EmpleadoController extends Controller{
     public function exportaExcel() {  
         // Ruta del archivo a almacenar en el disco público
         $path = storage_path('app/public/empleados_rpt.xlsx');
-        $selectColumns = ['persona.uid', DB::raw("CONCAT(persona.nombre, ' ', persona.primerApellido, ' ', persona.segundoApellido) AS nombre"), 'persona.fechaNacimiento',
+        $selectColumns = ['persona.uid', DB::raw("CONCAT(persona.nombre, ' ', persona.primerApellido, ' ', persona.segundoApellido) AS nombre"), 'persona.curp', 'persona.fechaNacimiento',
                                         'edoCivil.descripcion as descripcionEdoCivil',
                                         'tc.descripcion as puesto']; // Seleccionar columnas específicas
         $namesColumns = ['UID','NOMBRE','CURP','FCH NACIMIENTO','EDO CIVIL','PUESTO']; // Seleccionar columnas específicas
         
-        $joins = [[ 'table' => 'empleado', // Tabla a unir
+        $joins = [[ 'table' => 'empleado', // Tabla a unir   
                     'first' => 'empleado.uid', // Columna de la tabla principal
                     'second' => 'persona.uid', // Columna de la tabla unida
                     'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
@@ -251,7 +253,7 @@ class EmpleadoController extends Controller{
         $export = new GenericTableExportEsp('persona', 'uid', [], ['persona.uid'], ['asc'], $selectColumns, $joins,$namesColumns);
 
         // Guardar el archivo en el disco público
-        Excel::store($export, 'empleado_rpt.xlsx', 'public');
+        Excel::store($export, 'empleados_rpt.xlsx', 'public');
        
         // Verifica si el archivo existe usando Storage de Laravel
         if (file_exists($path))  {

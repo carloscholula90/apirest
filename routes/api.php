@@ -134,6 +134,10 @@ Route::prefix('periodos')->group(function () {
     require base_path('routes/escolar/periodos.php');
 });  
 
+Route::prefix('ofertas')->group(function () {
+    require base_path('routes/escolar/ofertas.php');
+});  
+
 Route::prefix('medios')->group(function () {
     require base_path('routes/general/medios.php');
 });
