@@ -28,7 +28,7 @@ class OfertaController extends Controller
                 Log::info('grupo :'.$grupoB[$indx]);
                 Log::info('capacidad :'.$capacidadB[$indx]);
                 Log::info('semestre :'.$semestreB[$indx]);   
-                $result = DB::select('CALL creaoferta(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+                $result = DB::select('CALL creaoferta(?, ?, ?, ?, ?, ?, ?, ?, ?)', 
                                                         [$request->nivel,$request->periodo, 
                                                          $request->escuela, $request->pl, 
                                                          $request->turno, $request->modalidad,$grupoB[$indx],

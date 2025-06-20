@@ -130,6 +130,10 @@ Route::prefix('imprimedocumentos')->group(function () {
     require base_path('routes/escolar/imprimedocumentos.php');
 });
 
+Route::prefix('inscripciones')->group(function () {
+    require base_path('routes/escolar/inscripciones.php');
+});
+
 Route::prefix('periodos')->group(function () {
     require base_path('routes/escolar/periodos.php');
 });  
