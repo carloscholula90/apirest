@@ -58,38 +58,51 @@ class KardexController extends Controller
 
                        // Si la variable $order es igual a 'C', entonces realizamos el ordenamiento
         else  $results =  DB::table('alumno as al')
-                            ->join('persona as pers', 'al.uid', '=', 'pers.uid')
-                            ->join('nivel', 'nivel.idNivel', '=', 'al.idNivel')
-                            ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
-                            ->join('detasignatura as det', function($join) {
-                                $join->on('det.idPlan', '=', 'al.idPlan')
-                                    ->on('det.idCarrera', '=', 'al.idCarrera');
-                            })
-                            ->join('asignatura as asig', 'asig.idAsignatura', '=', 'det.idAsignatura')
-                            ->leftJoin('calificaciones as calif', 'calif.secPlan', '=', 'det.secPlan')
-                            ->leftJoin('ciclos as c', 'c.indexCiclo', '=', 'calif.indexCiclo')
-                            ->where('al.uid', $id)
-                            ->where('al.idNivel', $idNivel)
-                            ->where('al.idCarrera', $idCarrera)
-                            ->whereNull('calif.secPlan')
-                                    ->select(
-                                                'pers.nombre',
-                                                'nivel.descripcion',
-                                                'det.ordenk',
-                                                'det.creditos',
-                                                'al.matricula',
-                                                'pers.nombre',
-                                                'pers.primerApellido as apellidopat',
-                                                'pers.segundoApellido as apellidomat',                                 
-                                                'pers.uid AS estudiante',
-                                                'det.idAsignatura',
-                                                'asig.descripcion as asignatura',
-                                                'det.semestre',
-                                                'al.idPlan',
-                                                'al.idCarrera',
-                                                'carrera.descripcion as carrera',
-                                                'nivel.descripcion as nivel'
-                            )->orderBy('det.semestre')->get();
+                                ->join('detasignatura as det', function ($join) use ($id) {
+                                    $join->on('det.idPlan', '=', 'al.idPlan')
+                                        ->on('det.idCarrera', '=', 'al.idCarrera');
+                                })
+                                ->join('persona as pers', 'al.uid', '=', 'pers.uid')
+                                ->join('nivel', 'nivel.idNivel', '=', 'al.idNivel')
+                                ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
+                                ->join('asignatura as asig', 'asig.idAsignatura', '=', 'det.idAsignatura')
+                                ->where('al.uid', $id)
+                                ->whereNotIn('det.idAsignatura', function ($query) use ($id, $idNivel, $idCarrera) {
+                                    $query->select('grupos.idasignatura')
+                                        ->from('alumno as al2')
+                                        ->join('ciclos', function ($join) {
+                                            $join->on('ciclos.uid', '=', 'al2.uid')
+                                                ->on('ciclos.idNivel', '=', 'al2.idNivel');
+                                        })
+                                        ->join('grupos', function ($join) {
+                                            $join->on('grupos.grupo', '=', 'ciclos.grupo')
+                                                ->on('grupos.idPeriodo', '=', 'ciclos.idPeriodo');
+                                        })
+                                        ->join('calificaciones as calif', function ($join) {
+                                            $join->on('calif.indexCiclo', '=', 'ciclos.indexCiclo')
+                                                ->on('calif.grupoSec', '=', 'grupos.grupoSec');
+                                        })
+                                        ->where('al2.uid', $id)
+                                        ->where('al2.idNivel', $idNivel)
+                                        ->where('al2.idCarrera', $idCarrera);
+                                        })
+                        ->select([
+                            'nivel.descripcion',
+                            'det.ordenk',
+                            'det.creditos',
+                            'al.matricula',
+                            'pers.nombre',
+                            'pers.primerApellido as apellidopat',
+                            'pers.segundoApellido as apellidomat',
+                            'pers.uid as estudiante',
+                            'det.idAsignatura',
+                            'asig.descripcion as asignatura',
+                            'det.semestre',
+                            'al.idPlan',
+                            'al.idCarrera',
+                            'carrera.descripcion as carrera',
+                            'nivel.descripcion as nivel'
+                        ])->orderBy('det.semestre')->get();
        
     // Si no hay personas, devolver un mensaje de error
         if ($results->isEmpty())
