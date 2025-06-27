@@ -63,6 +63,10 @@ Route::prefix('carreras')->group(function () {
     require base_path('routes/escolar/carreras.php');
 });
 
+Route::prefix('bloqueos')->group(function () {
+    require base_path('routes/seguridad/bloqueos.php');
+});
+
 Route::prefix('ciudades')->group(function () {
     require base_path('routes/general/ciudades.php');
 });

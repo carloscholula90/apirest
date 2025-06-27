@@ -649,7 +649,7 @@ class DocumentosController extends Controller{
         }   
     }
 
-    public function solicituDesfase(){
+    public function solicituDesfase($nombre,$matricula){
         $orientation='P';
         $size='letter';
         $nameReport='solicitudDesfase'.'_'.mt_rand(100, 999).'.pdf';
@@ -698,12 +698,12 @@ class DocumentosController extends Controller{
                 tramite de titulación el cual tiene un periodo de entraga de diez a nueve meses.
                 <br><br>
                     Nota: Me comprometo a asistir a todas las clases y obtener calificaciones aprobatorias, en caso de que no
-                aprobar las materias durante el ciclo escolar ------, no se tendrá información que reportar y tendre que 
+                aprobar las materias durante el ciclo escolar ------, no se tendrá información que reportar y tendré que 
                 reinscribirme a primer semestre durante el ciclo ------------- sin ninguna responsabilidad para la Universidad.
                 <br></p>
-                <br>Nombre:   ____________________________________
-                <br>Matrícula:____________________________________
-                <br>Grupo:    ____________________________________
+                <br>Nombre:'.$nombre.
+                '<br>Matrícula:'.$matricula.
+                '<br>Grupo:    ____________________________________
                 <br>Número de celular ____________________________ 
                 </td>
                 </tr>
@@ -755,11 +755,17 @@ class DocumentosController extends Controller{
         $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP1617.png';
         $pdf->Image($imageUrl, 150, 10, 35);
             // Generar la tabla HTML para los datos
+        setlocale(LC_TIME, 'es_ES.UTF-8'); // Para sistemas con soporte UTF-8 en español
+        date_default_timezone_set('America/Mexico_City'); // Asegura la zona horaria de México
+
+        $fecha = strftime("%e de %B de %Y"); // Ejemplo: "26 de junio de 2025"
+        $fecha = ucwords($fecha); // Opcional: capitaliza las palabras si lo deseas
+
         $html = '<table border="0" cellpadding="1" style="font-family: Arial; font-size: 10pt;line-height: 1.5;">  
             <tr>
                 <td colspan="3">
                 <p style="text-align: right; line-height: 2;">  
-                <b>Heroica Puebla de Zaragoza a -- de -------- de ----<br>Asunto: </b>Solicitud de desfase</p>
+                <b>Heroica Puebla de Zaragoza a ' . $fecha . '<br>Asunto: </b>Solicitud de desfase</p>
                 </td>
             </tr>
             <tr>
@@ -781,16 +787,16 @@ class DocumentosController extends Controller{
                 titulación a la conclusión de mis estudios universitarios. </p>
                 <p style="text-align: justify; line-height: 2; text-indent: 20px;">
                     Por ello me comprometo a esperar al periodo de un año para mi inscripción ante la Dirección de Control
-                Escolar de la Secretaría de Educación en el ciclo escolar -------, siendo consciente de que el termino
-                de mi licenciatura será durante el ciclo escolar ----- si soy alumno regular ( No haberme dado de baja
+                Escolar de la Secretaría de Educación en el ciclo escolar __________________________, siendo consciente de que el termino
+                de mi licenciatura será durante el ciclo escolar __________________________ si soy alumno regular ( No haberme dado de baja
                 temporal ni haber reprobado alguna materia).
                 <br><br>
                     Una vez concluida el programa de estudios y validado ante la Secretaría de Educación, llevaré a cabo mi
-                tramite de titulación el cual tiene un periodo de entraga de diez a nueve meses.
+                tramite de titulación el cual tiene un periodo de entrega de diez a nueve meses.
                 <br><br>
                     Nota: Me comprometo a asistir a todas las clases y obtener calificaciones aprobatorias, en caso de que no
-                aprobar las materias durante el ciclo escolar ------, no se tendrá información que reportar y tendre que 
-                reinscribirme a primer semestre durante el ciclo ------------- sin ninguna responsabilidad para la Universidad.
+                aprobar las materias durante el ciclo escolar__________________________, no se tendrá información que reportar y tendre que 
+                reinscribirme a primer semestre durante el ciclo __________________________ sin ninguna responsabilidad para la Universidad.
                 <br></p>
                 <br>Nombre:   ____________________________________
                 <br>Matrícula:____________________________________

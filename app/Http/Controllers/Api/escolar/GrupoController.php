@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\escolar\Grupo;
 use Illuminate\Http\Request;  
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class GrupoController extends Controller
 {
@@ -16,52 +17,19 @@ class GrupoController extends Controller
        $grupos = Grupo::all();
        return $this->returnData('grupos',$grupos,200);
     }
-
-    /**
-     * Show the form for creating a new resource.
+     /**
+     * Display a listing of the resource.
      */
-    public function create()
+    public function show($idNivel,$idPeriodo,$idCarrera)
     {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Alumno $alumno)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Alumno $alumno)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Alumno $alumno)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Alumno $alumno)
-    {
-        //
+       $carreraFormatted = str_pad($idCarrera, 2, '0', STR_PAD_LEFT);
+       $grupos = DB::table('grupos')
+                                ->distinct()  
+                                ->select('grupo')
+                                ->where('idNivel', $idNivel)
+                                ->where('idPeriodo',$idPeriodo)
+                                ->where('grupo', 'like', $carreraFormatted.'%')
+                                ->get();
+       return $this->returnData('grupos',$grupos,200);
     }
 }
