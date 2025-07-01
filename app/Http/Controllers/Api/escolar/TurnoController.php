@@ -58,10 +58,17 @@ class TurnoController extends Controller{
         $Turno = Turno::find($idTurno);
 
         if (!$Turno) 
-            return $this->returnEstatus('Turno no encontrado',404,null);             
-        
-            $Turno->delete();
-        return $this->returnEstatus('Turno eliminado',200,null); 
+            return $this->returnEstatus('Turno no encontrado',404,null); 
+           
+        try {
+                $Turno->delete();
+                return $this->returnEstatus('Turno eliminado',200,null); 
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar el turno ya esta siendo utilizado',400,null); 
+        } 
+        }
     }
 
     public function update(Request $request, $idTurno){

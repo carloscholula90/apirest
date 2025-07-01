@@ -45,7 +45,8 @@ class PdfController extends Controller
         $html2 .= '<tr>';
         foreach ($keys as $index => $key) {
             $value = isset($row[$key]) ? $row[$key] : '';
-            $html2 .= '<td style="height: 0.3cm; width:' . $columnWidths[$index] . '">' .(empty($value)?'': htmlspecialchars((string)$value) ). '</td>';
+           $html2 .= '<td style="height: 0.3cm; width:' . $columnWidths[$index] . '">' . (isset($value) ? htmlspecialchars((string)$value) : '') . '</td>';
+
         }
         $html2 .= '</tr>';
     }

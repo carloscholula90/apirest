@@ -60,8 +60,15 @@ class EscolaridadController extends Controller
         if (!$escolaridad)
             return $this->returnEstatus('Escolaridad no encontrada',404,null); 
         
-        $escolaridad->delete();
-        return $this->returnEstatus('Escolaridad eliminada',200,null); 
+          try {
+            $escolaridad->delete();
+            return $this->returnEstatus('Escolaridad eliminada',200,null); 
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar la escolaridad ya esta siendo utilizado',400,null); 
+        } 
+        }  
     }
 
     public function update(Request $request, $id)

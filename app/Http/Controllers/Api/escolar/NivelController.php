@@ -106,15 +106,16 @@ class NivelController extends Controller
             ];
             return response()->json($data, 404);
         }
-        
-        $niveles->delete();
 
-        $data = [
-            'message' => 'Nivel eliminado',
-            'status' => 200
-        ];
-
-        return response()->json($data, 200);
+         try {
+             $niveles->delete();
+            return $this->returnEstatus('Nivel eliminada',200,null);  
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar el nivel ya esta siendo utilizado',400,null); 
+        } 
+        }
     }
 
     public function update(Request $request, $idNivel)

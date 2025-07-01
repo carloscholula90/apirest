@@ -8,7 +8,7 @@ Route::post('/paseslista', [DocumentosController::class, 'generatePaseLista']);
 Route::get('/actas', [DocumentosController::class, 'generaActa']);
 Route::get('/adeudos', [DocumentosController::class, 'generaAdeudoDoctos']);
 Route::get('/cuadroincripcion', [DocumentosController::class, 'cuadroIncripcion']);
-Route::get('/soldesfase', [DocumentosController::class, 'solicituDesfase']);
+Route::get('/soldesfase/{nombre}/{matricula}/{uid}', [DocumentosController::class, 'solicituDesfase']);
 //Route::get('/circular', [DocumentosController::class, 'circularEstudiantil']);
 
 

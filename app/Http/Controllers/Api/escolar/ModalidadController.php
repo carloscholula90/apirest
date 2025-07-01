@@ -60,9 +60,15 @@ class ModalidadController extends Controller
         $modalidades = Modalidad::find($id);
         if (!$modalidades)
             return $this->returnEstatus('Modalidad no encontrada',404,null); 
-        
-        $modalidades->delete();
-        return $this->returnEstatus('Modalidad eliminada',200,null); 
+        try {
+            $modalidades->delete();
+            return $this->returnEstatus('Modalidad eliminada',200,null);  
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar la modalidad ya esta siendo utilizado',400,null); 
+        } 
+        }
     }
 
     public function update(Request $request, $id)

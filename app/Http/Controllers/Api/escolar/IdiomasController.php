@@ -88,7 +88,7 @@ class IdiomasController extends Controller
     }
 
     public function generaReporte(){
-        return $this->imprimeCtl('idioma',' idiomas ',null,null,'descripcion');
+        return $this->imprimeCtl('idiomas',' idiomas ',null,null,'descripcion');
      }   
 
     public function exportaExcel() {

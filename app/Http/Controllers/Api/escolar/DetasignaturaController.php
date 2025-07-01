@@ -112,8 +112,16 @@ class DetasignaturaController extends Controller
      */
     public function destroy(string $secPlan)
     {
-         $deletedRows = Detasignatura::where('secPlan', $secPlan)
+         try {
+            $deletedRows = Detasignatura::where('secPlan', $secPlan)
                        ->delete();
-        return $this->returnEstatus('Registro eliminado eliminado',200,null); 
+             return $this->returnEstatus('Registro eliminado eliminado',200,null); 
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar el plan de estudios ya esta siendo utilizado',400,null); 
+        } 
+        }                 
+       
     }
 }

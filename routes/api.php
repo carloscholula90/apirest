@@ -83,13 +83,18 @@ Route::prefix('detallesplanes')->group(function () {
     require base_path('routes/escolar/detallesplanes.php');
 });
   
+Route::prefix('direcciones')->group(function () {
+    require base_path('routes/general/direcciones.php');
+});
+
 Route::prefix('documentos')->group(function () {
     require base_path('routes/escolar/documentos.php');
 });
 
-Route::prefix('direcciones')->group(function () {
-    require base_path('routes/general/direcciones.php');
+Route::prefix('diasfestivos')->group(function () {
+    require base_path('routes/general/diasfestivos.php');
 });
+
 
 Route::prefix('edificios')->group(function () {
     require base_path('routes/general/edificios.php');

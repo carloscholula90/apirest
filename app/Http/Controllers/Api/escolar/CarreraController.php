@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 
 class CarreraController extends Controller
 {
@@ -61,9 +62,16 @@ class CarreraController extends Controller
 
         if (!$carreras) 
             return $this->returnEstatus('Carrera no encontrada',400,null);  
-        
+        try {
+
         $carreras->delete();
-        return $this->returnEstatus('Carrera eliminada',200,null);        
+        return $this->returnEstatus('Carrera eliminada',200,null);  
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar esta carrera porque está siendo utilizada por otros registros (como alumnos).',400,null); 
+        }  
+    }        
     }
 
     public function updatePartial(Request $request, $idCarrera)

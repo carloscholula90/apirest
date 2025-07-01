@@ -15,11 +15,11 @@ class BloqueoController extends Controller
 {
     
    public function obtenerDatos(){
-         return DB::table('bloqueo')                            
+         return DB::table('bloqueos')                            
                             ->select(
-                                'bloqueo.idBloqueo',
-                                'bloqueo.descripcion',
-                                DB::raw('CASE WHEN bloqueo.activo = 1 THEN "S" ELSE "N" END as activo')
+                                'bloqueos.idBloqueo',
+                                'bloqueos.descripcion',
+                                DB::raw('CASE WHEN bloqueos.activo = 1 THEN "S" ELSE "N" END as activo')
                             )->get();
 }    
 
@@ -42,7 +42,7 @@ public function generaReporte(){
      $pdfController = new pdfController();
      
      return $pdfController->generateReport($dataArray,  // Dato
-                                           [80,80,100,100,100,100,100,100], // Anchos de columna
+                                           [80,100,50], // Anchos de columna
                                            ['idBloqueo','descripcion','activo'], // Claves
                                            'BLOQUEOS', // Título del reporte
                                            ['ID','DESCRIPCION', 'ACTIVO'], 'L','letter',// Encabezados   ,
@@ -53,13 +53,13 @@ public function generaReporte(){
    public function exportaExcel() {  
             // Ruta del archivo a almacenar en el disco público
             $path = storage_path('app/public/bloqueo_rpt.xlsx');
-            $selectColumns = ['bloqueo.idBloqueo',
-                              'bloqueo.descripcion',
-                               DB::raw('CASE WHEN bloqueo.activo = 1 THEN "S" ELSE "N" END as activo')]; 
+            $selectColumns = ['bloqueos.idBloqueo',
+                              'bloqueos.descripcion',
+                               DB::raw('CASE WHEN bloqueos.activo = 1 THEN "S" ELSE "N" END as activo')]; 
             $namesColumns = ['ID','SECUENCIA', 'ACTIVO']; // Seleccionar columnas específicas            
             $joins = [];
 
-            $export = new GenericTableExportEsp('bloqueo', null, [], ['bloqueo.idBloqueo'], ['asc'], $selectColumns, $joins,$namesColumns);
+            $export = new GenericTableExportEsp('bloqueos', null, [], ['bloqueos.idBloqueo'], ['asc'], $selectColumns, $joins,$namesColumns);
 
             // Guardar el archivo en el disco público  
             Excel::store($export, 'bloqueo_rpt.xlsx', 'public');

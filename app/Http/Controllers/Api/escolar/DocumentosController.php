@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\escolar;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDSFormat;
+use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF; 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
   
 class DocumentosController extends Controller{
 
@@ -649,18 +651,27 @@ class DocumentosController extends Controller{
         }   
     }
 
-    public function solicituDesfase($nombre,$matricula){
-        $orientation='P';
-        $size='letter';
-        $nameReport='solicitudDesfase'.'_'.mt_rand(100, 999).'.pdf';
+    public function solicituDesfase($nombre,$matricula,$uid){
 
-        $pdf = new CustomTCPDSFormat($orientation, PDF_UNIT, $size, true, 'UTF-8', false);       
+        // Rutas de las imágenes para el encabezado y pie
+        $imagePathEnc = public_path('images/encPag.png');
+        $imagePathPie = public_path('images/piePag.png');
+
+        $nameReport='solicitudDesfase'.'_'.mt_rand(100, 999).'.pdf';
+        $pdf = new CustomTCPDF('P', PDF_UNIT, 'letter', true, 'UTF-8', false);
+
+        // Configurar los encabezados, las rutas de las imágenes y otros parámetros
+        $pdf->setImagePaths($imagePathEnc, $imagePathPie, 'P');
+   
         $pdf->SetCreator(PDF_CREATOR);
         $pdf->SetAuthor('SIAWEB');          
         // Establecer márgenes y auto-rotura de página
         $pdf->SetMargins(30, 10, 30); // Margenes 
         $pdf->SetAutoPageBreak(FALSE, 0);
-        $pdf->AddPage();
+        $pdf->AddPage();  
+
+        $fecha = Carbon::now()->locale('es')->translatedFormat('d \d\e F \d\e Y');
+
         $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP1617.png';
         $pdf->Image($imageUrl, 150, 10, 35);
             // Generar la tabla HTML para los datos
@@ -668,7 +679,7 @@ class DocumentosController extends Controller{
             <tr>
                 <td colspan="3">
                 <p style="text-align: right; line-height: 2;">  
-                <b>Heroica Puebla de Zaragoza a -- de -------- de ----<br>Asunto: </b>Solicitud de desfase</p>
+                <b>Heroica Puebla de Zaragoza '.$fecha.'<br>Asunto: </b>Solicitud de desfase</p>
                 </td>
             </tr>
             <tr>
@@ -683,28 +694,29 @@ class DocumentosController extends Controller{
             
             <tr>
                 <td style="width: 14.5cm;" colspan="3">
-                <p style="text-align: justify; line-height: 2;">
+                <p style="text-align: justify; line-height: 1.5;">
                 Por medio de la presente reciba un cordial saludo, al mismo tiempo, le solicito de la manera más
                 atenta me permita continuar estudiando, ya que por fecha de examen (es) extraordinario (s) incurro en
                 violación de ciclos escolares, debido a ello la Dirección de Profesiones no admitirá mi expediente para 
                 titulación a la conclusión de mis estudios universitarios. </p>
-                <p style="text-align: justify; line-height: 2; text-indent: 20px;">
+                <p style="text-align: justify; line-height: 1.5; text-indent: 20px;">
                     Por ello me comprometo a esperar al periodo de un año para mi inscripción ante la Dirección de Control
-                Escolar de la Secretaría de Educación en el ciclo escolar -------, siendo consciente de que el termino
-                de mi licenciatura será durante el ciclo escolar ----- si soy alumno regular ( No haberme dado de baja
+                Escolar de la Secretaría de Educación en el ciclo escolar _________________________, siendo consciente de que el termino
+                de mi licenciatura será durante el ciclo escolar _________________________ si soy alumno regular ( no haberme dado de baja
                 temporal ni haber reprobado alguna materia).
                 <br><br>
                     Una vez concluida el programa de estudios y validado ante la Secretaría de Educación, llevaré a cabo mi
                 tramite de titulación el cual tiene un periodo de entraga de diez a nueve meses.
                 <br><br>
                     Nota: Me comprometo a asistir a todas las clases y obtener calificaciones aprobatorias, en caso de que no
-                aprobar las materias durante el ciclo escolar ------, no se tendrá información que reportar y tendré que 
-                reinscribirme a primer semestre durante el ciclo ------------- sin ninguna responsabilidad para la Universidad.
+                aprobar las materias durante el ciclo escolar _________________________, no se tendrá información que reportar y tendré que 
+                reinscribirme a primer semestre durante el ciclo _________________________ sin ninguna responsabilidad para la Universidad.
                 <br></p>
-                <br>Nombre:'.$nombre.
-                '<br>Matrícula:'.$matricula.
+                <br>Nombre: '.$nombre.
+                '<br>Matrícula: '.$matricula.
+                '<br>UID: '.$uid.
                 '<br>Grupo:    ____________________________________
-                <br>Número de celular ____________________________ 
+                <br>Número de celular _____________________________ 
                 </td>
                 </tr>
                 <tr>

@@ -52,8 +52,17 @@ class TipoAsignaturaController extends Controller
         if (!$tipoasignatura)
             return $this->returnEstatus('Tipo de asignatura no encontrada',404,null); 
         
-        $tipoasignatura->delete();
-        return $this->returnEstatus('Tipo asignatura eliminada',200,null); 
+       
+        try {
+                 $tipoasignatura->delete();
+                return $this->returnEstatus('Tipo asignatura eliminada',200,null); 
+
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar el tipo de asignatura ya esta siendo utilizado',400,null); 
+        } 
+        }
     }
 
     public function update(Request $request, $id)

@@ -60,9 +60,16 @@ class DocumentoController extends Controller{
 
         if (!$Documento) 
             return $this->returnEstatus('Documento no encontrado',404,null);             
-        
-            $Documento->delete();
-        return $this->returnEstatus('Documento eliminado',200,null); 
+        try {
+           $Documento->delete();
+            return $this->returnEstatus('Documento eliminado',200,null); 
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar el documento ya esta siendo utilizado',400,null); 
+        } 
+        }                 
+     
     }
 
     public function update(Request $request, $idDocumento){

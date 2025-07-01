@@ -86,10 +86,10 @@ class TipoExamenController extends Controller{
      
     public function generaReporte()
     {
-       return $this->imprimeCtl('tipoExamen',' tipo examen ',null,null,'descripcion');
+       return $this->imprimeCtl('tipoExamen',' tipo examen ',null,null,'idExamen');
     } 
 
     public function exportaExcel() {
-       return $this->exportaXLS('tipoExamen','idExamen',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
+       return $this->exportaXLS('tipoExamen','idExamen',['CLAVE', 'DESCRIPCIÓN'],'idExamen');     
    }   
 }

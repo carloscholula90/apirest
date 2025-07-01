@@ -84,11 +84,19 @@ class PeriodoController extends Controller{
         if (!$periodos) 
             return $this->returnEstatus('Periodo no encontrado',404,null);   
 
-        $deletedRows = Periodo::where('idNivel', $idNivel)
+            try {
+                $deletedRows = Periodo::where('idNivel', $idNivel)
                        ->where('idPeriodo', $idPeriodo)
                        ->delete();
+                return $this->returnEstatus('Periodo eliminado',200,null);  
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar el periodo ya esta siendo utilizado',400,null); 
+        } 
+        }
 
-        return $this->returnEstatus('Periodo eliminado',200,null); 
+        
     }
 
     public function update(Request $request, $idPeriodo, $idNivel){

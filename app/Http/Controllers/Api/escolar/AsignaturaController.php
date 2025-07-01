@@ -59,9 +59,15 @@ class AsignaturaController extends Controller{
 
         if (!$asignatura) 
             return $this->returnEstatus('Asignatura no encontrada',404,null);             
-        
+        try {
             $asignatura->delete();
-        return $this->returnEstatus('Asignatura eliminada',200,null); 
+            return $this->returnEstatus('Asignatura eliminada',200,null); 
+        } catch (QueryException $e) {
+        if ($e->getCode() == '23000') {
+            // Este es el código de error para integridad referencial
+            return $this->returnEstatus('No se puede eliminar la asignatura, esta siendo utilizada ya en un plan de estudios',400,null); 
+        } 
+        }    
     }
 
     public function update(Request $request, $idAsignatura){
