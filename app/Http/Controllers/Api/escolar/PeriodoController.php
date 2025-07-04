@@ -77,6 +77,16 @@ class PeriodoController extends Controller{
             return $this->returnEstatus('Periodo no encontrado',404,null); 
         }
     }
+
+
+    public function showNivel($idNivel){
+        try {
+            $periodos = Periodo::where('idNivel', $idNivel)->get();
+            return $this->returnData('$periodos',$periodos,200);   
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->returnEstatus('Periodo no encontrado',404,null); 
+        }
+    }
     
     public function destroy($idPeriodo,$idNivel){
         $periodos = Periodo::find($idNivel, $idPeriodo);

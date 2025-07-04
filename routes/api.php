@@ -108,6 +108,10 @@ Route::prefix('escolaridad')->group(function () {
     require base_path('routes/escolar/escolaridad.php');
 });
 
+Route::prefix('estadoscuenta')->group(function () {
+    require base_path('routes/tesoreria/estadocuenta.php');
+});
+
 Route::prefix('empleados')->group(function () {
     require base_path('routes/general/empleados.php');
 });
