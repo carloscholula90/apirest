@@ -115,12 +115,22 @@ class EstadoCuentaController extends Controller
 
         foreach ($data as $index2 => $row) {            
             $html2 .= '<tr>';   
-            foreach ($keys as $index => $key) {                
+            foreach ($keys as $index => $key) {  
+                
+                if($key=='cargo')  
+                     $total =   $total + isset($row[$key]) ? $row[$key] : 0;
+                else if($key=='abono')  
+                     $total =   $total - isset($row[$key]) ? $row[$key] : 0;   
+
+                if($key=='fechaPago')
+                    if($row[$key]>sysdate)
+                        $totalVencido = $totalVencido + $row['cargo'] ;
+
                 $value = isset($row[$key]) ? $row[$key] : '';     
                 $html2 .= '<td width="' . $columnWidths[$index] . '">' . ($value !== null ? htmlspecialchars((string)$value) : '') . '</td>';
             }
                 $html2 .= '</tr>';
-            }
+        }
 
         $html2 .= '<tr><td colspan="7"></td></tr>';
         $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';

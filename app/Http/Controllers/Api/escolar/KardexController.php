@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class KardexController extends Controller
 {
 
-    public function generaReporte($id,$idNivel,$idCarrera,$tipoKardex){
+   public function generaReporte($id,$idNivel,$idCarrera,$tipoKardex){
 
        if($tipoKardex!='F')
        $results = DB::table('ciclos as cl')
@@ -134,6 +134,7 @@ class KardexController extends Controller
 
     public function generateReport(array $data, array $columnWidths = null, array $keys = null, string $title = 'Kardex simple', array $headers = null, string $orientation = 'L', string $size = 'letter',string $nameReport=null,string $tipoKardex)
     {
+
         // Rutas de las imágenes para el encabezado y pie
         $imagePathEnc = public_path('images/encPag.png');
         $imagePathPie = public_path('images/piePag.png');
@@ -142,7 +143,7 @@ class KardexController extends Controller
         
         // Configurar los encabezados, las rutas de las imágenes y otros parámetros
         $pdf->setHeaders(null, $columnWidths, $title);
-        $pdf->setImagePaths($imagePathEnc, $imagePathPie,$orientation);
+        $pdf->setImagePaths($imagePathEnc, $imagePathPie,$orientation,true);
         
         // Configurar las fuentes
         $pdf->SetFont('helvetica', '', 14);
@@ -257,4 +258,5 @@ class KardexController extends Controller
             ]);
         }    
     }
+
 }
