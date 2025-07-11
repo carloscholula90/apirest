@@ -19,6 +19,11 @@ class InscripcionesController extends Controller
                     ->where('idNivel', $idNivel)
                     ->where('inscripciones', 1)
                     ->value('idPeriodo');
+        
+       $descripcionP = DB::table('periodo')
+                    ->where('idNivel', $idNivel)
+                    ->where('inscripciones', 1)
+                    ->value('descripcion');
 
        $result = DB::table('ciclos as c')
                 ->join('alumno as a', function ($join) {
@@ -29,6 +34,7 @@ class InscripcionesController extends Controller
                     $join->on('car.idNivel', '=', 'c.idNivel')
                         ->on('car.idCarrera', '=', 'a.idCarrera');
                 })
+                ->join('nivel as nv', 'nv.idNivel', '=', 'c.idNivel')
                 ->join('persona as p', 'p.uid', '=', 'a.uid')
                 ->leftJoin('bloqueoPersonas as ba', function ($join) {
                     $join->on('ba.uid', '=', 'a.uid')
@@ -81,12 +87,15 @@ class InscripcionesController extends Controller
                             'a.matricula',
                             'p.nombre',
                             'p.primerApellido',
-                            'p.segundoApellido',
-                            'car.descripcion',
+                            'p.segundoApellido', 
                             'c.idNivel',
-                            DB::raw( $idPeriodo),
-                            'a.idCarrera',
+                            'nv.descripcion as nivel',
+                            'a.idCarrera',                            
+                            'car.descripcion AS carrera',
+                            DB::raw("'" . $idPeriodo . "' as idPeriodo"),
+                            DB::raw("'" . $descripcionP . "' as periodo"),                       
                             'gp.grupo',
+                            DB::raw('CAST(SUBSTRING(gp.grupo, 4, 1) AS UNSIGNED) as semestre'),
                             DB::raw("IF(b1.descripcion = 'ADEUDO', TRUE, FALSE) as adeudo"),
                             DB::raw("IF(b2.descripcion = 'ACADEMICO', TRUE, FALSE) as academico"),
                             DB::raw("IF(b3.descripcion = 'CASTIGO', TRUE, FALSE) as castigo"),
@@ -94,22 +103,29 @@ class InscripcionesController extends Controller
                 ])
                 ->distinct()
                 ->get();
-        Log::info('$idPeriodo:'.$idPeriodo); 
-        return response()->json($result, 200);
+         return response()->json($result, 200);
     }
 
      public function store(Request $request){
 
         $validator = Validator::make($request->all(), [
-                            'idNivel' => 'required|max:255',
-                            'idCarrera' => 'required|max:255',
+                            'idNivel' => 'required|max:255',                            
                             'idPeriodo' => 'required|max:255',
-                            'matricula'=> 'required|array',
-                            'uid'=> 'required|array',
-                            'plan'=> 'required|array',
-                            'grupo'=> 'required|array'
+                            'matriculas'=> 'required|array',
+                            'carreras' => 'required|array',
+                            'uids'=> 'required|array',
+                            'planes'=> 'required|array',
+                            'grupos'=> 'required|array',
+                            'semestres'=> 'required|array'
 
         ]);
+
+        $uids = $request->uids;
+        $matriculas = $request->matriculas;
+        $carreras = $request->carreras;
+        $planes= $request->planes;
+        $grupos= $request->grupos;
+        $semestres= $request->semestres;
 
         if ($validator->fails()) {
             $data = [
@@ -121,15 +137,18 @@ class InscripcionesController extends Controller
         }
 
         for ($indx = 0; $indx <$cantidad; $indx++){
-                //Log::info('indx :'.$indx);
-                //Log::info('grupo :'.$grupoB[$indx]);
-                //Log::info('capacidad :'.$capacidadB[$indx]);
-                //Log::info('semestre :'.$semestreB[$indx]);   
-                $result = DB::select('CALL creaoferta(?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-                                                        [$request->nivel,$request->periodo, 
-                                                         $request->escuela, $request->pl, 
-                                                         $request->turno, $request->modalidad,$grupoB[$indx],
-                                                         $semestreB[$indx],$capacidadB[$indx]]);
+                Log::info('indx :'.$indx);
+                Log::info('uids :'.$uids[$indx]);
+                Log::info('matriculas :'.$matriculas[$indx]);
+                Log::info('grupos :'.$grupos[$indx]);
+                Log::info('carreras :'.$carreras[$indx]); 
+                Log::info('planes :'.$planes[$indx]);
+                  
+                $result = DB::select('CALL inscripcion(?, ?, ?, ?, ?, ?, ?, ?)', 
+                                                        [$request->idNivel,$request->idPeriodo, 
+                                                         $uids[$indx],$matriculas[$indx],
+                                                         $semestres[$indx],
+                                                         $carreras[$indx],$planes[$indx],$grupos[$indx]]);
                 Log::info('resultado :',$result);   
 
         }
