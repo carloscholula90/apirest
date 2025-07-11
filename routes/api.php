@@ -59,6 +59,10 @@ Route::prefix('bloqueospersonas')->group(function () {
     require base_path('routes/seguridad/bloqueospersonas.php');
 });
 
+Route::prefix('cancelainscripciones')->group(function () {
+    require base_path('routes/escolar/cancelainscripciones.php');
+});
+  
 Route::prefix('carreras')->group(function () {
     require base_path('routes/escolar/carreras.php');
 });
