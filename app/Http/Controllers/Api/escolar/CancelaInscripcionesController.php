@@ -76,6 +76,7 @@ class CancelaInscripcionesController extends Controller
             ];
             return response()->json($data, 400);
         }
+        $cantidad = count($uids);
 
         for ($indx = 0; $indx <$cantidad; $indx++){
                 Log::info('indx :'.$indx);

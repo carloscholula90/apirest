@@ -849,4 +849,135 @@ class DocumentosController extends Controller{
 
     }
 
+     public function autorizacionImagen($uid,$nombre,$programa,$tipo)
+{
+    $orientation = 'P';
+    $size = 'letter';
+    $nameReport = 'cartaAutorizacionImagen_' . mt_rand(100, 999) . '.pdf';
+
+    // Rutas de las imágenes para el encabezado y pie
+        $imagePathEnc = public_path('images/encPag.png');
+        $imagePathPie = public_path('images/piePag.png');
+
+        $pdf = new CustomTCPDF('P', PDF_UNIT, 'letter', true, 'UTF-8', false);
+
+        // Configurar los encabezados, las rutas de las imágenes y otros parámetros
+        $pdf->setImagePaths($imagePathEnc, $imagePathPie, 'P');
+   
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('SIAWEB');          
+        // Establecer márgenes y auto-rotura de página
+        $pdf->SetMargins(30, 10, 30); // Margenes 
+        $pdf->SetAutoPageBreak(FALSE, 0);
+        $pdf->AddPage();  
+
+        $fecha = Carbon::now()->locale('es')->translatedFormat('d \d\e F \d\e Y');
+
+        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/logoSEP1617.png';
+        $pdf->Image($imageUrl, 150, 10, 35);
+      
+
+    // Contenido del PDF en HTML
+    $html = '
+    <table border="0" cellpadding="1" style="font-family: Arial; font-size: 10pt; line-height: 1.5;">
+      <tr><td colspan="3" style="height: 1.5cm;"></td></tr>
+         
+    <tr>
+            <td colspan="3" style="text-align: right; line-height: 2;">
+                <b>Heroica Puebla de Zaragoza a ' . $fecha . '<br>Asunto:</b> Autorización de uso de imagen y datos personales
+            </td>
+        </tr>
+        <tr><td colspan="3" style="height: 1.5cm;"></td></tr>
+        <tr>
+            <td colspan="3" style="text-align: justify;">
+                Por medio del presente escrito, <b>yo, el/la que suscribe y firma al calce</b> autorizo de manera
+                expresa a la <b>Universidad Alva Edison (UAE)</b> a utilizar y difundir mi imagen (fotografías,
+                videos y/o grabaciones de voz) en medios impresos, electrónicos, digitales, audiovisuales,
+                en línea y fuera de línea, para fines de <b>promoción, comunicación y difusión</b> institucional,
+                así como para la proyección de sus áreas, marcas, submarcas, servicios y productos, ya sea
+                propios o asociados a la UAE, en todos los niveles educativos (medio superior, superior,
+                posgrado, entre otros).
+                <br><br>
+                Esta autorización se otorga por el <b>tiempo que la institución considere necesario</b> de forma
+                <b>totalmente gratuita</b>, sin que por ello se genere derecho a compensación económica alguna.
+                Asimismo, me obligo a <b>no ceder ni permitir el uso de mi imagen con fines publicitarios</b>
+                a ninguna otra institución educativa, pública o privada, mediante los medios mencionados
+                anteriormente, salvo que cuente con la <b>autorización previa y por escrito de la UAE.</b>
+                <br><br>
+                En virtud de mi colaboración en proyectos institucionales presentes o futuros, <b>manifiesto
+                mi voluntad de proporcionar a la UAE los siguientes datos personales</b>, para fines de
+                identificación y contacto:
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3">
+            <br>
+                <ul style="margin-top: 5px; margin-bottom: 5px;">
+                    <li><strong>UID:</strong>'.$uid.'</li>
+                    <li><strong>Nombre completo:</strong> '.$nombre.'</li>';
+                    if($tipo =='alumno')
+                        $html .= '<li><strong>Carrera:</strong> '.$programa.'</li>';
+
+                    $html .= '<li><strong>Teléfono:</strong></li>
+                    <li><strong>Correo electrónico:</strong></li>
+                </ul>
+            </td>
+        </tr>
+        <tr><td colspan="3" style="height: 1cm;"></td></tr>
+        <tr>
+            <td colspan="3" style="text-align: justify;">
+            Finalmente, en caso de que solicite a la UAE el material fotográfico en el que aparezco, me 
+<b>comprometo a no utilizarlo ni compartirlo con terceros</b> para fines publicitarios de 
+instituciones educativas distintas, públicas o privadas, empresas o marcas de cualquier tipo. 
+En caso de publicar dicho material en redes sociales, me obligo a <b>etiquetar a la 
+Universidad Alva Edison (UAE) en cada publicación. </b>
+            </td>
+        </tr>       
+    </table>';
+
+    $html .= '<table border="0" style="font-size: 8pt; text-align: center; vertical-align: middle;">';
+        $html .= '<tr>
+                    <td style="width: 5cm; height: 1.5cm;"></td>
+                    <td style="width: 7cm;"></td>
+                    <td></td>
+                  </tr>';
+        $html .= '<tr>
+                    <td style="width: 5cm; text-align: center;">
+                    </td>
+                    <td style="width: 7cm; text-align: center;">
+                        <hr style="width: 4cm; border: 1px solid black; margin: 0;">
+                    </td>
+                    <td style="text-align: center;">
+                    </td>
+                </tr>';
+        $html .= '<tr>
+                    <td style="width: 3.5cm; text-align: center;"></td>
+                    <td style="width: 7cm; text-align: center;">'.$nombre.'</td>
+                    <td style="text-align: center;"></td>
+                </tr>';
+        $html .= '</table>';
+
+
+    // Escribir HTML al PDF
+    $pdf->writeHTML($html, true, false, true, false, '');
+
+    // Guardar el archivo en el servidor
+    $filePath = storage_path('app/public/' . $nameReport);
+    $pdf->Output($filePath, 'F');
+
+    // Devolver la respuesta
+    if (file_exists($filePath)) {
+        return response()->json([
+            'status' => 200,
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        ]);
+    } else {
+        return response()->json([
+            'status' => 500,
+            'message' => 'Error al generar el reporte'
+        ]);
+    }
+}
+
+
 }
