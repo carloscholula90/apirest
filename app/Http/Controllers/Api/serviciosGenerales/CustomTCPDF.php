@@ -35,7 +35,17 @@ class CustomTCPDF extends TCPDF
     // Sobrecargar el método Header() para agregar la imagen de encabezado
     public function Header()
     {
-       $this->Image($this->imagePathEnc, 15, 0, 180, 0, '', '', '', false, 300);  // Colocar imagen de encabezado     
+        if($this->aquaMark){    
+            $this->SetFont('helvetica', 'B', 120);
+            $this->SetTextColor(200, 200, 200);
+            $this->StartTransform();   
+            $this->Rotate(45, 105, 150);     
+            $this->Text(50, 100, 'COPIA');               
+            $this->SetExtGState(0);
+        }
+
+       if(!$this->aquaMark)
+        $this->Image($this->imagePathEnc, 15, 0, 180, 0, '', '', '', false, 300);  // Colocar imagen de encabezado     
        // Título del reporte
        //$this->SetFont('TitilliumWeb-Bold', '', 14);   
        $this->MultiCell(0, 30,"\n\n\n\n". $this->titleB, 0, 'R', 0, 1, '', '', false);   
@@ -48,26 +58,19 @@ class CustomTCPDF extends TCPDF
                 $html .= '</tr>';                
             $html .= '</table>';     
             $this->writeHTML($html, true, false, true, false, ''); 
-        } 
-             
-        if($this->aquaMark){    
-            $this->SetFont('helvetica', 'B', 120);
-            $this->SetTextColor(200, 200, 200);
-            $this->StartTransform();   
-            $this->Rotate(45, 105, 150);     
-            $this->Text(50, 100, 'COPIA');               
-            $this->SetExtGState(0);
-        }      
+        }       
     }
 
     // Sobrecargar el método Footer() para agregar el pie de página y el número de página
     public function Footer()
     {
         $this->SetFont('helvetica', '', 8);
-        if ($this->imagePathPie && $this->CurOrientation === "P") 
-            $this->Image($this->imagePathPie, 50, 287, 180, 0, '', '', '', false, 300);  // Imagen pie de página
-         else $this->Image($this->imagePathPie, 120, 200, 180, 0, '', '', '', false, 300);  // Imagen en otra posición
-       
+        if(!$this->aquaMark){       
+            if ($this->imagePathPie && $this->CurOrientation === "P") 
+                $this->Image($this->imagePathPie, 50, 287, 180, 0, '', '', '', false, 300);  // Imagen pie de página
+            else $this->Image($this->imagePathPie, 120, 200, 180, 0, '', '', '', false, 300);  // Imagen en otra posición
+        } 
+
         $this->SetY(-15);      
         $this->SetX(10);
         date_default_timezone_set('America/Mexico_City');    

@@ -108,12 +108,12 @@ class KardexController extends Controller
         if ($results->isEmpty())
             return $this->returnEstatus('No existen datos para generar el kardex id '.$id.' idNivel '.$idNivel.' idCarrera '.$idCarrera,404,null);
         
-        $headers = ['Clave', 'Asignatura','Créditos','Calif','Letra','Tipo','Periodo'];
-        $columnWidths = [40,120,50,50,80,80,80];   
-        $keys = ['idAsignatura','asignatura','creditos','calificacion','califConLetra','tipo','periodo'];
+        $headers = ['Clave','Cr', 'Asignatura','Calif','Letra','Sem','Tipo','Periodo'];
+        $columnWidths = [50,20,170,40,60,30,70,70];   
+        $keys = ['idAsignatura','creditos','asignatura','calificacion','califConLetra','semestre','tipo','periodo'];
        
         if($tipoKardex == 'F'){
-                    $headers = ['Clave', 'Asignatura','Créditos','Semestre'];
+                    $headers = ['Clave', 'Asignatura','Créditos','Semestre'];  
                     $columnWidths = [40,300,50,80];   
                     $keys = ['idAsignatura','asignatura','creditos','semestre'];     
         }    
@@ -134,6 +134,7 @@ class KardexController extends Controller
 
     public function generateReport(array $data, array $columnWidths = null, array $keys = null, string $title = 'Kardex simple', array $headers = null, string $orientation = 'L', string $size = 'letter',string $nameReport=null,string $tipoKardex)
     {
+        $aquaMark = false;
 
         // Rutas de las imágenes para el encabezado y pie
         $imagePathEnc = public_path('images/encPag.png');
@@ -143,31 +144,37 @@ class KardexController extends Controller
         
         // Configurar los encabezados, las rutas de las imágenes y otros parámetros
         $pdf->setHeaders(null, $columnWidths, $title);
-        $pdf->setImagePaths($imagePathEnc, $imagePathPie,$orientation,true);
+        $pdf->setImagePaths($imagePathEnc, $imagePathPie,$orientation,$aquaMark);
         
         // Configurar las fuentes
-        $pdf->SetFont('helvetica', '', 14);
+        if($aquaMark)
+            $pdf->SetFont('courier', '', 14);
+        else $pdf->SetFont('helvetica', '', 14);
+        
+
         $pdf->SetCreator(PDF_CREATOR);
         $pdf->SetAuthor('SIAWEB');
-        
         // Establecer márgenes y auto-rotura de página
         $pdf->SetMargins(15, 30, 15);
         $pdf->SetAutoPageBreak(TRUE, 25);
         $pdf->AddPage();
 
         // Establecer fuente para el cuerpo del documento
-        $pdf->SetFont('helvetica', '', 8);
+        if($aquaMark)
+            $pdf->SetFont('courier', '', 8);  
+        else $pdf->SetFont('helvetica', '', 8);
+     
          // Generar la tabla HTML para los datos
         $html2 = '<table border="0" cellpadding="1">';
         $generalesRow = $data[0];
 
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Nivel:</b> '.$generalesRow['descripcion'].'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Carrera:</b> '.$generalesRow['carrera'].'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>UID:</b> '.$generalesRow['estudiante'].'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Matricula:</b> '.$generalesRow['matricula'].'</td></tr>';  
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Nombre:</b> '.$generalesRow['nombre'].' '.$generalesRow['apellidopat'].' '.$generalesRow['apellidomat'].'</td></tr>';
-        $html2 .= '<tr><td colspan="7"></td></tr>';
-        $html2 .= '<tr><td colspan="7"></td></tr>';
+        $html2 .= '<tr><td colspan="8" style="font-size: 10px;"><b>Nivel:</b> '.$generalesRow['descripcion'].'</td></tr>';
+        $html2 .= '<tr><td colspan="8" style="font-size: 10px;"><b>Carrera:</b> '.$generalesRow['carrera'].'</td></tr>';
+        $html2 .= '<tr><td colspan="8" style="font-size: 10px;"><b>UID:</b> '.$generalesRow['estudiante'].'</td></tr>';
+        $html2 .= '<tr><td colspan="8" style="font-size: 10px;"><b>Matricula:</b> '.$generalesRow['matricula'].'</td></tr>';  
+        $html2 .= '<tr><td colspan="8" style="font-size: 10px;"><b>Nombre:</b> '.$generalesRow['nombre'].' '.$generalesRow['apellidopat'].' '.$generalesRow['apellidomat'].'</td></tr>';
+        $html2 .= '<tr><td colspan="8"></td></tr>';
+        $html2 .= '<tr><td colspan="8"></td></tr>';
         $html2 .= '<tr>';
        
         foreach ($headers as $index => $header)
@@ -182,38 +189,39 @@ class KardexController extends Controller
         foreach ($data as $index2 => $row) {
             $period = 0;
             $actualPeriodo = isset($row['semestre']) ? $row['semestre'] : 0;  // Acceder directamente a 'periodo'
-            Log::info('Semestre '.$row['semestre']);
-            // Si no es la última fila de los datos, obtiene el 'periodo' de la siguiente fila
+               
+            $html2 .= '<tr>';
+
+            $valueCalif = isset($row['calificacion']) ? $row['calificacion'] : ''; 
+            
+            if($tipoKardex=='C' && (float)$valueCalif < 7)
+                continue;
+         
+             // Si no es la última fila de los datos, obtiene el 'periodo' de la siguiente fila
             if ($index2 + 1 < count($data)) {
                 $nextRow = $data[$index2 + 1];
                 $period = isset($nextRow['semestre']) ? $nextRow['semestre'] : 0; 
             }
             if($corte == 1) {
-                $html2 .= '<tr><td colspan="7"></td></tr>';
-                $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
-                $html2 .= '<tr><td colspan="7"></td></tr>'; 
+                $html2 .= '<tr><td colspan="8"></td></tr>';
+                $html2 .= '<tr><td colspan="8"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
+                $html2 .= '<tr><td colspan="8"></td></tr>'; 
                 $corte = 0; 
             }    
      
             if ($actualPeriodo != $period)   
                 $corte = 1;
-          
-            $html2 .= '<tr>';
-
-            $valueCalif = isset($row['calificacion']) ? $row['calificacion'] : ''; 
-            if($tipoKardex=='AP' && (float)$valueCalif < 7)
-                continue;
-         
+      
             foreach ($keys as $index => $key) {                
                 $value = isset($row[$key]) ? $row[$key] : '';     
                 $html2 .= '<td width="' . $columnWidths[$index] . '">' . htmlspecialchars((string)$value) . '</td>';
 
                 if ($key == 'calificacion') {
-                    if ((float)$value >= 7) { 
+                    if ((float)$value >= 8) { 
                         $matAprobadas++; 
                         $promedio += (float)$value; // Suma la calificación al promedio (si es necesario)
                     }
-                else $matReprobadas++;
+                else if((float)$value >= 0) $matReprobadas++;
                 }
             }
 
@@ -222,19 +230,22 @@ class KardexController extends Controller
         //detalle
         if($tipoKardex!='F'){
             $promedioFinal = $matAprobadas>0?round($promedio/$matAprobadas, 2):0;
-            $html2 .= '<tr><td colspan="7"></td></tr>';
-            $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
-            $html2 .= '<tr><td colspan="7"></td></tr>';
-            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias cursadas:</b> '.count($data).'</td></tr>';
-            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias aprobadas:</b> '.$matAprobadas.'</td></tr>';
-            
+            $html2 .= '<tr><td colspan="8"></td></tr>';
+            $html2 .= '<tr><td colspan="8"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
+            $html2 .= '<tr><td colspan="8"></td></tr>';
+             
             if($tipoKardex=='C')
-                $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Materias reprobadas:</b> '.$matReprobadas.'</td></tr>';
-                $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Promedio:</b> '.$promedioFinal.'</td></tr>';
-                $html2 .= '<tr><td colspan="7"></td></tr>';   
-                $html2 .= '<tr><td colspan="7"></td></tr>';
+                $html2 .= '<tr><td colspan="8" style="font-size: 10px;"><b>Materias aprobadas:</b> '.$matAprobadas.'</td></tr>';
+            else 
+                $html2 .= '<tr><td colspan="8" style="font-size: 10px;"><b>Materias cursadas:</b> '.count($data).'</td></tr>';
+            
+                $html2 .= '<tr><td colspan="8" style="font-size: 10px;"><b>Promedio:</b> '.$promedioFinal.'</td></tr>';
+                $html2 .= '<tr><td colspan="8"></td></tr>';   
+                $html2 .= '<tr><td colspan="8"></td></tr>';
         }
-        $html2 .= '</table>';
+        $html2 .= '</table><br>';
+        if($aquaMark)
+        $html2 .= '<h1>Esta impresión no cuenta con validez oficial y únicamente se emite con fines informativos.</h1>';
 
         // Escribir la tabla en el PDF
         $pdf->writeHTML($html2, true, false, true, false, '');

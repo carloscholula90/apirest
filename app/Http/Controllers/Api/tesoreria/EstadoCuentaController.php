@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF; 
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;  
 
 class EstadoCuentaController extends Controller
 {
@@ -28,7 +30,7 @@ class EstadoCuentaController extends Controller
                             'carrera.descripcion as nombreCarrera',                          
                             'persona.nombre',
                             'persona.primerapellido as apellidopat',
-                            'persona.segundoapellido as apellidomat',
+                            'persona.segundoapellido as apellidomat',  
                             's.descripcion as servicio',
                             'edo.referencia',
                             'fp.descripcion as formaPago',
@@ -122,21 +124,35 @@ class EstadoCuentaController extends Controller
                 else if($key=='abono')  
                      $total =   $total - isset($row[$key]) ? $row[$key] : 0;   
 
-                if($key=='fechaPago')
-                    if($row[$key]>sysdate)
-                        $totalVencido = $totalVencido + $row['cargo'] ;
+                Log::info('importe:'.$key.' '.$row[$key]); 
 
-                $value = isset($row[$key]) ? $row[$key] : '';     
+              if ($key === 'fechaPago' && !empty($row[$key])) {
+    try {
+        $fecha = Carbon::parse($row[$key])->startOfDay();
+        $hoy = Carbon::today();
+
+        Log::info('validar fechas: ' . $fecha->toDateString() . ' > ' . $hoy->toDateString() . ' ? ' . ($fecha->greaterThan($hoy) ? 'sí' : 'no'));
+
+        if ($hoy->greaterThan($fecha
+        )) {
+            $totalVencido += $row['cargo'];
+        }
+    } catch (\Exception $e) {
+        Log::warning('fechaPago inválida: ' . $row[$key]);
+    }
+}
+
+                            $value = isset($row[$key]) ? $row[$key] : '';     
                 $html2 .= '<td width="' . $columnWidths[$index] . '">' . ($value !== null ? htmlspecialchars((string)$value) : '') . '</td>';
             }
                 $html2 .= '</tr>';
         }
 
-        $html2 .= '<tr><td colspan="7"></td></tr>';
+        $html2 .= '<tr><td colspan="7"></td></tr>';   
         $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
         $html2 .= '<tr><td colspan="7"></td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL:</b> ---</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL VENCIDO:</b>---</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL:</b>$ '.number_format($totalVencido, 2, '.', ',') .'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL VENCIDO:$ </b>'.number_format($total, 2, '.', ',') .'</td></tr>';
      
         $html2 .= '</table>';
 
