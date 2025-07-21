@@ -134,7 +134,7 @@ class KardexController extends Controller
 
     public function generateReport(array $data, array $columnWidths = null, array $keys = null, string $title = 'Kardex simple', array $headers = null, string $orientation = 'L', string $size = 'letter',string $nameReport=null,string $tipoKardex)
     {
-        $aquaMark = false;
+        $aquaMark = false;//Validar si ya esta pagado
 
         // Rutas de las imágenes para el encabezado y pie
         $imagePathEnc = public_path('images/encPag.png');
