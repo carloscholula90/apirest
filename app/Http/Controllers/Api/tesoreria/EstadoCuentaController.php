@@ -178,5 +178,62 @@ class EstadoCuentaController extends Controller
             ]);
         }    
     }
+
+/**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+         $validator = Validator::make($request->all(), [
+                                        'uid' => 'required|max:255',
+                                        'secuencia' => 'required|max:255',
+                                        'idPeriodo' => 'required|max:255',
+                                        'movimientos' => 'required|array'                   
+        ]);
+
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+
+        $fecha = Carbon::now()->locale('es')->translatedFormat('y-m-d');
+        $maxId = EstadoCuenta::max('folio');  
+        $newId = $maxId ? $maxId + 1 : 1; 
+       
+        foreach ($request->movimientos as $movimiento) {
+       
+            $consecutivo = EstadoCuenta::where('uid', $request->uid)
+                                    ->where('secuencia', $request->secuencia)
+                                    ->where('idServicio', $movimiento['idServicio'])
+                                    ->max('consecutivo');
+            $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
+        
+            try{
+            $edoCta = EstadoCuenta::create([
+                                            'uid'=> $request->uid,
+                                            'secuencia'=> $request->secuencia,
+                                            'idServicio'=> $movimiento['idServicio'],
+                                            'consecutivo'=> $consecutivo,
+                                            'importe'=> $movimiento['importe'],
+                                            'idPeriodo'=> $request->idPeriodo,
+                                            'fechaMovto'=> $fecha,
+                                            'idformaPago'=> $movimiento['idformaPago'],
+                                            'cuatrodigitos'=> $movimiento['cuatrodigitos'],
+                                            'tipomovto'=> $movimiento['tipomovto'],
+                                            'FechaPago'=> $fecha,
+                                            'folio'=> $newId
+            ]);
+                } catch (QueryException $e) {
+                    // Capturamos el error relacionado con las restricciones
+                    if ($e->getCode() == '23000') 
+                        // Código de error para restricción violada (por ejemplo, clave foránea)
+                        return $this->returnEstatus('El registro ya se encuentra dado de alta',400,null);
+                        
+                    return $this->returnEstatus('Error al insertar el registro',400,null);
+                }
+        }
+
+        if (!$edoCta) 
+            return $this->returnEstatus('Error al crear el registro',500,null); 
+        return $this->returnData('edoCta',$edoCta,200);   
+    }
     
 }

@@ -11,6 +11,6 @@ class EstadoCuenta extends Model
     protected $table = 'edocta';
     public $incrementing = false;
     protected $fillable = [ 'uid','secuencia','idServicio','consecutivo','importe','idPeriodo','fechaMovto','referencia',
-                            'idformaPago','cuatrodigitos','tipomovto','FechaPago'];
+                            'idformaPago','cuatrodigitos','tipomovto','FechaPago','folio'];
     public $timestamps = false;
 }

@@ -110,6 +110,7 @@ class AlumnoController extends Controller
                     })
                     ->select(   'alumno.uid',
                         'alumno.idNivel',
+                        'alumno.secuencia',
                         'alumno.idCarrera',
                         'alumno.matricula',
                         'nivel.descripcion as nivel',

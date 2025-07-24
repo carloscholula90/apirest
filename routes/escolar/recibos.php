@@ -4,5 +4,5 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
 
-Route::get('/', [ReciboController::class, 'generarYGuardarPDF']);
+Route::get('/{uid}/{recibo}', [ReciboController::class, 'generarYGuardarPDF']);
   

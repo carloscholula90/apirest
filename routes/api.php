@@ -264,6 +264,10 @@ Route::prefix('salud')->group(function () {
     require base_path('routes/general/salud.php');    
 });
 
+Route::prefix('servicios')->group(function () {   
+    require base_path('routes/tesoreria/servicios.php');    
+});
+
 Route::prefix('tipocontacto')->group(function () {
     require base_path('routes/general/tipocontacto.php');
 });
