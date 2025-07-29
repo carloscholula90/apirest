@@ -18,9 +18,13 @@ class EstadoCuentaController extends Controller
         return $this->returnData('EstadoCuenta',$resultados,200);
     }
 
-    public function obtenerEstadoCuenta($uid,$idPeriodo,$matricula)
-    {
-        return DB::table('edocta as edo')
+    public function validarQR($uid,$qr){
+        $resultados = $this->obtenerEstadoCuenta($uid,null,null,$qr);
+        return $this->returnData('movimientos',$resultados,200);
+    }
+
+    public function obtenerEstadoCuenta($uid,$idPeriodo,$matricula,$qr=null){
+         $query =DB::table('edocta as edo')
                     ->select([
                             'al.uid',
                             'al.idNivel',
@@ -35,19 +39,30 @@ class EstadoCuentaController extends Controller
                             'edo.referencia',
                             'fp.descripcion as formaPago',
                             'edo.fechaPago',
+                            'edo.consecutivo',
+                            'edo.idServicio',
                              DB::raw("CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE null END as cargo"),
                              DB::raw("CASE WHEN edo.tipomovto != 'C' THEN edo.importe ELSE null END as abono")
                             ])
                     ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
                     ->leftJoin('formaPago as fp', 'fp.idFormaPago', '=', 'edo.idformaPago')
-                    ->join('alumno as al', 'al.uid', '=', 'edo.uid')
+                     ->join('alumno as al', function ($join) {
+                        $join->on('al.uid', '=', 'edo.uid')  
+                              ->on('al.secuencia', '=', 'edo.secuencia');   
+                    })  
                     ->join('nivel', 'nivel.idNivel', '=', 'al.idNivel')
                     ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
                     ->join('persona', 'persona.uid', '=', 'al.uid')                  
-                    ->where('edo.uid', $uid)
-                    ->where('edo.idPeriodo', $idPeriodo)
-                    ->where('al.matricula', $matricula)
-                    ->get();
+                    ->where('edo.uid', $uid);
+
+        if (!is_null($qr)) 
+                $query->where('edo.comprobante', 'like', '%' . $qr . '%');
+        else { 
+            $query->where('edo.idPeriodo', $idPeriodo)
+                   ->where('al.matricula', $matricula);
+                    }
+         $edocuenta = $query->distinct()->get();
+        return $edocuenta;
     }
 
     public function generaReporte($uid,$idPeriodo,$matricula){
@@ -233,7 +248,7 @@ class EstadoCuentaController extends Controller
 
         if (!$edoCta) 
             return $this->returnEstatus('Error al crear el registro',500,null); 
-        return $this->returnData('edoCta',$edoCta,200);   
+        return $this->returnData('folio',$newId,200);   
     }
     
 }

@@ -8,6 +8,8 @@
         "php": "^8.2",
         "azuyalabs/yasumi": "^2.7",
         "barryvdh/laravel-dompdf": "^3.1",
+        "endroid/qr-code": "^6.0",
+        "endroid/qr-code-bundle": "*",
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
