@@ -203,6 +203,7 @@ class EstadoCuentaController extends Controller
                                         'uid' => 'required|max:255',
                                         'secuencia' => 'required|max:255',
                                         'idPeriodo' => 'required|max:255',
+                                        'uidcajero' => 'required|max:255',
                                         'movimientos' => 'required|array'                   
         ]);
 
@@ -234,7 +235,8 @@ class EstadoCuentaController extends Controller
                                             'cuatrodigitos'=> $movimiento['cuatrodigitos'],
                                             'tipomovto'=> $movimiento['tipomovto'],
                                             'FechaPago'=> $fecha,
-                                            'folio'=> $newId
+                                            'folio'=> $newId,
+                                            'uidcajero'=> $uidcajero
             ]);
                 } catch (QueryException $e) {
                     // Capturamos el error relacionado con las restricciones
