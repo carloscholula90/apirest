@@ -6,6 +6,7 @@ use App\Models\tesoreria\Nota;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class NotaController extends Controller{
 
@@ -13,6 +14,25 @@ class NotaController extends Controller{
         $notas = Nota::all();
         return $this->returnData('notas',$notas,200);
     }
+
+    public function obtieneServicios($idNivel){
+         $servicios = DB::table('configuracionTesoreria as ct')
+                                ->join('servicio as s', function ($join) {
+                                    $join->on('ct.idServicioNotaCargo', '=', 's.idServicio')
+                                        ->orOn('ct.idServicioNotaCredito', '=', 's.idServicio');
+                                })
+                                ->where('ct.idNivel', 5)
+                                ->select(
+                                    's.idServicio',
+                                    's.descripcion',
+                                    DB::raw("CASE WHEN s.descripcion LIKE '%CREDITO%' THEN 'A' ELSE 'C' END as tipo")
+                                )
+                                ->distinct()
+                                ->get();
+        return $this->returnData('servicios',$servicios,200);
+    }
+
+   
 
     public function store(Request $request)
     {

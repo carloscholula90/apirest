@@ -23,6 +23,15 @@ class EstadoCuentaController extends Controller
         return $this->returnData('movimientos',$resultados,200);
     }
 
+    public function obtenerFolios($uid){
+            $resultados = DB::table('edocta')
+                        ->select(DB::raw('SUM(importe) as importe'), 'folio')
+                        ->where('uid', $uid)
+                        ->groupBy('folio')
+                        ->get();
+     return $this->returnData('folios',$resultados,200);
+    }
+
     public function obtenerEstadoCuenta($uid,$idPeriodo,$matricula,$qr=null){
          $query =DB::table('edocta as edo')
                     ->select([
@@ -46,9 +55,9 @@ class EstadoCuentaController extends Controller
                             ])
                     ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
                     ->leftJoin('formaPago as fp', 'fp.idFormaPago', '=', 'edo.idformaPago')
-                     ->join('alumno as al', function ($join) {
-                        $join->on('al.uid', '=', 'edo.uid')  
-                              ->on('al.secuencia', '=', 'edo.secuencia');   
+                                            ->join('alumno as al', function ($join) {
+                                                $join->on('al.uid', '=', 'edo.uid')  
+                                                    ->on('al.secuencia', '=', 'edo.secuencia');   
                     })  
                     ->join('nivel', 'nivel.idNivel', '=', 'al.idNivel')
                     ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
@@ -60,7 +69,7 @@ class EstadoCuentaController extends Controller
         else { 
             $query->where('edo.idPeriodo', $idPeriodo)
                    ->where('al.matricula', $matricula);
-                    }
+            }
          $edocuenta = $query->distinct()->get();
         return $edocuenta;
     }
@@ -223,7 +232,27 @@ class EstadoCuentaController extends Controller
             $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
         
             try{
-            $edoCta = EstadoCuenta::create([
+                 $result = DB::table('configuracionTesoreria as ct')
+                                ->select([
+                                    DB::raw('IFNULL(MIN(cta.parcialidad), 0) as parcialidad'),
+                                    'ct.idServicioColegiatura AS servicio'
+                                ])
+                                ->join('alumno as al', function($join){
+                                    $join->on('al.uid', '=', DB::raw($request->uid))
+                                         ->whereColumn('ct.idNivel', 'al.idNivel');
+                                })
+                                ->leftJoin('edocta as cta', function($join){
+                                    $join->on('ct.idServicioColegiatura', '=', 'cta.idServicio')
+                                         ->where('cta.uid', $request->uid)
+                                         ->where('cta.idPeriodo', $request->idPeriodo);
+                                })
+                                ->groupBy('ct.idServicioColegiatura')
+                                ->first();
+                    $parcialidad = $result->parcialidad + 1;
+                    $servicio = $result->servicio;
+
+                    if($servicio==$movimiento['idServicio'])
+                        $edoCta = EstadoCuenta::create([
                                             'uid'=> $request->uid,
                                             'secuencia'=> $request->secuencia,
                                             'idServicio'=> $movimiento['idServicio'],
@@ -236,9 +265,26 @@ class EstadoCuentaController extends Controller
                                             'tipomovto'=> $movimiento['tipomovto'],
                                             'FechaPago'=> $fecha,
                                             'folio'=> $newId,
-                                            'uidcajero'=> $uidcajero
+                                            'parcialidad'=> $parcialidad,
+                                            'uidcajero'=> $request->uidcajero
             ]);
-                } catch (QueryException $e) {
+            else $edoCta = EstadoCuenta::create([
+                                            'uid'=> $request->uid,
+                                            'secuencia'=> $request->secuencia,
+                                            'idServicio'=> $movimiento['idServicio'],
+                                            'consecutivo'=> $consecutivo,
+                                            'importe'=> $movimiento['importe'],
+                                            'idPeriodo'=> $request->idPeriodo,
+                                            'fechaMovto'=> $fecha,
+                                            'idformaPago'=> $movimiento['idformaPago'],
+                                            'cuatrodigitos'=> $movimiento['cuatrodigitos'],
+                                            'tipomovto'=> $movimiento['tipomovto'],
+                                            'FechaPago'=> $fecha,
+                                            'folio'=> $newId,
+                                            'uidcajero'=> $request->uidcajero
+            ]);
+
+        } catch (QueryException $e) {
                     // Capturamos el error relacionado con las restricciones
                     if ($e->getCode() == '23000') 
                         // Código de error para restricción violada (por ejemplo, clave foránea)

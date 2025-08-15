@@ -136,6 +136,23 @@ class InscripcionesController extends Controller
             return response()->json($data, 400);
         }
 
+        $results = ConfiguracionTesoreria::join('servicioCarrera as c', function ($join) {
+                                    $join->on('c.idNivel', '=', 'configuracionTesoreria.idNivel')
+                                        ->on('configuracionTesoreria.idServicioInscripcion', '=', 'c.idServicio');
+                                            })
+                                            ->where('c.idPeriodo', $request->idPeriodo)
+                                            ->where('c.idNivel', $request->idNivel)
+                                            ->select('configuracionTesoreria.*', 'c.*')
+                                            ->get();
+        if(isset($results)){
+             $data = [
+                'message' => 'Favor de validar los cargos en el periodo',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ];
+            return response()->json($data, 400);
+        }
+
         $cantidad = count($uids); 
         for ($indx = 0; $indx <$cantidad; $indx++){
                 Log::info('indx :'.$indx);

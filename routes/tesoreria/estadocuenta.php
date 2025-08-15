@@ -8,4 +8,5 @@ Route::get('/{uid}/{idPeriodo}/{matricula}', [EstadoCuentaController::class, 'in
 Route::get('/generaReporte/{uid}/{idPeriodo}/{matricula}', [EstadoCuentaController::class, 'generaReporte']);
 Route::post('/create', [EstadoCuentaController::class, 'store']);  
 Route::get('/recibo', [EstadoCuentaController::class, 'recibo']);  
+Route::get('/folios/{uid}', [EstadoCuentaController::class, 'obtenerFolios']);  
 
