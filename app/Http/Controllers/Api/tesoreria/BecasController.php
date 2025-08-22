@@ -8,6 +8,9 @@ use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;  
+use Maatwebsite\Excel\Facades\Excel;
 
 class BecasController extends Controller{
 
@@ -105,27 +108,58 @@ class BecasController extends Controller{
     }
 
       // Función para generar el reporte de personas
-      public function generaReport()
+      public function generaReporte()
       {
-        $becas = $this->getFormaPago();  
-     
+        $becas = DB::table('beca')
+                ->select('*',
+                             DB::raw('CASE WHEN aplicaInscripion = 1 THEN "S" ELSE "N" END as inscripcion'),
+                             DB::raw('CASE WHEN aplicaColegiatura = 1 THEN "S" ELSE "N" END as colegiatura'), 
+                             DB::raw("DATE_FORMAT(fechaAlta, '%d-%m-%Y') as fechaAl"),
+                             DB::raw("DATE_FORMAT(fechaModificacion, '%d-%m-%Y') as fechaMod"))
+                ->get();
+             
          // Si no hay personas, devolver un mensaje de error
          if ($becas->isEmpty())
              return $this->returnEstatus('No se encontraron datos para generar el reporte',404,null);
+        
+          // Convertir los datos a un formato de arreglo asociativo
+        $dataArray = $becas->map(function ($item) {
+            return (array) $item;
+        })->toArray();      
          
          $headers = ['ID', 'DESCRIPCION','APLICA INSCRIPCION','APLICA COLEGIATURA','FCH ALTA','FCH MODIFICACION'];
-         $columnWidths = [80,500,100,100,100,100];   
-         $keys = ['idBeca', 'descripcion','aplicaInscripcion','aplicaColegiatura','fechaAlta','fechaModificacion'];
+         $columnWidths = [80,150,150,150,100,120];   
+         $keys = ['idBeca', 'descripcion','inscripcion','colegiatura','fechaAl','fechaMod'];
         
-         $formasPagosArray = $becas->map(function ($becas) {
-             return $becas->toArray();
-         })->toArray();   
-     
-         return $this->pdfController->generateReport($formasPagosArray,$columnWidths,$keys , 'REPORTE DE BECAS', $headers,'L','letter');
+        return $this->pdfController->generateReport($dataArray,$columnWidths,$keys , 'REPORTE DE BECAS', $headers,'L','letter','rptBecas.pdf');
        
      }  
 
      public function exportaExcel() {
-        return $this->exportaXLS('Beca','idBeca',['ID', 'DESCRIPCION','APLICA INSCRIPCION','APLICA COLEGIATURA','FCH ALTA','FCH MODIFICACION'],'descripcion');     
-    }
+        // Ruta del archivo a almacenar en el disco público
+        $path = storage_path('app/public/becas_rpt.xlsx');
+        $selectColumns = ['idBeca', 'descripcion',
+                            DB::raw('CASE WHEN aplicaInscripion = 1 THEN "S" ELSE "N" END as inscripcion'),
+                             DB::raw('CASE WHEN aplicaColegiatura = 1 THEN "S" ELSE "N" END as colegiatura'), 
+                             DB::raw("DATE_FORMAT(fechaAlta, '%d-%m-%Y') as fechaAl"),
+                             DB::raw("DATE_FORMAT(fechaModificacion, '%d-%m-%Y') as fechaMod")]; // Seleccionar columnas específicas
+        $namesColumns = ['ID', 'DESCRIPCION','APLICA INSCRIPCION','APLICA COLEGIATURA','FCH ALTA','FCH MODIFICACION']; // Seleccionar columnas específicas
+        $export = new GenericTableExportEsp('beca', 'descripcion', [], ['descripcion'], ['asc'], $selectColumns, [],$namesColumns);
+
+        // Guardar el archivo en el disco público
+        Excel::store($export, 'becas_rpt.xlsx', 'public');
+       
+        // Verifica si el archivo existe usando Storage de Laravel
+        if (file_exists($path))  {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/becas_rpt.xlsx' // URL pública para descargar el archivo
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte '
+            ]);
+        }
+     }
 }

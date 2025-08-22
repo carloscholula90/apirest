@@ -40,6 +40,7 @@ class ReciboController extends Controller
         ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
         ->where('edo.uid', $uid)
         ->where('edo.folio', $folio)
+        ->where('edo.tipomovto','A')
         ->groupBy(
             'carrera.descripcion',
             'edo.fechaPago',

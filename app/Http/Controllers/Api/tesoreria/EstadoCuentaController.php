@@ -278,11 +278,8 @@ class EstadoCuentaController extends Controller
                                             'importe'=> $movimiento['importe'],
                                             'idPeriodo'=> $request->idPeriodo,
                                             'fechaMovto'=> $fecha,
-                                            'idformaPago'=> $movimiento['idformaPago'],
-                                            'cuatrodigitos'=> $movimiento['cuatrodigitos'],
                                             'tipomovto'=> 'C',
                                             'FechaPago'=> $fecha,
-                                            'folio'=> $newId,
                                             'uidcajero'=> $request->uidcajero
                     ]);
 
