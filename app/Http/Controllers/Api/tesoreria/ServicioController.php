@@ -26,6 +26,7 @@ class ServicioController extends Controller
             's.idServicio',
             'cta.importe as monto'
         ])
+        ->selectRaw('IFNULL(s.cargoAutomatico, 0) AS cargoAut')
         ->join('alumno as al', function ($join) use ($uid, $secuencia) {
             $join->on('ct.idNivel', '=', 'al.idNivel')
                 ->where('al.uid', '=', $uid)
@@ -63,8 +64,9 @@ class ServicioController extends Controller
             's.tarjeta',
             'per.idPeriodo',
             's.idServicio',
-            'sc.monto'
+            'sc.monto'            
         ])
+        ->selectRaw('IFNULL(s.cargoAutomatico, 0) AS cargoAut')
         ->join('alumno as al', function ($join) use ($uid, $secuencia) {
             $join->on('ct.idNivel', '=', 'al.idNivel')
                 ->where('al.uid', '=', $uid)

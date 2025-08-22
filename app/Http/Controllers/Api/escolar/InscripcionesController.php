@@ -136,15 +136,22 @@ class InscripcionesController extends Controller
             return response()->json($data, 400);
         }
 
-        $results = ConfiguracionTesoreria::join('servicioCarrera as c', function ($join) {
-                                    $join->on('c.idNivel', '=', 'configuracionTesoreria.idNivel')
-                                        ->on('configuracionTesoreria.idServicioInscripcion', '=', 'c.idServicio');
-                                            })
-                                            ->where('c.idPeriodo', $request->idPeriodo)
-                                            ->where('c.idNivel', $request->idNivel)
-                                            ->select('configuracionTesoreria.*', 'c.*')
-                                            ->get();
-        if(isset($results)){
+        $results = DB::table('configuracionTesoreria as ct')
+                            ->join('servicio as s', function ($join) {
+                                $join->on('ct.idServicioColegiatura', '=', 's.idServicio')
+                                    ->orOn('ct.idServicioInscripcion', '=', 's.idServicio');
+                            })
+                            ->join('servicioCarrera as sc', function ($join) use ($request) {
+                                $join->on('sc.idNivel', '=', 'ct.idNivel')
+                                    ->whereColumn('s.idServicio', 'sc.idServicio')
+                                    ->where('sc.idPeriodo', $request->idPeriodo);
+                            })
+                            ->where('ct.idNivel', $request->idNivel)
+                            ->select('s.idServicio', 's.descripcion')
+                            ->distinct()
+                            ->get();
+
+        if(!isset($results)){
              $data = [
                 'message' => 'Favor de validar los cargos en el periodo',
                 'errors' => $validator->errors(),
