@@ -132,7 +132,7 @@ class CarreraController extends Controller
          
          return $pdfController->generateReport($dataArray,  // Datos
                                                [100,100,300,100,100,100], // Anchos de columna
-                                               ['NivelAcad','idCarrera','carrera','diaInicioCargo','activo'], // Claves
+                                               ['NivelAcad','idCarrera','carrera','diaInicioCargo','diaInicioRecargo','activo'], // Claves
                                                'CATÁLOGO DE CARRERAS', // Título del reporte
                                                ['NIVEL','ID CARRERA','DESCRIPCIÓN','DIA INICIO DE CARGO','DIA INICIO DE RECARGO','ACTIVO'], 'L','letter',// Encabezados   ,
                                                'rptCarreras.pdf'
@@ -142,7 +142,7 @@ class CarreraController extends Controller
     public function exportaExcel() {  
         // Ruta del archivo a almacenar en el disco público
         $path = storage_path('app/public/carrera_rpt.xlsx');
-        $selectColumns = ['nivel.descripcion AS nivelDescripcion', 'carrera.idCarrera', 'carrera.descripcion','carrera.diaInicioCargo', DB::raw('CASE WHEN carrera.activo = 1 THEN "S" ELSE "N" END as activo')]; // Seleccionar columnas específicas
+        $selectColumns = ['nivel.descripcion AS nivelDescripcion', 'carrera.idCarrera', 'carrera.descripcion','carrera.diaInicioCargo','carrera.diaInicioRecargo', DB::raw('CASE WHEN carrera.activo = 1 THEN "S" ELSE "N" END as activo')]; // Seleccionar columnas específicas
         $namesColumns = ['NIVEL', 'ID CARRERA', 'CARRERA','DIA INICIO CARGO','DIA INICIO RECARGO','ACTIVO']; // Seleccionar columnas específicas
         
         $joins = [[ 'table' => 'nivel', // Tabla a unir

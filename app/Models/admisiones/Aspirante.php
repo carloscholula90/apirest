@@ -14,7 +14,7 @@ class Aspirante extends Model
     public $timestamps = false;  
 
     protected $fillable = [
-                        'uid','secuencia','idPeriodo','idCarrera','adeudoAsignaturas','idNivel',
+                        'uid','secuencia','idPeriodo','idCarrera','adeudoAsignaturas','idNivel','idTurno',
                         'idMedio','publica','paisCursoGradoAnterior','estadoCursoGradoAnterior',
                         'uidEmpleado','fechaSolicitud','matReprobada','mesReprobada','observaciones','idNivelAnterior',
                         'escuelaProcedencia'];

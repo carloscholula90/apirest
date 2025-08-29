@@ -107,6 +107,7 @@ class AspiranteController extends Controller{
                                                 'idCarrera' => $request->idCarrera,
                                                 'adeudoAsignaturas' => $request->adeudoAsignaturas,
                                                 'idNivel' => $request->idNivel,
+                                                'idTurno' => $request->idTurno,
                                                 'idMedio' => $request->idMedio,
                                                 'publica' => $request->publica,
                                                 'paisCursoGradoAnterior' => $request->paisCursoGradoAnterior,
