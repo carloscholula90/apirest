@@ -72,7 +72,7 @@ class PeriodoController extends Controller{
     public function show($idPeriodo,$idNivel){
         try {
             $periodos = Periodo::find($idNivel, $idPeriodo);
-            return $this->returnData('$periodos',$periodos,200);   
+            return $this->returnData('periodos',$periodos,200);   
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->returnEstatus('Periodo no encontrado',404,null); 
         }
@@ -255,4 +255,31 @@ public function generaReporte(){
                ]);
            }  
    }
+
+   public function obtenerActivos(){
+    $subquery = DB::table('periodo')
+    ->select('idNivel', 'idPeriodo')
+    ->where('activo', 1);
+
+$datos = DB::table('periodo')
+    ->joinSub($subquery, 'perAct', function($join) {
+        $join->on('periodo.idNivel', '=', 'perAct.idNivel')
+             ->whereColumn('periodo.idPeriodo', '>=', 'perAct.idPeriodo');
+    })
+    ->select(
+        'periodo.idPeriodo',
+        'periodo.descripcion',
+        'periodo.idNivel'
+    )
+            ->orderBy('periodo.idNivel')
+            ->orderBy('periodo.idPeriodo')
+            ->get();
+
+        // Filtrar solo 2 por nivel sin reindexar
+        $datosFiltrados = $datos->groupBy('idNivel')->flatMap(function ($items) {
+            return $items->take(2);
+        })->values(); // ← quita claves numéricas
+
+        return $datosFiltrados;             
+     }  
 }

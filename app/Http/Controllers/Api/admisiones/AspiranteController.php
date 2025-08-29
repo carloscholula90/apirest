@@ -432,7 +432,7 @@ class AspiranteController extends Controller{
         $html2 = '<table cellpadding="1" style="text-align: center;vertical-align: middle;border-collapse: separate; border-spacing: 3px;">';
         $generalesRow = $data[0];
    
-           $html2 .= '<tr><td style="font-size: 24px; width: 411px;"><b>Solicitud de Inscripcion</b></td>
+           $html2 .= '<tr><td style="font-size: 24px; width: 411px;"><b>Solicitud de Inscripción</b></td>
                         <td><table border-collapse: separate; border-spacing: 3px; cellpadding="1" style="font-size: 10px;"><tr><td  style="width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;">UID</td></tr><tr><td style="width: 100px; height: 15px; border: 1px solid black;margin-bottom: 18px;">'.$generalesRow['uid'].'</td></tr></table></td>';
            $html2 .='</tr>'; 
            $html2 .= '<tr><td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Apellido paterno</td>
@@ -454,7 +454,7 @@ class AspiranteController extends Controller{
             $html2 .='<tr>
                     <td style="text-align: left;font-size: 10px;width: 130px; height: 15px; background-color: lightgray;border: 1px solid black;"> Nacionalidad</td>
                     <td style="text-align: left;font-size: 10px;width: 152px; height: 15px; border: 1px solid black;">'.$generalesRow['nacionalidad'].'</td>  
-                    <td style="text-align: center;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;">Edo. donde nacio</td>                      
+                    <td style="text-align: center;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;">Edo. donde nació</td>                      
                     <td style="text-align: left;font-size: 10px;width: 126px; height: 15px; border: 1px solid black;">'.$generalesRow['estado'].'</td>
                 </tr>';
             $html2 .='<tr>
@@ -462,34 +462,34 @@ class AspiranteController extends Controller{
                 <td style="text-align: left;font-size: 10px;width: 414px; height: 15px; border: 1px solid black;">'.$generalesRow['curp'].'</td>  
                 </tr>';
             $html2 .='<tr>
-                <td style="text-align: left;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;"> Direccion</td>
+                <td style="text-align: left;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;"> Dirección</td>
                 <td style="text-align: left;font-size: 10px;width: 414px; height: 15px; border: 1px solid black;">'.$generalesRow['calle'].(isset($generalesRow['noExterior'])?' No. exterior '.$generalesRow['noExterior']:'').' '.(isset($generalesRow['noInterior'])?' No. Interior '.$generalesRow['noInterior']:'').'</td>  
                 </tr>';
             $html2 .='<tr>
                 <td style="text-align: left;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;"> Colonia</td>
                 <td style="text-align: left;font-size: 10px;width: 200px; height: 15px; border: 1px solid black;">'.$generalesRow['colonia'].'</td>  
-                <td style="text-align: center;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;">Codigo Postal</td>
+                <td style="text-align: center;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;">Código Postal</td>
                 <td style="text-align: left;font-size: 10px;width: 108px; height: 15px; border: 1px solid black;">'.$generalesRow['cp'].'</td>  
                 </tr>';
             $html2 .='<tr>
                 <td style="text-align: center;font-size: 10px;width: 50px; height: 15px; background-color: lightgray;border: 1px solid black;">Estado</td>                      
                 <td style="text-align: left;font-size: 10px;width: 200px; height: 15px; border: 1px solid black;">'.$generalesRow['estado'].'</td>
-                <td style="text-align: center;font-size: 10px;width: 60px; height: 15px; background-color: lightgray;border: 1px solid black;">Telefono</td>
+                <td style="text-align: center;font-size: 10px;width: 60px; height: 15px; background-color: lightgray;border: 1px solid black;">Teléfono</td>
                 <td style="text-align: left;font-size: 10px;width: 197px; height: 15px; border: 1px solid black;">'.$generalesRow['telefono'].'</td>
             </tr>';
             $html2 .='<tr>
-                <td style="text-align: left;font-size: 10px;width: 150px; height: 15px; background-color: lightgray;border: 1px solid black;"> Correo electronico</td>
+                <td style="text-align: left;font-size: 10px;width: 150px; height: 15px; background-color: lightgray;border: 1px solid black;"> Correo electrónico</td>
                 <td style="text-align: left;font-size: 10px;width: 364px; height: 15px; border: 1px solid black;">'.$generalesRow['correo'].'</td>  
                 </tr>';
             $html2 .='<tr>
                 <td style="text-align: left;font-size: 10px;width: 70px; height: 15px; background-color: lightgray;border: 1px solid black;"> Escolaridad</td>
                 <td style="text-align: left;font-size: 10px;width: 110px; height: 15px; border: 1px solid black;">'.$generalesRow['nivel'].'</td>  
                 <td style="text-align: center;font-size: 10px;width: 100px; height: 15px;">'.$generalesRow['publica'].'</td>    
-                <td style="text-align: center;font-size: 10px;width: 118px; height: 15px; background-color: lightgray;border: 1px solid black;">Edo. donde lo curso</td>
+                <td style="text-align: center;font-size: 10px;width: 118px; height: 15px; background-color: lightgray;border: 1px solid black;">Edo. donde lo cursó</td>
                 <td style="text-align: left;font-size: 10px;width: 106px; height: 15px; border: 1px solid black;">'.$generalesRow['edoGradoAnt'].'</td>
             </tr>';
             $html2 .='<tr>
-                <td style="text-align: left;font-size: 10px;width: 200px; height: 15px; background-color: lightgray;border: 1px solid black;"> Nombre de la institucion</td>
+                <td style="text-align: left;font-size: 10px;width: 200px; height: 15px; background-color: lightgray;border: 1px solid black;"> Nombre de la institución</td>
                 <td style="font-size: 10px;width: 314px; height: 15px; border: 1px solid black;">'.$generalesRow['escuelaProcedencia'].'</td>  
                 </tr>';
 
@@ -501,9 +501,9 @@ class AspiranteController extends Controller{
                     $enfermedad='SI';
 
             $html2 .='<tr>
-                <td style="text-align: left;font-size: 10px;width: 200px; height: 15px; background-color: lightgray;border: 1px solid black;"> ¿Sufre alguna enfermedad cronica?</td>
+                <td style="text-align: left;font-size: 10px;width: 200px; height: 15px; background-color: lightgray;border: 1px solid black;"> ¿Sufre alguna enfermedad crónica?</td>
                 <td style="text-align: center;font-size: 10px;width: 30px; height: 15px; border: 1px solid black;">'.$enfermedad.'</td>  
-                <td style="text-align: center;font-size: 10px;width: 60px; height: 15px; background-color: lightgray;border: 1px solid black;"> ¿Cual?</td> 
+                <td style="text-align: center;font-size: 10px;width: 60px; height: 15px; background-color: lightgray;border: 1px solid black;"> ¿Cuál?</td> 
                 <td style="text-align: left;font-size: 10px;width: 217px; height: 15px; border: 1px solid black;">';
                
                 if ($salud) 
@@ -516,13 +516,13 @@ class AspiranteController extends Controller{
                         <td style="text-align: left;font-size: 10px;width: 314px; height: 15px; border: 1px solid black;">'.$generalesRow['nombreTutor'].' '.$generalesRow['primerApellidoTutor'].' '.$generalesRow['segundoApellidoTutor'].'</td>  
                         </tr>';   
                     $html2 .='<tr>
-                        <td style="text-align: left;font-size: 10px;width: 80px; height: 15px; background-color: lightgray;border: 1px solid black;"> Ocupacion</td>
+                        <td style="text-align: left;font-size: 10px;width: 80px; height: 15px; background-color: lightgray;border: 1px solid black;"> Ocupación</td>
                         <td style="text-align: left;font-size: 10px;width: 153px; height: 15px; border: 1px solid black;">'.$generalesRow['ocupacion'].'</td>  
-                        <td style="text-align: center;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;"> Telefono</td>                      
+                        <td style="text-align: center;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;"> Teléfono</td>                      
                         <td style="text-align: left;font-size: 10px;width: 175px; height: 15px; border: 1px solid black;">'.$generalesRow['telefonoTutor'].'</td>
                     </tr>';
                     $html2 .='<tr>
-                        <td style="text-align: left;font-size: 10px;width: 200px; height: 15px; background-color: lightgray;border: 1px solid black;"> Direccion del tutor</td>
+                        <td style="text-align: left;font-size: 10px;width: 200px; height: 15px; background-color: lightgray;border: 1px solid black;"> Dirección del tutor</td>
                         <td style="text-align: left;font-size: 10px;width: 314px; height: 15px; border: 1px solid black;">'.$generalesRow['direccionTutor'].'</td>       
                         </tr>';
             }   
@@ -542,8 +542,8 @@ class AspiranteController extends Controller{
                 <td style="text-align: left;font-size: 10px;width: 100px; height: 15px; background-color: lightgray;border: 1px solid black;"> CARRERA</td>
                 <td style="text-align: left;font-size: 10px;width: 414px; height: 15px; border: 1px solid black;">'.$generalesRow['carrera'].'</td>  
                 </tr>';
-            $html2 .= '<tr><td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Numero de grupo</td>
-                <td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Fecha de inscripcion</td>
+            $html2 .= '<tr><td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Número de grupo</td>
+                <td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Fecha de inscripción</td>
                 <td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Fecha de inicio de clases</td>
                 </tr>';       
             $html2 .='<tr><td style="font-size: 10px;width: 170px; height: 15px; border: 1px solid black;"></td>  
@@ -551,7 +551,7 @@ class AspiranteController extends Controller{
                 <td style="font-size: 10px;width: 170px; height: 15px; border: 1px solid black;"></td>    
                 </tr>'; 
             $html2 .= '<tr><td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Nombre del asesor de R.P.</td>
-                <td style="font-size: 8px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Porque medio se entero de la Universidad</td>
+                <td style="font-size: 8px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Porque medio se enteró de la Universidad</td>
                 <td style="font-size: 10px;width: 170px; height: 15px; background-color: lightgray;border: 1px solid black;">Observaciones</td>
                 </tr>';     
             $html2 .='<tr><td style="font-size: 10px;width: 170px; height: 40px; border: 1px solid black;">'.$generalesRow['nombreAsesor'].'</td>  
@@ -570,8 +570,8 @@ class AspiranteController extends Controller{
             $html2 .='</td><td style="font-size: 10px;width: 170px; height: 40px; border: 1px solid black;">'.$generalesRow['observaciones'].'</td>     
                 </tr>';   
            $html2 .= '</table>';   
-           $html2 .= '<br><br>NOTA: No se hacen devoluciones por concepto de inscripcion, primera colegiatura y seguro escolar bajo ninguna circunstancia.';
-           $html2 .= '<br>IMPORTANTE: El pago de la colegiatura empezara a patir del mes de AGOSTO, fecha indicada de inicio de clases.';
+           $html2 .= '<br><br>NOTA: No se hacen devoluciones por concepto de inscripción, primera colegiatura y seguro escolar bajo ninguna circunstancia.';
+           $html2 .= '<br>IMPORTANTE: El pago de la colegiatura empezará a partir del mes de AGOSTO, fecha indicada de inicio de clases.';
            $html2 .= '<br><br><br><br><br><br><br><br><br><br><br><br>';
            $html2 .= '<table cellpadding="1" style="text-align: center;vertical-align: middle;border-collapse: separate; border-spacing: 3px;">';
            $html2 .='<tr>'.
@@ -588,7 +588,7 @@ class AspiranteController extends Controller{
            $html2 .='<tr>'.
                      (intval($generalesRow['idNivel'])<=4?
                     '<td style="text-align: center;font-size: 8px;width: 100px; height: 7px;">Control escolar</td>
-                     <td style="text-align: center;font-size: 8px;width: 130px; height: 7px;">Relaciones Publicas</td>               
+                     <td style="text-align: center;font-size: 8px;width: 130px; height: 7px;">Relaciones Públicas</td>               
                      <td style="text-align: center;font-size: 8px;width: 140px; height: 7px;">Padre o tutor<br>Nombre y firma</td> 
                      <td style="text-align: center;font-size: 8px;width: 140px; height: 7px;">Alumno</td> ' :
                     '<td style="text-align: center; font-size: 8px; width: 150px; height: 7px; margin-left: 60px;">Control escolar</td>
@@ -600,8 +600,8 @@ class AspiranteController extends Controller{
                     <td style="text-align: center;font-size: 8px;width: 180px; height: 10px;"></td>  
                     <td style="text-align: left;font-size: 8px;width: 200px; height: 10px;">'.
                     (intval($generalesRow['idNivel'])<=4?
-                    'Firmamos de leido y aceptado reglamento interno para alumnos de Universidad Alva Edison, sin protesta alguna':
-                    'Firmo de leido y aceptado reglamento interno para alumnos de Universidad Alva Edison, sin protesta alguna').
+                    'Firmamos de leído y aceptado reglamento interno para alumnos de Universidad Alva Edison, sin protesta alguna':
+                    'Firmo de leído y aceptado reglamento interno para alumnos de Universidad Alva Edison, sin protesta alguna').
                     '</td>  
                     </tr>   
                     </table>';   

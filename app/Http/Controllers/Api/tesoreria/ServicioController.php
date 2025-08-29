@@ -89,14 +89,40 @@ class ServicioController extends Controller
 
     return $query1->unionAll($query2)->get();
 }
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+    
+public function store(Request $request){
 
+        $validator = Validator::make($request->all(), [
+                    'descripcion' => 'required|max:255'
+        ]);
+
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+
+        $maxId = Beca::max('idBeca');  
+        $newId = $maxId ? $maxId + 1 : 1; 
+        try {
+            $becas = Beca::create([
+                            'idBeca' => $newId,
+                            'descripcion' => strtoupper(trim($request->descripcion)),
+                            'aplicaInscripcion' => $request->aplicaInscripcion,
+                            'aplicaColegiatura' => $request->aplicaColegiatura,
+                            'fechaAlta' => Carbon::now(),
+                            'fechaModificacion' => Carbon::now()
+            ]);
+        } catch (QueryException $e) {
+            // Capturamos el error relacionado con las restricciones
+            if ($e->getCode() == '23000') 
+                // Código de error para restricción violada (por ejemplo, clave foránea)
+                return $this->returnEstatus('La Beca ya se encuentra dado de alta',400,null);
+                
+            return $this->returnEstatus('Error al insertar la Beca',400,null);
+        }
+
+        if (!$becas) 
+            return $this->returnEstatus('Error al crear la Beca',500,null); 
+        return $this->returnData('becas',$becas,200);   
+    }
     
     /**
      * Display the specified resource.
