@@ -15,7 +15,7 @@ class Aspirante extends Model
 
     protected $fillable = [
                         'uid','secuencia','idPeriodo','idCarrera','adeudoAsignaturas','idNivel','idTurno',
-                        'idMedio','publica','paisCursoGradoAnterior','estadoCursoGradoAnterior',
+                        'idMedio','publica','paisCursoGradoAnterior','estadoCursoGradoAnterior','semestreIngreso',
                         'uidEmpleado','fechaSolicitud','matReprobada','mesReprobada','observaciones','idNivelAnterior',
                         'escuelaProcedencia'];
 }

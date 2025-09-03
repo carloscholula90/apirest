@@ -118,6 +118,7 @@ class AspiranteController extends Controller{
                                                 'mesReprobada' => $request->mesReprobada,
                                                 'idNivelAnterior' => $request->idNivelAnterior,
                                                 'escuelaProcedencia' => $request->escuelaProcedencia,
+                                                'semestreIngreso'=> $request->semestre,
                                                 'observaciones'=> '']);  
 
                         if (!$aspirante) 
@@ -268,7 +269,12 @@ class AspiranteController extends Controller{
                         'gradoAnt.descripcion as edoGradoAnt',
                         'paisAsp.descripcion as pais',
                         'aspirante.estadoCursoGradoAnterior',
+                        'aspirante.secuencia',
                         'carrera.descripcion as carrera',
+                        'carrera.idCarrera',
+                        'aspirante.idTurno',
+                        'turno.descripcion as turno',
+                        'aspirante.semestreIngreso as semestre',
                         DB::raw('CONCAT(direccionTutor.calle, " ", direccionTutor.noExterior, " ", direccionTutor.noInterior," ",
                                  cpTutor.descripcion, " ",cpTutor.cp) AS direccionTutor'),                        
                          DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre'),
@@ -280,7 +286,7 @@ class AspiranteController extends Controller{
                     ->join('aspirante', 'persona.uid', '=', 'aspirante.uid')
                    
                     ->join('carrera', 'carrera.idCarrera', '=', 'aspirante.idCarrera')
-                    
+                    ->join('turno', 'turno.idTurno', '=', 'aspirante.idTurno')
                     ->join('persona AS asesor', 'asesor.uid', '=', 'aspirante.uidEmpleado')
                     ->leftJoin('estado as gradoAnt', function($join) {
                         $join->on('gradoAnt.idEstado', '=', 'aspirante.estadoCursoGradoAnterior')
@@ -352,6 +358,7 @@ class AspiranteController extends Controller{
                     ->when(isset($uid), function ($query) use ($uid) {
                         return $query->where('aspirante.uid', $uid);
                     }) 
+                    ->whereNull('alumno.uid')
                     ->distinct()
                     ->get() ;    
 
@@ -626,4 +633,69 @@ class AspiranteController extends Controller{
                ]);
            }     
      }
+
+    public function convierte(Request $request){
+
+         $validator = Validator::make($request->all(), [
+                                            'uid' => 'required|max:255',                            
+                                            'idPeriodo' => 'required|max:255',
+                                            'idNivel'=> 'required|max:255',
+                                            'secuencia'=> 'required|max:255',
+                                            'idCarrera' => 'required|max:255',
+                                            'idTurno'=> 'required|max:255',
+                                            'semestre'=> 'required|max:255',
+                                            'uidMatricula'=> 'required|max:255'
+        ]);
+
+       
+        if ($validator->fails()) {
+            $data = [
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ];
+            return response()->json($data, 400);
+        }
+                        Log::info('uid :'.$request->uid);   
+                        Log::info('idPeriodo :'.$request->idPeriodo);   
+                        Log::info('secuencia :'.$request->secuencia);   
+                        Log::info('idCarrera :'.$request->idCarrera);   
+                        Log::info('idTurno :'.$request->idTurno);   
+                        Log::info('semestre :'.$request->semestre);   
+                        Log::info('uidMatricula :'.$request->uidMatricula);   
+                        Log::info('idNivel :'.$request->idNivel); 
+
+        $result = DB::select('CALL conviertealumno(?, ?, ?, ?, ?, ?, ?,?)', 
+                                                        [$request->uid,$request->idPeriodo, 
+                                                        $request->secuencia,$request->idCarrera,$request->idTurno,
+                                                        $request->semestre,$request->uidMatricula,$request->idNivel
+                                                        ]);
+                Log::info('resultado :',$result);   
+
+       
+        $data = ['msj' => 'Proceso exitoso','status' => 200];
+    
+        return response()->json($data, 200);
+
+    }
+
+    public function destroy($uid,$secuencia){
+       
+        if (!isset($uid)  || !isset($secuencia)) {
+            $data = [
+                'message' => 'Error en la validación de los datos',                
+                'status' => 400
+            ];
+            return response()->json($data, 400);
+        }
+
+        $result = DB::select('CALL borraaspirante(?, ?)', 
+                            [$uid,$secuencia]);
+        Log::info('resultado :',$result);  
+        $data = ['msj' => 'Proceso exitoso','status' => 200];
+    
+        return response()->json($data, 200);
+
+    }
+
 }

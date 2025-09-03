@@ -106,6 +106,7 @@ class CarreraController extends Controller
                                     'c.idCarrera',
                                     'c.descripcion as carrera',
                                     'c.diaInicioCargo',
+                                    'c.diaInicioRecargo',
                                     DB::raw('CASE WHEN c.activo = 1 THEN "S" ELSE "N" END as activo'))
                                             ->join('nivel as niv', 'niv.idNivel', '=', 'c.idNivel')
                                             ->orderBy('c.descripcion', 'asc')
@@ -143,7 +144,7 @@ class CarreraController extends Controller
         // Ruta del archivo a almacenar en el disco público
         $path = storage_path('app/public/carrera_rpt.xlsx');
         $selectColumns = ['nivel.descripcion AS nivelDescripcion', 'carrera.idCarrera', 'carrera.descripcion','carrera.diaInicioCargo','carrera.diaInicioRecargo', DB::raw('CASE WHEN carrera.activo = 1 THEN "S" ELSE "N" END as activo')]; // Seleccionar columnas específicas
-        $namesColumns = ['NIVEL', 'ID CARRERA', 'CARRERA','DIA INICIO CARGO','DIA INICIO RECARGO','ACTIVO']; // Seleccionar columnas específicas
+        $namesColumns = ['NIVEL', 'ID-- CARRERA', 'CARRERA','DIA INICIO CARGO','DIA INICIO RECARGO','ACT']; // Seleccionar columnas específicas
         
         $joins = [[ 'table' => 'nivel', // Tabla a unir
                     'first' => 'carrera.idNivel', // Columna de la tabla principal
