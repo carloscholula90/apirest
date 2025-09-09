@@ -157,5 +157,21 @@ class ServicioCarreraController extends Controller
         }
         return $this->returnData('servicios',null,200);
     }
+
+    public function destroy($idNivel,$idPeriodo,$idCarrera,$idServicio,$idTurno)
+    {
+        $destroy = DB::table('servicioCarrera')
+                            ->where('idNivel', $idNivel  )
+                            ->where('idPeriodo', $idPeriodo)
+                            ->where('idCarrera', $idCarrera)
+                            ->where('idServicio', $idServicio)
+                            ->where('idTurno', $idTurno)
+                            ->delete();
+
+        if ($destroy === 0) 
+            return $this->returnEstatus('Error en la eliminacion', 404, null);
+                
+        return $this->returnEstatus('Registro eliminado',200,null); 
+    }
     
 }
