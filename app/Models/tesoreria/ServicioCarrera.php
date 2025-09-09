@@ -5,7 +5,7 @@ namespace App\Models\tesoreria;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class servicio extends Model
+class ServicioCarrera extends Model
 {
    
    use HasFactory;

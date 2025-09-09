@@ -5,7 +5,9 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
+use App\Models\tesoreria\Servicio;
+use App\Models\tesoreria\ServicioCarrera;
+use Illuminate\Support\Facades\Validator;
 
 class ServicioCarreraController extends Controller
 {
@@ -23,9 +25,12 @@ class ServicioCarreraController extends Controller
                                     p.descripcion AS periodo,
                                     s.idServicio,
                                     s.descripcion AS servicio,
-                                    s.tarjeta AS tarjeta,
-                                    s.efectivo AS efectivo,
-                                    s.cargoAutomatico AS cargoAutomatico
+                                    s.tarjeta,
+                                    s.efectivo,
+                                    s.cargoAutomatico,
+                                    sc.semestre,
+                                    sc.aplicaIns,
+                                    sc.idTurno
                                 FROM servicio s
                                 INNER JOIN servicioCarrera sc ON sc.idServicio = s.idServicio
                                 INNER JOIN nivel n ON n.idNivel = sc.idNivel
@@ -52,7 +57,7 @@ class ServicioCarreraController extends Controller
                 if (!isset($carreras[$row->idCarrera])) {
                     $carreras[$row->idCarrera] = [
                         'idCarrera' => $row->idCarrera,
-                        'carrera' => $row->carrera,
+                        'carrera' => $row->carrera,                        
                         'periodos' => []
                     ];
                 }
@@ -71,7 +76,10 @@ class ServicioCarreraController extends Controller
                     'descripcion' => $row->servicio,
                     'cargoAutomatico' => $row->cargoAutomatico,
                     'efectivo' => $row->efectivo,
-                    'tarjeta' => $row->tarjeta
+                    'tarjeta' => $row->tarjeta,
+                    'idTurno' => $row->idTurno,
+                    'semestre'=>  $row->semestre,
+                    'aplicaIns'=>  $row->aplicaIns
                     
                 ];
             }
@@ -87,5 +95,67 @@ class ServicioCarreraController extends Controller
 
    return response()->json($final);
 }
+
+ public function store(Request $request) {
+        
+        $validator = Validator::make($request->all(), [
+                                    'descripcion' => 'required|max:255',
+                                    'efectivo' => 'required|numeric',
+                                    'tarjeta' => 'required|numeric',
+                                    'cargoAutomatico' => 'required|numeric',
+                                    'idNivel' => 'required|numeric',
+                                    'idPeriodo' => 'required|numeric',
+                                    'semestre' => 'required|numeric',
+                                    'monto' => 'required|numeric',
+                                    'aplicaIns' => 'required|numeric',
+                                    'carreras' => 'required|array',
+                                    'turnos' => 'required|array'
+        ]);
+        $idServicio =0;
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+        if(isset($request->idServicio)) {
+            //El servicio ya existe entonces solo actualiza
+            $idServicio = $request->idServicio;
+            $servicio = Servicio::find($request->idServicio);     
+            $servicio->efectivo = $request->efectivo;
+            $servicio->tarjeta = $request->tarjeta;
+            $servicio->cargoAutomatico = $request->cargoAutomatico;       
+            $carreras->save(); 
+        }
+        else{
+            $maxId = Servicio::max('idServicio');
+            $idServicio = $maxId ? $maxId + 1 : 1;
+            $servicio = Servicio::create([
+                                'idServicio' => $idServicio,
+                                'descripcion' => strtoupper(trim($request->descripcion)),
+                                'efectivo' => $request->efectivo,
+                                'tarjeta' => $request->tarjeta,
+                                'cargoAutomatico' => $request->cargoAutomatico
+                    ]);
+            }
+
+            $cantidad = count($request->carreras);
+            $tamanio= count($request->turnos);
+            $carreras = $request->carreras;
+            $turnos = $request->turnos;
+        for ($indx = 0; $indx <$cantidad; $indx++){
+            $carreraB =$carreras[$indx];
+            
+            for($indx2=0; $indx2< $tamanio;$indx2++){
+             $servicioC =    ServicioCarrera::create([
+                                'idNivel'=> $request->idNivel,
+                                'idPeriodo'=> $request->idPeriodo,
+                                'idCarrera' =>  $carreraB,
+                                'idServicio' => $idServicio,
+                                'idTurno' => $turnos[$indx2],
+                                'semestre'=> $request->semestre,
+                                'monto'=> $request->monto,
+                                'aplicaIns'=> $request->aplicaIns
+                    ]);
+                    }
+        }
+        return $this->returnData('servicios',null,200);
+    }
     
 }
