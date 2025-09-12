@@ -40,7 +40,6 @@ class GenericTableExportEsp implements FromQuery, WithHeadings
         foreach ($this->joins as $join) {
             $type = $join['type'] ?? 'inner'; // Default es INNER JOIN
             $query->join($join['table'], $join['first'], '=', $join['second'], $join['type'] ?? 'inner'); 
-            Log::info('Este es un mensaje de información '.$join['table']);
         }
     
         // Aplicar filtros

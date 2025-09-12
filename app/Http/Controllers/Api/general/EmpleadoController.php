@@ -208,8 +208,7 @@ class EmpleadoController extends Controller{
         }
 
         // Convertir los datos a un formato de arreglo asociativo
-         $dataArray = $data->map(function ($item) {
-             Log::info('Data para PDF:',  (array) $item);
+         $dataArray = $data->map(function ($item) {            
             return (array) $item;
         })->toArray();
 
