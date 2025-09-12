@@ -208,7 +208,7 @@ class ServiciosPeriodosController extends Controller
     }
     public function exportaExcel() {  
         // Ruta del archivo a almacenar en el disco público
-        $path = storage_path('app/public/servicios_rpt.xlsx');
+        $path = storage_path('app/public/serviciosPeriodosRpt.xlsx');
         $selectColumns = ['periodo.descripcion as periodo', 'nivel.descripcion as nivel',
                     'servicio.descripcion as servicio',                  
                     DB::raw("CONCAT('$', FORMAT(serviciosPeriodo.monto, 2)) as monto")]; // Seleccionar columnas específicas
