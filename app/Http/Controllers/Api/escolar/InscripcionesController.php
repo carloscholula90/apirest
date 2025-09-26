@@ -25,16 +25,18 @@ class InscripcionesController extends Controller
                     ->where('inscripciones', 1)
                     ->value('descripcion');
 
-       $result = DB::table('ciclos as c')
-                ->join('alumno as a', function ($join) {
-                    $join->on('a.uid', '=', 'c.uid')
-                        ->on('a.secuencia', '=', 'c.secuencia');
+       $result = DB::table('alumno as a')
+                ->join('aspirante as asp', function ($join) {
+                    $join->on('asp.uid', '=', 'a.uid')
+                        ->on('asp.secuencia', '=', 'a.secuencia');
                 })
+                 ->join('turno', 'turno.idTurno', '=', 'asp.idTurno')
+               
                 ->join('carrera as car', function ($join) {
-                    $join->on('car.idNivel', '=', 'c.idNivel')
+                    $join->on('car.idNivel', '=', 'a.idNivel')
                         ->on('car.idCarrera', '=', 'a.idCarrera');
                 })
-                ->join('nivel as nv', 'nv.idNivel', '=', 'c.idNivel')
+                ->join('nivel as nv', 'nv.idNivel', '=', 'a.idNivel')
                 ->join('persona as p', 'p.uid', '=', 'a.uid')
                 ->leftJoin('bloqueoPersonas as ba', function ($join) {
                     $join->on('ba.uid', '=', 'a.uid')
@@ -66,19 +68,18 @@ class InscripcionesController extends Controller
                 ->leftJoin('bloqueos as b4', 'b4.idBloqueo', '=', 'bd.idBloqueo')
                 ->leftJoin('grupos as gp', function($join) use ($idPeriodo) {
                             $join->on(DB::raw("gp.grupo"), '=', 
-                                DB::raw("CONCAT(SUBSTRING(c.grupo, 1, 3),
-                                CAST(SUBSTRING(c.grupo, 4, 1) AS UNSIGNED) + 1,
-                                SUBSTRING(c.grupo, 5, 1)
-                            )"))
+                                DB::raw("CONCAT(LPAD(asp.idCarrera, 2, '0'),                                 
+                                turno.letra,1,'A'
+                            )"))  
                             ->where('gp.idPeriodo', '=', $idPeriodo);
                         })
-                ->where('c.idNivel', $idNivel)
-                ->where('c.idPeriodo', $idPeriodo-1)   
+                ->where('asp.idNivel', $idNivel)                
+                ->where('a.idPeriodoIng',$idPeriodo)    
                 ->whereNotExists(function ($query) use ($idPeriodo) {
                     $query->select(DB::raw(1))
                         ->from('ciclos as c2')
-                        ->whereRaw('c2.uid = c.uid')
-                        ->whereRaw('c2.secuencia = c.secuencia')
+                        ->whereRaw('c2.uid = asp.uid')
+                        ->whereRaw('c2.secuencia = asp.secuencia')
                         ->where('c2.idPeriodo', $idPeriodo);
                 })
                 ->select([
@@ -88,14 +89,14 @@ class InscripcionesController extends Controller
                             'p.nombre',
                             'p.primerApellido',
                             'p.segundoApellido', 
-                            'c.idNivel',
+                            'a.idNivel',
                             'nv.descripcion as nivel',
                             'a.idCarrera',                            
                             'car.descripcion AS carrera',
                             DB::raw("'" . $idPeriodo . "' as idPeriodo"),
                             DB::raw("'" . $descripcionP . "' as periodo"),                       
                             'gp.grupo',
-                            DB::raw('CAST(SUBSTRING(gp.grupo, 4, 1) AS UNSIGNED) as semestre'),
+                            DB::raw('1 as semestre'),
                             DB::raw("IF(b1.descripcion = 'ADEUDO', TRUE, FALSE) as adeudo"),
                             DB::raw("IF(b2.descripcion = 'ACADEMICO', TRUE, FALSE) as academico"),
                             DB::raw("IF(b3.descripcion = 'CASTIGO', TRUE, FALSE) as castigo"),
@@ -152,8 +153,7 @@ class InscripcionesController extends Controller
                             ->where('gp.idPeriodo', '=', $idPeriodo);
                         })
                 ->where('c.idNivel', $idNivel)
-                ->where('c.idPeriodo', $idPeriodo)   
-                ->where('a.idPeriodoIng',$idPeriodo)                
+                ->where('c.idPeriodo', $idPeriodo)                
                 ->select([
                             'a.uid',
                             'a.idPlan',

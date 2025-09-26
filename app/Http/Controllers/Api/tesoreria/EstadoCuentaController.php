@@ -314,5 +314,176 @@ class EstadoCuentaController extends Controller
             return $this->returnEstatus('Error al crear el registro',500,null); 
         return $this->returnData('folio',$newId,200);   
     }
+
+
+    public function guardarMovtos(Request $request){
+        DB::beginTransaction(); 
+         try {   
+                    
+            $movimientos = $request->all();  
+            
+            if (!is_array($movimientos)) 
+                return response()->json(['error' => 'Datos inválidos, se espera un arreglo'], 400);
+           
+           foreach ($movimientos as $index => $mov) {
+            if (!isset($mov['dia'], $mov['concepto'], $mov['abono'])) 
+                return response()->json(['error' => "Falta campo en elemento $index",], 400);
     
-}
+                $dia = $mov['dia'];
+                $concepto = $mov['concepto'];
+                $abono = $mov['abono'];
+
+                $sinPrefijo = substr($concepto, 2);
+                $matricula = (int) substr($sinPrefijo, 0, 8); 
+                $servicio = (int) substr($sinPrefijo, 8, 3); 
+                $datosAlumno = DB::table('alumno')
+                        ->join('periodo', 'periodo.idNivel', '=', 'alumno.idNivel')
+                        ->leftJoin('edocta', function($join) use ($servicio) {
+                                                    $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
+                                                        ->on('edocta.uid', '=', 'alumno.uid')
+                                                        ->on('edocta.secuencia', '=', 'alumno.secuencia')
+                                                        ->where('edocta.idServicio', $servicio);
+                                                })
+                        ->select(
+                            'alumno.uid',
+                            'alumno.secuencia',
+                            'periodo.idNivel',
+                            'periodo.idPeriodo',
+                            'edocta.parcialidad',
+                            'edocta.importe'
+                        )
+                        ->where('periodo.activo', 1)
+                        ->where('alumno.matricula', $matricula)
+                        ->orderByDesc('edocta.parcialidad')
+                        ->get();
+            
+            $validacionLinea = DB::table('alumno')
+                        ->join('periodo', 'periodo.idNivel', '=', 'alumno.idNivel')
+                        ->leftJoin('edocta', function($join) use ($servicio) {
+                                                    $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
+                                                        ->on('edocta.uid', '=', 'alumno.uid')
+                                                        ->on('edocta.secuencia', '=', 'alumno.secuencia')
+                                                        ->where('edocta.idServicio', $servicio);
+                                                })
+                        ->select(
+                            'alumno.uid',
+                            'alumno.secuencia',
+                            'periodo.idNivel',
+                            'periodo.idPeriodo',
+                            'edocta.parcialidad',
+                            'edocta.importe'
+                        )
+                        ->where('periodo.activo', 1)
+                        ->where('alumno.matricula', $matricula)
+                        ->where('edocta.referencia', $concepto)
+                        ->get();
+
+                if (!$validacionLinea->isEmpty()) {
+                    $data = [
+                            'message' => 'Error, el archivo ya habia sido cargado de manera previa',
+                            'status' => 400
+                        ];
+                        return response()->json($data, 400);
+                 }
+           
+              
+                $fila = $datosAlumno->first(); // Devuelve el primer (y único) resultado o null
+              
+                if ($fila) {
+                    $dataParcialidad = DB::table('alumno')
+                        ->join('periodo', 'periodo.idNivel', '=', 'alumno.idNivel')
+                        ->leftJoin('edocta', function($join) use ($servicio) {
+                                                    $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
+                                                        ->on('edocta.uid', '=', 'alumno.uid')
+                                                        ->on('edocta.secuencia', '=', 'alumno.secuencia')
+                                                        ->where('edocta.idServicio', $servicio);
+                                                })
+                        ->select(
+                            'edocta.parcialidad'
+                        )
+                        ->where('periodo.activo', 1)
+                        ->where('edocta.tipomovto', 'A')
+                        ->where('alumno.matricula', $matricula)
+                        ->where('edocta.referencia', $concepto)
+                        ->get();
+
+                    $parcialidad =0;    
+                    if($dataParcialidad) {   
+                        $fParcialidad = $dataParcialidad->first(); 
+                        if(isset($fParcialidad->parcialidad))
+                            $parcialidad =$fParcialidad->parcialidad;
+                        else $parcialidad=1;
+                    }
+                    $fecha = \Carbon\Carbon::createFromFormat('d-m-Y', $dia)->format('Y-m-d'); 
+                    $maxConsecutivo = DB::table('alumno')
+                                    ->join('periodo', 'periodo.idNivel', '=', 'alumno.idNivel')
+                                    ->leftJoin('edocta', function($join) use ($servicio) {
+                                        $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
+                                            ->on('edocta.uid', '=', 'alumno.uid')
+                                            ->on('edocta.secuencia', '=', 'alumno.secuencia')
+                                            ->where('edocta.idServicio', $servicio);
+                                    })
+                                    ->where('periodo.activo', 1)
+                                    ->where('alumno.matricula', $matricula)
+                                    ->max('consecutivo');
+
+                if($fila->parcialidad > 0){
+                    if($abono>$fila->importe){
+                        DB::table('edocta')->insert([
+                                    'uid' => $fila->uid,
+                                    'secuencia' => $fila->secuencia,
+                                    'idServicio' => $servicio,
+                                    'consecutivo' => $maxConsecutivo+1,
+                                    'importe' => $fila->importe,
+                                    'idPeriodo' => $fila->idPeriodo,
+                                    'fechaMovto' => $fecha,
+                                    'tipomovto' => 'A',  
+                                    'parcialidad' => $parcialidad,
+                                    'referencia'=>$concepto,
+                                    'FechaPago'=> $fecha
+                                ]);
+
+                        DB::table('edocta')->insert([
+                                    'uid' => $fila->uid,
+                                    'secuencia' => $fila->secuencia,
+                                    'idServicio' => $servicio,
+                                    'consecutivo' => $maxConsecutivo + 2,
+                                    'importe' => $abono-$fila->importe,
+                                    'idPeriodo' => $fila->idPeriodo,
+                                    'fechaMovto' => $fecha,
+                                    'tipomovto' => 'A',  
+                                    'parcialidad' => ($parcialidad + 1),
+                                    'referencia'=>$concepto,
+                                    'FechaPago'=> $fecha
+                                ]);  
+                                }   
+                        else
+                             DB::table('edocta')->insert([
+                                    'uid' => $fila->uid,
+                                    'secuencia' => $fila->secuencia,
+                                    'idServicio' => $servicio,
+                                    'consecutivo' => $maxConsecutivo+1,
+                                    'importe' => $abono,
+                                    'idPeriodo' => $fila->idPeriodo,
+                                    'fechaMovto' => $fecha,
+                                    'tipomovto' => 'A',  
+                                    'parcialidad' => $parcialidad,
+                                    'referencia'=>$concepto,
+                                    'FechaPago'=> $fecha
+                                ]);
+                }    
+            } 
+           }
+            // 👉 Todas se ejecutan en la misma sesión hasta aquí
+            DB::commit(); // 🔒 Confirma todos los cambios
+            $data = [ 'message' => 'Registros guardados',
+                       'status' => 400];
+            return response()->json($data, 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()]);
+        }
+    }
+
+ }
+

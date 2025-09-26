@@ -94,6 +94,9 @@ class ReciboController extends Controller
    
     $html .= '<br><br><br>
     <table border="0" cellpadding="1" style="font-family: Arial; font-size: 10pt;line-height: 1.5;">
+     <tr>
+            <td style="width: 20cm; font-size: 9pt;">Puebla, Pue. a ' . $fecha . '</td>
+        </tr>   
         <tr>
             <td style="width: 20cm; font-size: 10pt;"><b>Recibo de:</b> ' . $datosRecibos->nombre . '</td>
         </tr>
@@ -105,10 +108,7 @@ class ReciboController extends Controller
         </tr>
         <tr>
             <td style="width: 20cm; font-size: 9pt;"><b>Carrera: </b>' . $datosRecibos->nombreCarrera . '</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;">Puebla, Pue. a ' . $fecha . '</td>
-        </tr>
+        </tr>       
     </table>';
     if ($qrBase64) {
         $html .= '<br><br><br><div style="text-align:left;"><img src="data:image/png;base64,' . $qrBase64 . '" style="width: 75px;" /></div>';

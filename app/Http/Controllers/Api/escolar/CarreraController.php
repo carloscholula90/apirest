@@ -15,8 +15,26 @@ class CarreraController extends Controller
 {
     public function index()
     {
-        $carreras = Carrera::all();
-        return $this->returnData('carreras',$carreras,200);        
+        $response = ['carreras' => $this->obtenerDatosR()];
+        return response()->json($response);     
+    }
+
+    public function obtenerDatosR(){
+        return DB::table('carrera as c')
+                        ->select(
+                                'niv.idNivel',
+                                'c.idCarrera',
+                                'c.descripcion',
+                                'c.diaInicioCargo',
+                                'c.diaInicioRecargo',
+                                'c.activo')
+                            ->join('nivel as niv', 'niv.idNivel', '=', 'c.idNivel')
+                            ->join('plan', function ($join) {
+                                        $join->on('plan.idCarrera', '=', 'c.idCarrera')
+                                             ->on('plan.idNivel', '=', 'c.idNivel');
+                                    })
+                                    ->orderBy('c.descripcion', 'asc')
+                                    ->get();
     }
 
     public function store(Request $request)
@@ -109,6 +127,10 @@ class CarreraController extends Controller
                                     'c.diaInicioRecargo',
                                     DB::raw('CASE WHEN c.activo = 1 THEN "S" ELSE "N" END as activo'))
                                             ->join('nivel as niv', 'niv.idNivel', '=', 'c.idNivel')
+                                            ->join('plan', function ($join) {
+                                            $join->on('plan.idCarrera', '=', 'c.idCarrera')
+                                                 ->on('plan.idNivel', '=', 'c.idNivel');
+                                                })
                                             ->orderBy('c.descripcion', 'asc')
                                             ->get();
     }    
