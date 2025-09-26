@@ -219,7 +219,7 @@ class EstadoCuentaController extends Controller
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        $fecha = Carbon::now()->locale('es')->translatedFormat('y-m-d');
+        $fecha = Carbon::now('America/Mexico_City')->locale('es')->translatedFormat('Y-m-d');
         $maxId = EstadoCuenta::max('folio');  
         $newId = $maxId ? $maxId + 1 : 1; 
        
