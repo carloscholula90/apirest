@@ -219,6 +219,7 @@ class AspiranteController extends Controller{
                             foreach ($request->medios as $medio) {  
                                    
                                 DetMedio::create([ 'uid' => $newId,
+                                                   'idRol'=>3, 
                                                    'idMedio' => $medio,
                                                    'secuencia' => $secuencialPers                                                
                                             ]);                          

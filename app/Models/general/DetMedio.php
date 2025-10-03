@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 
     use HasFactory;
     
+    
     protected $table = 'detMedio';
     protected $primaryKey = ['uid', 'consecutivo'];
     public $incrementing = false;
     protected $keyType = 'string';
-    protected $fillable = ['idMedio', 'secuencia', 'uid'];
+    protected $fillable = ['idMedio', 'idRol','fechaAlta','fechaModificacion','secuencia', 'uid'];
     public $timestamps = false;
 
     public static function findById($uid, $consecutivo){

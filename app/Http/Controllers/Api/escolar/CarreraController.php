@@ -28,6 +28,7 @@ class CarreraController extends Controller
                                 'c.diaInicioCargo',
                                 'c.diaInicioRecargo',
                                 'c.activo')
+                             ->distinct() 
                             ->join('nivel as niv', 'niv.idNivel', '=', 'c.idNivel')
                             ->join('plan', function ($join) {
                                         $join->on('plan.idCarrera', '=', 'c.idCarrera')

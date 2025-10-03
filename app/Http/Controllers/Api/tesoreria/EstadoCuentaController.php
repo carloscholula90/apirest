@@ -33,7 +33,18 @@ class EstadoCuentaController extends Controller
     }
 
     public function obtenerEstadoCuenta($uid,$idPeriodo,$matricula,$qr=null){
-         $query =DB::table('edocta as edo')
+
+        DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
+        $saldoResult = DB::select("SELECT @vencido AS vencido, @total AS total");
+        $saldo = $saldoResult[0]; 
+        $vencido = 0;
+        $total = 0;
+
+        if(isset($saldo)){
+            $vencido = $saldo->vencido;
+            $total = $saldo->total;
+        }
+        $query =DB::table('edocta as edo')
                     ->select([
                             'al.uid',
                             'al.idNivel',
@@ -44,14 +55,32 @@ class EstadoCuentaController extends Controller
                             'persona.nombre',
                             'persona.primerapellido as apellidopat',
                             'persona.segundoapellido as apellidomat',  
-                            's.descripcion as servicio',
+                            DB::raw($saldo->vencido . ' AS vencido'),
+                            DB::raw($saldo->total . ' AS total'),  
+                            DB::raw("CONCAT( s.descripcion, ' ',
+                                            CASE MONTH(edo.fechaPago)
+                                                    WHEN 1 THEN 'ENERO'
+                                                    WHEN 2 THEN 'FEBRERO'
+                                                    WHEN 3 THEN 'MARZO'
+                                                    WHEN 4 THEN 'ABRIL'
+                                                    WHEN 5 THEN 'MAYO'
+                                                    WHEN 6 THEN 'JUNIO'
+                                                    WHEN 7 THEN 'JULIO'
+                                                    WHEN 8 THEN 'AGOSTO'
+                                                    WHEN 9 THEN 'SEPTIEMBRE'
+                                                    WHEN 10 THEN 'OCTUBRE'
+                                                    WHEN 11 THEN 'NOVIEMBRE'
+                                                    WHEN 12 THEN 'DICIEMBRE'
+                                            END) as servicio"),
                             'edo.referencia',
                             'fp.descripcion as formaPago',
                             'edo.fechaPago',
                             'edo.consecutivo',
                             'edo.idServicio',
-                             DB::raw("CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE null END as cargo"),
-                             DB::raw("CASE WHEN edo.tipomovto != 'C' THEN edo.importe ELSE null END as abono")
+                            'inscripcion.idServicioInscripcion',
+                            'colegiatura.idServicioColegiatura',
+                            DB::raw("CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE null END as cargo"),
+                            DB::raw("CASE WHEN edo.tipomovto != 'C' THEN edo.importe ELSE null END as abono")
                             ])
                     ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
                     ->leftJoin('formaPago as fp', 'fp.idFormaPago', '=', 'edo.idformaPago')
@@ -60,9 +89,22 @@ class EstadoCuentaController extends Controller
                                                     ->on('al.secuencia', '=', 'edo.secuencia');   
                     })  
                     ->join('nivel', 'nivel.idNivel', '=', 'al.idNivel')
+                    ->leftJoin('configuracionTesoreria AS inscripcion', function($join) {
+                        $join->on('inscripcion.idNivel', '=', 'al.idNivel')
+                            ->on(function($query) {
+                                $query->on('inscripcion.idServicioInscripcion', '=', 's.idServicio');
+                            });
+                    })
+                    ->leftJoin('configuracionTesoreria AS colegiatura', function($join) {
+                        $join->on('colegiatura.idNivel', '=', 'al.idNivel')
+                            ->on(function($query) {
+                                $query->on('colegiatura.idServicioColegiatura', '=', 's.idServicio');
+                            });
+                    })
                     ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
                     ->join('persona', 'persona.uid', '=', 'al.uid')                  
                     ->where('edo.uid', $uid);
+                    
 
         if (!is_null($qr)) 
                 $query->where('edo.comprobante', 'like', '%' . $qr . '%');
@@ -70,8 +112,15 @@ class EstadoCuentaController extends Controller
             $query->where('edo.idPeriodo', $idPeriodo)
                    ->where('al.matricula', $matricula);
             }
-         $edocuenta = $query->distinct()->get();
-        return $edocuenta;
+
+         $edocuenta = $query->orderByDesc('inscripcion.idServicioInscripcion')      
+                            ->orderByDesc('colegiatura.idServicioColegiatura')      
+                            ->orderBy('edo.idServicio')                       
+                            ->orderBy('edo.fechaPago')  
+                            ->distinct()->get();
+
+            // Si necesitas incluir los saldos dentro del return:
+            return $edocuenta; 
     }
 
     public function generaReporte($uid,$idPeriodo,$matricula){
@@ -149,24 +198,7 @@ class EstadoCuentaController extends Controller
                      $total =   $total - isset($row[$key]) ? $row[$key] : 0;   
 
                 Log::info('importe:'.$key.' '.$row[$key]); 
-
-              if ($key === 'fechaPago' && !empty($row[$key])) {
-    try {
-        $fecha = Carbon::parse($row[$key])->startOfDay();
-        $hoy = Carbon::today();
-
-        Log::info('validar fechas: ' . $fecha->toDateString() . ' > ' . $hoy->toDateString() . ' ? ' . ($fecha->greaterThan($hoy) ? 'sí' : 'no'));
-
-        if ($hoy->greaterThan($fecha
-        )) {
-            $totalVencido += $row['cargo'];
-        }
-    } catch (\Exception $e) {
-        Log::warning('fechaPago inválida: ' . $row[$key]);
-    }
-}
-
-                            $value = isset($row[$key]) ? $row[$key] : '';     
+                $value = isset($row[$key]) ? $row[$key] : '';     
                 $html2 .= '<td width="' . $columnWidths[$index] . '">' . ($value !== null ? htmlspecialchars((string)$value) : '') . '</td>';
             }
                 $html2 .= '</tr>';
@@ -175,8 +207,8 @@ class EstadoCuentaController extends Controller
         $html2 .= '<tr><td colspan="7"></td></tr>';   
         $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
         $html2 .= '<tr><td colspan="7"></td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL:</b>$ '.number_format($totalVencido, 2, '.', ',') .'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL VENCIDO:$ </b>'.number_format($total, 2, '.', ',') .'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL:</b>$ '.number_format($generalesRow['total'], 2, '.', ',') .'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL VENCIDO:$ </b>'.number_format($generalesRow['vencido'], 2, '.', ',') .'</td></tr>';
      
         $html2 .= '</table>';
 
