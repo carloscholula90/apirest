@@ -31,7 +31,7 @@ class ReciboController extends Controller
             'edo.folio',
             'edo.comprobante',
             DB::raw("GROUP_CONCAT(DISTINCT CONCAT( s.descripcion, ' ',
-                                            CASE MONTH(edo.referencia)
+                                            CASE edo.referencia
                                                     WHEN '00000001' THEN 'ENERO'
                                                     WHEN '00000002' THEN 'FEBRERO'
                                                     WHEN '00000003' THEN 'MARZO'

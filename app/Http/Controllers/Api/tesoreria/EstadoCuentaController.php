@@ -58,7 +58,7 @@ class EstadoCuentaController extends Controller
                             DB::raw($saldo->vencido . ' AS vencido'),
                             DB::raw($saldo->total . ' AS total'),  
                             DB::raw("CONCAT( s.descripcion, ' ',
-                                            CASE MONTH(edo.referencia)
+                                            CASE edo.referencia
                                                     WHEN '00000001' THEN 'ENERO'
                                                     WHEN '00000002' THEN 'FEBRERO'
                                                     WHEN '00000003' THEN 'MARZO'
