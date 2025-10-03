@@ -25,10 +25,10 @@ class EstadoCuentaController extends Controller
 
     public function obtenerFolios($uid){
             $resultados = DB::table('edocta')
-                        ->select(DB::raw('SUM(importe) as importe'), 'folio')
-                        ->where('uid', $uid)
-                        ->groupBy('folio')
-                        ->get();
+                    ->select(DB::raw('SUM(importe) as importe'), 'folio','fechaMovto')                        
+                    ->where('uid', $uid)
+                    ->groupBy('folio','fechaMovto')
+                    ->get();
      return $this->returnData('folios',$resultados,200);
     }
 
@@ -275,15 +275,34 @@ class EstadoCuentaController extends Controller
                                 })
                                 ->leftJoin('edocta as cta', function($join) use ($request) {
                                     $join->on('ct.idServicioColegiatura', '=', 'cta.idServicio')
-                                         ->where('cta.uid', $request->uid)
-                                         ->where('cta.idPeriodo', $request->idPeriodo);
-                                })
+                                        ->where('cta.uid', $request->uid)
+                                        ->where('cta.idPeriodo', $request->idPeriodo)
+                                        ->where('cta.tipomovto', 'A'); // 👈 aquí
+                                })     
                                 ->groupBy('ct.idServicioColegiatura')
                                 ->first();
                     $parcialidad = $result->parcialidad + 1;
                     $servicio = $result->servicio;
 
-                    if($servicio==$movimiento['idServicio'])
+                    if($servicio==$movimiento['idServicio']){
+                        $mesParcialidad = DB::table('configuracionTesoreria as ct')
+                                ->select([
+                                    DB::raw("CONCAT('000000', LPAD(MONTH(fechaPago), 2, '0')) as mes")
+                                ])
+                                ->join('alumno as al', function($join) use ($request) {
+                                    $join->on('al.uid', '=', DB::raw($request->uid))
+                                         ->whereColumn('ct.idNivel', 'al.idNivel');
+                                })
+                                ->leftJoin('edocta as cta', function($join) use ($request) {
+                                    $join->on('ct.idServicioColegiatura', '=', 'cta.idServicio')
+                                                ->where('cta.uid', $request->uid)
+                                                ->where('cta.idPeriodo', $request->idPeriodo)
+                                                ->where('cta.tipomovto', 'C')
+                                                ->where('cta.parcialidad', '1');
+                                })     
+                                ->first();
+                        $mes = $mesParcialidad->mes;
+                  
                         $edoCta = EstadoCuenta::create([
                                             'uid'=> $request->uid,
                                             'secuencia'=> $request->secuencia,
@@ -297,9 +316,11 @@ class EstadoCuentaController extends Controller
                                             'tipomovto'=> $movimiento['tipomovto'],
                                             'FechaPago'=> $fecha,
                                             'folio'=> $newId,
+                                            'referencia'=>$mes,
                                             'parcialidad'=> $parcialidad,
                                             'uidcajero'=> $request->uidcajero
-            ]);
+                    ]);
+            }
             else {
                 if($movimiento['cargoAut']==1)
                     $edoCta = EstadoCuenta::create([

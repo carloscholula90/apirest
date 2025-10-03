@@ -30,7 +30,21 @@ class ReciboController extends Controller
             'edo.uid',
             'edo.folio',
             'edo.comprobante',
-            DB::raw('GROUP_CONCAT(DISTINCT s.descripcion ORDER BY s.descripcion SEPARATOR ", ") as servicios'),
+            DB::raw("GROUP_CONCAT(DISTINCT CONCAT( s.descripcion, ' ',
+                                            CASE MONTH(edo.referencia)
+                                                    WHEN '00000001' THEN 'ENERO'
+                                                    WHEN '00000002' THEN 'FEBRERO'
+                                                    WHEN '00000003' THEN 'MARZO'
+                                                    WHEN '00000004' THEN 'ABRIL'
+                                                    WHEN '00000005' THEN 'MAYO'
+                                                    WHEN '00000006' THEN 'JUNIO'
+                                                    WHEN '00000007' THEN 'JULIO'
+                                                    WHEN '00000008' THEN 'AGOSTO'
+                                                    WHEN '00000009' THEN 'SEPTIEMBRE'
+                                                    WHEN '00000010' THEN 'OCTUBRE'
+                                                    WHEN '00000011' THEN 'NOVIEMBRE'
+                                                    WHEN '00000012' THEN 'DICIEMBRE'
+                                            END) ORDER BY s.descripcion SEPARATOR ", ") as servicios"),
             DB::raw('SUM(importe) as total'),
             DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre')
         ])
