@@ -58,21 +58,20 @@ class EstadoCuentaController extends Controller
                             DB::raw($saldo->vencido . ' AS vencido'),
                             DB::raw($saldo->total . ' AS total'),  
                             DB::raw("CONCAT( s.descripcion, ' ',
-                                            CASE MONTH(edo.fechaPago)
-                                                    WHEN 1 THEN 'ENERO'
-                                                    WHEN 2 THEN 'FEBRERO'
-                                                    WHEN 3 THEN 'MARZO'
-                                                    WHEN 4 THEN 'ABRIL'
-                                                    WHEN 5 THEN 'MAYO'
-                                                    WHEN 6 THEN 'JUNIO'
-                                                    WHEN 7 THEN 'JULIO'
-                                                    WHEN 8 THEN 'AGOSTO'
-                                                    WHEN 9 THEN 'SEPTIEMBRE'
-                                                    WHEN 10 THEN 'OCTUBRE'
-                                                    WHEN 11 THEN 'NOVIEMBRE'
-                                                    WHEN 12 THEN 'DICIEMBRE'
-                                            END) as servicio"),
-                            'edo.referencia',
+                                            CASE MONTH(edo.referencia)
+                                                    WHEN '00000001' THEN 'ENERO'
+                                                    WHEN '00000002' THEN 'FEBRERO'
+                                                    WHEN '00000003' THEN 'MARZO'
+                                                    WHEN '00000004' THEN 'ABRIL'
+                                                    WHEN '00000005' THEN 'MAYO'
+                                                    WHEN '00000006' THEN 'JUNIO'
+                                                    WHEN '00000007' THEN 'JULIO'
+                                                    WHEN '00000008' THEN 'AGOSTO'
+                                                    WHEN '00000009' THEN 'SEPTIEMBRE'
+                                                    WHEN '00000010' THEN 'OCTUBRE'
+                                                    WHEN '00000011' THEN 'NOVIEMBRE'
+                                                    WHEN '00000012' THEN 'DICIEMBRE'
+                                                     END) ORDER BY s.descripcion SEPARATOR ", ") as servicios"),
                             'fp.descripcion as formaPago',
                             'edo.fechaPago',
                             'edo.consecutivo',
