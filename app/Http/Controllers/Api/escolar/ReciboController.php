@@ -31,27 +31,44 @@ class ReciboController extends Controller
             'edo.folio',
             'edo.comprobante',
             DB::raw("GROUP_CONCAT(DISTINCT CONCAT( s.descripcion, ' ',
+                                            CASE WHEN colegiatura.idServicioColegiatura = s.idServicio THEN                            
                                             CASE edo.referencia
-                                                    WHEN '00000001' THEN 'ENERO'
-                                                    WHEN '00000002' THEN 'FEBRERO'
-                                                    WHEN '00000003' THEN 'MARZO'
-                                                    WHEN '00000004' THEN 'ABRIL'
-                                                    WHEN '00000005' THEN 'MAYO'
-                                                    WHEN '00000006' THEN 'JUNIO'
-                                                    WHEN '00000007' THEN 'JULIO'
-                                                    WHEN '00000008' THEN 'AGOSTO'
-                                                    WHEN '00000009' THEN 'SEPTIEMBRE'
-                                                    WHEN '00000010' THEN 'OCTUBRE'
-                                                    WHEN '00000011' THEN 'NOVIEMBRE'
-                                                    WHEN '00000012' THEN 'DICIEMBRE'
-                                            END) ORDER BY s.descripcion SEPARATOR ", ") as servicios"),
+                                                    WHEN '10000001' THEN 'ENERO'
+                                                    WHEN '10000002' THEN 'FEBRERO'
+                                                    WHEN '10000003' THEN 'MARZO'
+                                                    WHEN '10000004' THEN 'ABRIL'
+                                                    WHEN '10000005' THEN 'MAYO'
+                                                    WHEN '10000006' THEN 'JUNIO'
+                                                    WHEN '10000007' THEN 'JULIO'
+                                                    WHEN '10000008' THEN 'AGOSTO'
+                                                    WHEN '10000009' THEN 'SEPTIEMBRE'
+                                                    WHEN '10000010' THEN 'OCTUBRE'
+                                                    WHEN '10000011' THEN 'NOVIEMBRE'
+                                                    WHEN '10000012' THEN 'DICIEMBRE'
+                                                    ELSE ''
+                                                    END
+                                else ''
+                                end ) ORDER BY s.descripcion SEPARATOR ',') as servicios"),
             DB::raw('SUM(importe) as total'),
             DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre')
         ])
         ->join('alumno as al', 'al.uid', '=', 'edo.uid')
+        ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
+        
         ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
         ->join('persona', 'persona.uid', '=', 'al.uid')
-        ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
+        ->leftJoin('configuracionTesoreria AS inscripcion', function($join) {
+                        $join->on('inscripcion.idNivel', '=', 'al.idNivel')
+                            ->on(function($query) {
+                                $query->on('inscripcion.idServicioInscripcion', '=', 's.idServicio');
+                            });
+                    })
+                    ->leftJoin('configuracionTesoreria AS colegiatura', function($join) {
+                        $join->on('colegiatura.idNivel', '=', 'al.idNivel')
+                            ->on(function($query) {
+                                $query->on('colegiatura.idServicioColegiatura', '=', 's.idServicio');
+                            });
+                    })
         ->where('edo.uid', $uid)
         ->where('edo.folio', $folio)
         ->where('edo.tipomovto','A')

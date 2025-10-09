@@ -45,11 +45,12 @@ class EstadoCuentaController extends Controller
             $total = $saldo->total;
         }
         $query =DB::table('edocta as edo')
-                    ->select([
+                    ->select([ 'edo.parcialidad',
                             'al.uid',
                             'al.idNivel',
                             'al.idCarrera',
                             'al.matricula',
+                            'edo.tipomovto',
                             'nivel.descripcion as nivel',
                             'carrera.descripcion as nombreCarrera',                          
                             'persona.nombre',
@@ -58,23 +59,46 @@ class EstadoCuentaController extends Controller
                             DB::raw($saldo->vencido . ' AS vencido'),
                             DB::raw($saldo->total . ' AS total'),  
                             DB::raw("CONCAT( s.descripcion, ' ',
-                                            CASE edo.referencia
-                                                    WHEN '00000001' THEN 'ENERO'
-                                                    WHEN '00000002' THEN 'FEBRERO'
-                                                    WHEN '00000003' THEN 'MARZO'
-                                                    WHEN '00000004' THEN 'ABRIL'
-                                                    WHEN '00000005' THEN 'MAYO'
-                                                    WHEN '00000006' THEN 'JUNIO'
-                                                    WHEN '00000007' THEN 'JULIO'
-                                                    WHEN '00000008' THEN 'AGOSTO'
-                                                    WHEN '00000009' THEN 'SEPTIEMBRE'
-                                                    WHEN '00000010' THEN 'OCTUBRE'
-                                                    WHEN '00000011' THEN 'NOVIEMBRE'
-                                                    WHEN '00000012' THEN 'DICIEMBRE'
-                                                     END) ORDER BY s.descripcion SEPARATOR ", ") as servicios"),
+                            CASE WHEN colegiatura.idServicioColegiatura = s.idServicio THEN
+                            CASE WHEN edo.tipomovto = 'A' THEN
+                                CASE edo.referencia
+                                                    WHEN '10000001' THEN 'ENERO'
+                                                    WHEN '10000002' THEN 'FEBRERO'
+                                                    WHEN '10000003' THEN 'MARZO'
+                                                    WHEN '10000004' THEN 'ABRIL'
+                                                    WHEN '10000005' THEN 'MAYO'
+                                                    WHEN '10000006' THEN 'JUNIO'
+                                                    WHEN '10000007' THEN 'JULIO'
+                                                    WHEN '10000008' THEN 'AGOSTO'
+                                                    WHEN '10000009' THEN 'SEPTIEMBRE'
+                                                    WHEN '10000010' THEN 'OCTUBRE'
+                                                    WHEN '10000011' THEN 'NOVIEMBRE'
+                                                    WHEN '10000012' THEN 'DICIEMBRE'
+                                                    ELSE ''
+                                                    END
+                                ELSE
+                                CASE MONTH(edo.FechaPago)
+                                                    WHEN 1 THEN 'ENERO'
+                                                    WHEN 2 THEN 'FEBRERO'
+                                                    WHEN 3 THEN 'MARZO'
+                                                    WHEN 4 THEN 'ABRIL'
+                                                    WHEN 5 THEN 'MAYO'
+                                                    WHEN 6 THEN 'JUNIO'
+                                                    WHEN 7 THEN 'JULIO'
+                                                    WHEN 8 THEN 'AGOSTO'
+                                                    WHEN 9 THEN 'SEPTIEMBRE'
+                                                    WHEN 10 THEN 'OCTUBRE'
+                                                    WHEN 11 THEN 'NOVIEMBRE'
+                                                    WHEN 12 THEN 'DICIEMBRE'
+                                                    ELSE ''
+                                                    END
+                                end
+                                ELSE ''
+                                END
+                                                    ) as servicio"),
                             'fp.descripcion as formaPago',
                             'edo.fechaPago',
-                            'edo.consecutivo',
+                            'edo.consecutivo',  
                             'edo.idServicio',
                             'inscripcion.idServicioInscripcion',
                             'colegiatura.idServicioColegiatura',
@@ -114,8 +138,9 @@ class EstadoCuentaController extends Controller
 
          $edocuenta = $query->orderByDesc('inscripcion.idServicioInscripcion')      
                             ->orderByDesc('colegiatura.idServicioColegiatura')      
-                            ->orderBy('edo.idServicio')                       
-                            ->orderBy('edo.fechaPago')  
+                            ->orderBy('edo.idServicio')   
+                            ->orderBy('edo.parcialidad')
+                            ->orderByDesc('edo.tipomovto')    
                             ->distinct()->get();
 
             // Si necesitas incluir los saldos dentro del return:
@@ -286,18 +311,18 @@ class EstadoCuentaController extends Controller
                     if($servicio==$movimiento['idServicio']){
                         $mesParcialidad = DB::table('configuracionTesoreria as ct')
                                 ->select([
-                                    DB::raw("CONCAT('000000', LPAD(MONTH(fechaPago), 2, '0')) as mes")
+                                    DB::raw("CONCAT('100000', LPAD(MONTH(fechaPago), 2, '0')) as mes")
                                 ])
                                 ->join('alumno as al', function($join) use ($request) {
                                     $join->on('al.uid', '=', DB::raw($request->uid))
                                          ->whereColumn('ct.idNivel', 'al.idNivel');
                                 })
-                                ->leftJoin('edocta as cta', function($join) use ($request) {
+                                ->leftJoin('edocta as cta', function($join) use ($request,$parcialidad) {
                                     $join->on('ct.idServicioColegiatura', '=', 'cta.idServicio')
                                                 ->where('cta.uid', $request->uid)
                                                 ->where('cta.idPeriodo', $request->idPeriodo)
                                                 ->where('cta.tipomovto', 'C')
-                                                ->where('cta.parcialidad', '1');
+                                                ->where('cta.parcialidad', $parcialidad);
                                 })     
                                 ->first();
                         $mes = $mesParcialidad->mes;
