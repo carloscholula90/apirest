@@ -192,4 +192,109 @@ class ReciboController extends Controller
         ]);
     }
 }
+
+ public function obtenerRecibos($sistema,$grupo, $idAlumno = null){
+   
+    $selects = ['edo.parcialidad',
+                'al.uid',
+                'edo.referencia',
+                'al.idNivel',
+                'al.idCarrera',
+                'al.matricula',
+                'edo.tipomovto',
+                'nivel.descripcion as nivel',
+                'carrera.descripcion as nombreCarrera',
+                'persona.nombre',
+                'persona.primerapellido as apellidopat',
+                'persona.segundoapellido as apellidomat',
+                DB::raw("CASE WHEN colegiatura.idServicioColegiatura = s.idServicio THEN
+                    CASE WHEN edo.tipomovto = 'A' THEN
+                        CASE edo.referencia
+                            WHEN '10000001' THEN 'ENERO'
+                            WHEN '10000002' THEN 'FEBRERO'
+                            WHEN '10000003' THEN 'MARZO'
+                            WHEN '10000004' THEN 'ABRIL'
+                            WHEN '10000005' THEN 'MAYO'
+                            WHEN '10000006' THEN 'JUNIO'
+                            WHEN '10000007' THEN 'JULIO'
+                            WHEN '10000008' THEN 'AGOSTO'
+                            WHEN '10000009' THEN 'SEPTIEMBRE'
+                            WHEN '10000010' THEN 'OCTUBRE'
+                            WHEN '10000011' THEN 'NOVIEMBRE'
+                            WHEN '10000012' THEN 'DICIEMBRE'
+                            ELSE ''
+                        END
+                    ELSE
+                        CASE MONTH(edo.FechaPago)
+                            WHEN 1 THEN 'ENERO'
+                            WHEN 2 THEN 'FEBRERO'
+                            WHEN 3 THEN 'MARZO'
+                            WHEN 4 THEN 'ABRIL'
+                            WHEN 5 THEN 'MAYO'
+                            WHEN 6 THEN 'JUNIO'
+                            WHEN 7 THEN 'JULIO'
+                            WHEN 8 THEN 'AGOSTO'
+                            WHEN 9 THEN 'SEPTIEMBRE'
+                            WHEN 10 THEN 'OCTUBRE'
+                            WHEN 11 THEN 'NOVIEMBRE'
+                            WHEN 12 THEN 'DICIEMBRE'
+                            ELSE ''
+                        END
+                    END
+                ELSE ''
+                END AS servicio"),
+                'fp.descripcion as formaPago',
+                'edo.fechaPago',
+                'edo.consecutivo',
+                'edo.idServicio',
+                'inscripcion.idServicioInscripcion',
+                'colegiatura.idServicioColegiatura',
+                DB::raw("CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE null END as cargo"),
+                DB::raw("CASE WHEN edo.tipomovto != 'C' THEN edo.importe ELSE null END as abono"),
+            ];
+
+           
+
+            // Construcción del query completo
+            $query = DB::table('edocta as edo')
+                ->select($selects)
+                ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
+                ->leftJoin('formaPago as fp', 'fp.idFormaPago', '=', 'edo.idformaPago')
+                ->join('alumno as al', function ($join) {
+                    $join->on('al.uid', '=', 'edo.uid')
+                        ->on('al.secuencia', '=', 'edo.secuencia');
+                })
+                ->join('nivel', 'nivel.idNivel', '=', 'al.idNivel')
+                ->leftJoin('configuracionTesoreria as inscripcion', function ($join) {
+                    $join->on('inscripcion.idNivel', '=', 'al.idNivel')
+                        ->on('inscripcion.idServicioInscripcion', '=', 's.idServicio');
+                })
+                ->leftJoin('configuracionTesoreria as colegiatura', function ($join) {
+                    $join->on('colegiatura.idNivel', '=', 'al.idNivel')
+                        ->on('colegiatura.idServicioColegiatura', '=', 's.idServicio');
+                })
+                ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
+                ->join('persona', 'persona.uid', '=', 'al.uid')
+                ->where('edo.uid', $uid);
+
+            // Condiciones adicionales
+            if (!is_null($qr)) {
+                $query->where('edo.comprobante', 'like', '%' . $qr . '%');
+            } else {
+                $query->where('edo.idPeriodo', $idPeriodo)
+                    ->where('al.matricula', $matricula);
+            }
+
+            // Ordenar y obtener resultados
+            $edocuenta = $query->orderByDesc('inscripcion.idServicioInscripcion')
+                            ->orderByDesc('colegiatura.idServicioColegiatura')
+                            ->orderBy('edo.idServicio')
+                            ->orderBy('edo.parcialidad')
+                            ->orderByDesc('edo.tipomovto')
+                            ->distinct()
+                            ->get();
+
+            return $edocuenta;
+    }
+
 }
