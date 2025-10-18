@@ -9,9 +9,15 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF; 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;  
+use Illuminate\Support\Facades\Auth; 
+
 
 class EstadoCuentaController extends Controller
 {
+
+    
+
+
     public function index($uid,$idPeriodo,$matricula)
     {
         $resultados = $this->obtenerEstadoCuenta($uid,$idPeriodo,$matricula);
@@ -250,7 +256,7 @@ class EstadoCuentaController extends Controller
                 else if($key=='abono')  
                      $total =   $total - isset($row[$key]) ? $row[$key] : 0;   
 
-                Log::info('importe:'.$key.' '.$row[$key]); 
+                
                 $value = isset($row[$key]) ? $row[$key] : '';     
                 $html2 .= '<td width="' . $columnWidths[$index] . '">' . ($value !== null ? htmlspecialchars((string)$value) : '') . '</td>';
             }
@@ -300,6 +306,8 @@ class EstadoCuentaController extends Controller
                                         'uidcajero' => 'required|max:255',
                                         'movimientos' => 'required|array'              
         ]);
+        $userId = Auth::id(); 
+Log::info('Usuario logueado', ['user_id' => auth()->id()]);
 
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
@@ -397,10 +405,11 @@ class EstadoCuentaController extends Controller
                 $importeProrratear = $movimiento['importe'] - $importe;
             }//if($importe >= $movimiento['importe'])
             }// if($idServicioInscripcion==$movimiento['idServicio'])
-
+Log::info('importeProrratear1:'.$importeProrratear);
         if($idServicioColegiatura==$movimiento['idServicio']){
             $importeProrratear = $movimiento['importe'];
         }
+Log::info('importeProrratear2:'.$importeProrratear);
         
         if($importeProrratear > 0){ //Importe a prorratear en colegiatura
                     $resultados = DB::table('configuracionTesoreria as ct')
@@ -451,8 +460,10 @@ class EstadoCuentaController extends Controller
                                 's.idServicio',
                                 DB::raw('(cta.importe - IFNULL(ctaA.importe, 0)) AS monto'),
                                 DB::raw('cargos.idServicio AS idServicioCargo'),
+                                 DB::raw('ct.idServicioColegiatura'),
+                               
                                 DB::raw('IFNULL(cargos.importe, 0) AS cargos'),
-                                DB::raw("CONCAT('100000', LPAD(MONTH(fechaVencimiento), 2, '0')) as mes")
+                                DB::raw("CONCAT('100000', LPAD(MONTH(cta.fechaVencimiento), 2, '0')) as mes")
                             ])
                             ->get();
         
@@ -462,7 +473,7 @@ class EstadoCuentaController extends Controller
                                         ->where('idServicio',$registro->idServicioCargo)
                                         ->max('consecutivo');
                 $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
-  
+  Log::info('cargos:'.$registro->cargos);
                 if($registro->cargos>0){
                     $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
                     if($importeProrratear>$registro->cargos){ //Se cubren todos los cargos
@@ -486,6 +497,7 @@ class EstadoCuentaController extends Controller
                         $importeProrratear = $importeProrratear-$registro->cargos;
                 }
                 else {
+                      Log::info('cargos2:'.$registro->cargos);
                     $edoCta = EstadoCuenta::create([
                                                 'uid'=> $request->uid,
                                                 'secuencia'=> $request->secuencia,
@@ -512,15 +524,15 @@ class EstadoCuentaController extends Controller
     if($importeProrratear >0){
             $consecutivo = EstadoCuenta::where('uid', $request->uid)
                                         ->where('secuencia', $request->secuencia)
-                                        ->where('idServicio',$movimiento['idServicio'])
+                                        ->where('idServicio',$registro->idServicioColegiatura)
                                         ->max('consecutivo');
             $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
-
+Log::info('cargos2:'.$registro->cargos.' idServicioColegiatura '.$registro->idServicioColegiatura);
             if($importeProrratear - $registro->monto>0){
                      $edoCta = EstadoCuenta::create([
                                                 'uid'=> $request->uid,
                                                 'secuencia'=> $request->secuencia,
-                                                'idServicio'=> $registro->idServicioCargo,
+                                                'idServicio'=> $registro->idServicioColegiatura,
                                                 'consecutivo'=> $consecutivo,
                                                 'importe'=>$registro->monto,
                                                 'idPeriodo'=> $request->idPeriodo,
@@ -541,7 +553,7 @@ class EstadoCuentaController extends Controller
              $edoCta = EstadoCuenta::create([
                                                 'uid'=> $request->uid,
                                                 'secuencia'=> $request->secuencia,
-                                                'idServicio'=> $registro->idServicioCargo,
+                                                'idServicio'=> $registro->idServicioColegiatura,
                                                 'consecutivo'=> $consecutivo,
                                                 'importe'=>$importeProrratear,
                                                 'idPeriodo'=> $request->idPeriodo,
