@@ -6,6 +6,10 @@ use App\Models\escolar\Asignatura;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Api\serviciosGenerales\pdfController;
+use Illuminate\Support\Facades\DB;  
+use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
 
 class AsignaturaController extends Controller{
 
@@ -119,10 +123,66 @@ class AsignaturaController extends Controller{
      
     public function generaReporte()
     {
-       return $this->imprimeCtl('asignatura',' asignaturas ',null,null,'descripcion');
+       $data= DB::table('asignatura')
+                            ->select(
+                                    'idAsignatura',
+                                    'descripcion',
+                                    DB::raw("DATE_FORMAT(fechaAlta, '%d/%m/%Y') as fechaAlta"),
+                                    DB::raw("DATE_FORMAT(fechaModificacion, '%d/%m/%Y') as fechaModificacion")
+                                    )
+                            ->orderBy('descripcion', 'asc')
+                            ->get();
+
+        if(empty($data)){
+            return response()->json([
+                'status' => 500,
+                'message' => 'No hay datos para generar el reporte'
+            ]);
+        }
+
+         // Convertir los datos a un formato de arreglo asociativo
+         $dataArray = $data->map(function ($item) {
+            return (array) $item;
+        })->toArray();
+
+         // Generar el PDF
+         $pdfController = new pdfController();
+         
+         return $pdfController->generateReport($dataArray,  // Datos
+                                               [150,300,100,200], // Anchos de columna
+                                               ['idAsignatura','descripcion','fechaAlta','fechaModificacion'], // Claves
+                                               'CATÁLOGO DE ASIGNATURA', // Título del reporte
+                                               ['CVE ASIGNATURA','DESCRIPCIÓN','FECHA ALTA','FECHA MODIFICACIÓN'], 'L','letter',// Encabezados   ,
+                                               'rptAsignaturas.pdf'
+         );
     } 
 
     public function exportaExcel() {
-       return $this->exportaXLS('asignatura','idAsignatura',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
+         // Ruta del archivo a almacenar en el disco público
+        $path = storage_path('app/public/asignatura.xlsx');
+        $selectColumns = ['idAsignatura',
+                                    'descripcion',
+                                    DB::raw("DATE_FORMAT(fechaAlta, '%d/%m/%Y') as fechaAlta"),
+                                    DB::raw("DATE_FORMAT(fechaModificacion, '%d/%m/%Y') as fechaModificacion")  ];
+        $namesColumns = ['CVE ASIGNATURA','DESCRIPCIÓN','FECHA ALTA','FECHA MODIFICACIÓN']; // Seleccionar columnas específicas
+       
+
+        $export = new GenericTableExportEsp('asignatura', 'descripcion', [], ['descripcion'], ['asc'], $selectColumns,[],$namesColumns);
+
+        // Guardar el archivo en el disco público
+        Excel::store($export, 'asignatura.xlsx', 'public');
+       
+        // Verifica si el archivo existe usando Storage de Laravel
+        if (file_exists($path))  {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/asignatura.xlsx' // URL pública para descargar el archivo
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte '
+            ]);
+        }  
    }   
 }

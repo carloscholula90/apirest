@@ -132,6 +132,10 @@ Route::prefix('estatusfacturas')->group(function () {
     require base_path('routes/tesoreria/estatusfacturas.php');
 });
 
+Route::prefix('fichas')->group(function () {
+    require base_path('routes/escolar/fichas.php');
+});
+
 Route::prefix('formaspagos')->group(function () {
     require base_path('routes/tesoreria/formaspagos.php');
 });
