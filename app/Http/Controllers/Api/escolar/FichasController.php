@@ -39,7 +39,6 @@ class FichasController extends Controller
                     $join->on('colegiatura.idNivel', '=', 'al.idNivel')
                         ->on('colegiatura.idServicioColegiatura', '=', 's.idServicio');
                 })
-                ->where('parcialidad',$parcialidad)
                 ->where('idPeriodo', $idPeriodo)
                 ->where('al.idCarrera',$idCarrera)
                 ->groupBy('edo.fechaPago')
@@ -160,39 +159,7 @@ class FichasController extends Controller
     $html .= '
     <br><br><br><br><br><br><br><br><br><br>';
    
-   
-    $html .= '<br><br><br>
-    <table border="0" cellpadding="1" style="font-family: Arial; font-size: 10pt;line-height: 1.5;">
-       <br>
-       <tr>
-            <td style="width: 20cm; font-size: 11pt;"><b>FECHA DE PAGO</b></td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>LINEA DE CAPTURA:</b>' . $datosRecibos->lineaPago . '</td>
-        </tr>
-       <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>FICHA DE IMPRESIÓN:</b> ' . $fecha . '</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>NOMBRE DEL ALUMNO:</b>'. $datosRecibos->nombre .'</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>CARRERA: </b>' . $datosRecibos->nombreCarrera . '</td>
-        </tr> 
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>VENCIMIENTO: </b>'.$fechaPago[0]->fechaPago.'</td>
-        </tr> 
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>IMPORTE:</b>$ ' . $totalFormateado . '</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>CONCEPTO:</b>' . $datosRecibos->servicios .' '.$fechaPago[0]->mes. '</td>
-        </tr>
-    </table>';
-
-    if ($qrBase64) {
-        $html .= '<br><div style="text-align:left;"><img src="data:image/png;base64,' . $qrBase64 . '" style="width: 75px;" /></div>';
-    } 
+  
 
     $pdf->writeHTML($html, true, false, true, false, '');
 
@@ -202,6 +169,8 @@ class FichasController extends Controller
     if (file_exists($filePath)) {
         return response()->json([
             'status' => 200,
+
+
             'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
         ]);
     } else {

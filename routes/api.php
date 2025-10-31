@@ -260,6 +260,10 @@ Route::prefix('serviciosperiodos')->group(function () {
     require base_path('routes/tesoreria/serviciosperiodos.php');
 });
 
+Route::prefix('servicioscobro')->group(function () {
+    require base_path('routes/tesoreria/servicioscobro.php');
+});
+
 Route::prefix('tipoasignatura')->group(function () {
     require base_path('routes/escolar/tipoasignatura.php');
 });
