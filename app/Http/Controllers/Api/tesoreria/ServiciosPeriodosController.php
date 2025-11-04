@@ -83,10 +83,7 @@ class ServiciosPeriodosController extends Controller
  public function store(Request $request) {
         
         $validator = Validator::make($request->all(), [
-                                    'descripcion' => 'required|max:255',
-                                    'efectivo' => 'required|numeric',
-                                    'tarjeta' => 'required|numeric',
-                                    'cargoAutomatico' => 'required|numeric',
+                                    'idServicio' => 'required|numeric',
                                     'idNivel' => 'required|numeric',
                                     'idPeriodo' => 'required|numeric',
                                     'monto' => 'required|numeric'
@@ -94,29 +91,8 @@ class ServiciosPeriodosController extends Controller
        
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
-        if(isset($request->idServicio)) {
-            //El servicio ya existe entonces solo actualiza
-            $idServicio =0;       
-            $idServicio = $request->idServicio;
-            $servicio = Servicio::find($request->idServicio);     
-            $servicio->efectivo = $request->efectivo;
-            $servicio->tarjeta = $request->tarjeta;
-            $servicio->cargoAutomatico = $request->cargoAutomatico;       
-            $servicio->save(); 
-        }
-        else{
-            $maxId = Servicio::max('idServicio');
-            $idServicio = $maxId ? $maxId + 1 : 1;
-            $servicio = Servicio::create([
-                                'idServicio' => $idServicio,
-                                'descripcion' => strtoupper(trim($request->descripcion)),
-                                'efectivo' => $request->efectivo,
-                                'tarjeta' => $request->tarjeta,
-                                'cargoAutomatico' => $request->cargoAutomatico
-                    ]);
-            }
-
-             $servicioC = ServiciosPeriodo::create([
+       
+        $servicioC = ServiciosPeriodo::create([
                                 'idNivel'=> $request->idNivel,
                                 'idPeriodo'=> $request->idPeriodo,
                                 'idServicio' => $request->idServicio,
