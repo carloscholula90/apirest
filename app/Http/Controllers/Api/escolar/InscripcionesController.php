@@ -13,172 +13,183 @@ use Illuminate\Support\Facades\Log;
 
 class InscripcionesController extends Controller
 {
-    public function index($idNivel){  
+    public function index($idNivel)
+{
+    // 1️⃣ Obtener todos los periodos con inscripciones activas para el nivel
+    $periodos = DB::table('periodo')
+        ->where('idNivel', $idNivel)
+        ->where('inscripciones', 1)
+        ->select('idPeriodo', 'descripcion')
+        ->get();
 
-       $idPeriodo = DB::table('periodo')
-                    ->where('idNivel', $idNivel)
-                    ->where('inscripciones', 1)
-                    ->value('idPeriodo');
-        
-       $descripcionP = DB::table('periodo')
-                    ->where('idNivel', $idNivel)
-                    ->where('inscripciones', 1)
-                    ->value('descripcion');
+    // 2️⃣ Inicializar colección vacía
+    $finalResult = collect();
 
-       $result = DB::table('alumno as a')
-                ->join('aspirante as asp', function ($join) {
-                    $join->on('asp.uid', '=', 'a.uid')
-                        ->on('asp.secuencia', '=', 'a.secuencia');
-                })
-                 ->join('turno', 'turno.idTurno', '=', 'asp.idTurno')
-               
-                ->join('carrera as car', function ($join) {
-                    $join->on('car.idNivel', '=', 'a.idNivel')
-                        ->on('car.idCarrera', '=', 'a.idCarrera');
-                })
-                ->join('nivel as nv', 'nv.idNivel', '=', 'a.idNivel')
-                ->join('persona as p', 'p.uid', '=', 'a.uid')
-                ->leftJoin('bloqueoPersonas as ba', function ($join) {
-                    $join->on('ba.uid', '=', 'a.uid')
-                        ->on('ba.secuencia', '=', 'a.secuencia')
-                        ->where('ba.idBloqueo', '=', 1)
-                        ->where('ba.BloqueoActivo', '=', 1);
-                })
-                ->leftJoin('bloqueos as b1', 'b1.idBloqueo', '=', 'ba.idBloqueo')
-                ->leftJoin('bloqueoPersonas as bac', function ($join) {
-                    $join->on('bac.uid', '=', 'a.uid')
-                        ->on('bac.secuencia', '=', 'a.secuencia')
-                        ->where('bac.idBloqueo', '=', 2)
-                        ->where('bac.BloqueoActivo', '=', 1);
-                })
-                ->leftJoin('bloqueos as b2', 'b2.idBloqueo', '=', 'bac.idBloqueo')
-                ->leftJoin('bloqueoPersonas as bc', function ($join) {
-                    $join->on('bc.uid', '=', 'a.uid')
-                        ->on('bc.secuencia', '=', 'a.secuencia')
-                        ->where('bc.idBloqueo', '=', 3)
-                        ->where('bc.BloqueoActivo', '=', 1);
-                })
-                ->leftJoin('bloqueos as b3', 'b3.idBloqueo', '=', 'bc.idBloqueo')
-                ->leftJoin('bloqueoPersonas as bd', function ($join) {
-                    $join->on('bd.uid', '=', 'a.uid')
-                        ->on('bd.secuencia', '=', 'a.secuencia')
-                        ->where('bd.idBloqueo', '=', 4)
-                        ->where('bd.BloqueoActivo', '=', 1);
-                })
-                ->leftJoin('bloqueos as b4', 'b4.idBloqueo', '=', 'bd.idBloqueo')
-                ->leftJoin('grupos as gp', function($join) use ($idPeriodo) {
-                            $join->on(DB::raw("gp.grupo"), '=', 
-                                DB::raw("CONCAT(LPAD(asp.idCarrera, 2, '0'),                                 
-                                turno.letra,1,'A'
-                            )"))  
-                            ->where('gp.idPeriodo', '=', $idPeriodo);
-                        })
-                ->where('asp.idNivel', $idNivel)                
-                ->where('a.idPeriodoIng',$idPeriodo)    
-                ->whereNotExists(function ($query) use ($idPeriodo) {
-                    $query->select(DB::raw(1))
-                        ->from('ciclos as c2')
-                        ->whereRaw('c2.uid = asp.uid')
-                        ->whereRaw('c2.secuencia = asp.secuencia')
-                        ->where('c2.idPeriodo', $idPeriodo);
-                })
-                ->select([
-                            'a.uid',
-                            'a.idPlan',
-                            'a.matricula',
-                            'p.nombre',
-                            'p.primerApellido',
-                            'p.segundoApellido', 
-                            'a.idNivel',
-                            'nv.descripcion as nivel',
-                            'a.idCarrera',                            
-                            'car.descripcion AS carrera',
-                            DB::raw("'" . $idPeriodo . "' as idPeriodo"),
-                            DB::raw("'" . $descripcionP . "' as periodo"),                       
-                            'gp.grupo',
-                            DB::raw('1 as semestre'),
-                            DB::raw("IF(b1.descripcion = 'ADEUDO', TRUE, FALSE) as adeudo"),
-                            DB::raw("IF(b2.descripcion = 'ACADEMICO', TRUE, FALSE) as academico"),
-                            DB::raw("IF(b3.descripcion = 'CASTIGO', TRUE, FALSE) as castigo"),
-                            DB::raw("IF(b4.descripcion = 'DOCUMENTOS', TRUE, FALSE) as documentos")
-                ])
-                ->distinct()
-                ->get();
+    // 3️⃣ Recorrer cada periodo
+    foreach ($periodos as $periodo) {
+        $idPeriodo = $periodo->idPeriodo;
+        $descripcionP = $periodo->descripcion;
 
-    $result2 = DB::table('ciclos as c')
-                ->join('alumno as a', function ($join) {
-                    $join->on('a.uid', '=', 'c.uid')
-                        ->on('a.secuencia', '=', 'c.secuencia');
-                })
-                ->join('carrera as car', function ($join) {
-                    $join->on('car.idNivel', '=', 'c.idNivel')
-                        ->on('car.idCarrera', '=', 'a.idCarrera');
-                })
-                ->join('nivel as nv', 'nv.idNivel', '=', 'c.idNivel')
-                ->join('persona as p', 'p.uid', '=', 'a.uid')
-                ->leftJoin('bloqueoPersonas as ba', function ($join) {
-                    $join->on('ba.uid', '=', 'a.uid')
-                        ->on('ba.secuencia', '=', 'a.secuencia')
-                        ->where('ba.idBloqueo', '=', 1)
-                        ->where('ba.BloqueoActivo', '=', 1);
-                })
-                ->leftJoin('bloqueos as b1', 'b1.idBloqueo', '=', 'ba.idBloqueo')
-                ->leftJoin('bloqueoPersonas as bac', function ($join) {
-                    $join->on('bac.uid', '=', 'a.uid')
-                        ->on('bac.secuencia', '=', 'a.secuencia')
-                        ->where('bac.idBloqueo', '=', 2)
-                        ->where('bac.BloqueoActivo', '=', 1);
-                })
-                ->leftJoin('bloqueos as b2', 'b2.idBloqueo', '=', 'bac.idBloqueo')
-                ->leftJoin('bloqueoPersonas as bc', function ($join) {
-                    $join->on('bc.uid', '=', 'a.uid')
-                        ->on('bc.secuencia', '=', 'a.secuencia')
-                        ->where('bc.idBloqueo', '=', 3)
-                        ->where('bc.BloqueoActivo', '=', 1);
-                })
-                ->leftJoin('bloqueos as b3', 'b3.idBloqueo', '=', 'bc.idBloqueo')
-                ->leftJoin('bloqueoPersonas as bd', function ($join) {
-                    $join->on('bd.uid', '=', 'a.uid')
-                        ->on('bd.secuencia', '=', 'a.secuencia')
-                        ->where('bd.idBloqueo', '=', 4)
-                        ->where('bd.BloqueoActivo', '=', 1);
-                })
-                ->leftJoin('bloqueos as b4', 'b4.idBloqueo', '=', 'bd.idBloqueo')
-                ->leftJoin('grupos as gp', function($join) use ($idPeriodo) {
-                            $join->on(DB::raw("gp.grupo"), '=', 
-                                DB::raw("CONCAT(SUBSTRING(c.grupo, 1, 3),
-                                CAST(SUBSTRING(c.grupo, 4, 1) AS UNSIGNED) + 1,
-                                SUBSTRING(c.grupo, 5, 1)
-                            )"))
-                            ->where('gp.idPeriodo', '=', $idPeriodo);
-                        })
-                ->where('c.idNivel', $idNivel)
-                ->where('c.idPeriodo', $idPeriodo)                
-                ->select([
-                            'a.uid',
-                            'a.idPlan',
-                            'a.matricula',
-                            'p.nombre',
-                            'p.primerApellido',
-                            'p.segundoApellido', 
-                            'c.idNivel',
-                            'nv.descripcion as nivel',
-                            'a.idCarrera',                            
-                            'car.descripcion AS carrera',
-                            DB::raw("'" . $idPeriodo . "' as idPeriodo"),
-                            DB::raw("'" . $descripcionP . "' as periodo"),                       
-                            'gp.grupo',
-                            DB::raw('CAST(SUBSTRING(gp.grupo, 4, 1) AS UNSIGNED) as semestre'),
-                            DB::raw("IF(b1.descripcion = 'ADEUDO', TRUE, FALSE) as adeudo"),
-                            DB::raw("IF(b2.descripcion = 'ACADEMICO', TRUE, FALSE) as academico"),
-                            DB::raw("IF(b3.descripcion = 'CASTIGO', TRUE, FALSE) as castigo"),
-                            DB::raw("IF(b4.descripcion = 'DOCUMENTOS', TRUE, FALSE) as documentos")
-                ])
-                ->distinct()
-                ->get();
-       $finalResult = $result->merge($result2);
-       return response()->json($finalResult, 200);
+        // 🔹 PRIMER QUERY (aspirantes nuevos)
+        $result = DB::table('alumno as a')
+            ->join('aspirante as asp', function ($join) {
+                $join->on('asp.uid', '=', 'a.uid')
+                    ->on('asp.secuencia', '=', 'a.secuencia');
+            })
+            ->join('turno', 'turno.idTurno', '=', 'asp.idTurno')
+            ->join('carrera as car', function ($join) {
+                $join->on('car.idNivel', '=', 'a.idNivel')
+                    ->on('car.idCarrera', '=', 'a.idCarrera');
+            })
+            ->join('nivel as nv', 'nv.idNivel', '=', 'a.idNivel')
+            ->join('persona as p', 'p.uid', '=', 'a.uid')
+            ->leftJoin('bloqueoPersonas as ba', function ($join) {
+                $join->on('ba.uid', '=', 'a.uid')
+                    ->on('ba.secuencia', '=', 'a.secuencia')
+                    ->where('ba.idBloqueo', '=', 1)
+                    ->where('ba.BloqueoActivo', '=', 1);
+            })
+            ->leftJoin('bloqueos as b1', 'b1.idBloqueo', '=', 'ba.idBloqueo')
+            ->leftJoin('bloqueoPersonas as bac', function ($join) {
+                $join->on('bac.uid', '=', 'a.uid')
+                    ->on('bac.secuencia', '=', 'a.secuencia')
+                    ->where('bac.idBloqueo', '=', 2)
+                    ->where('bac.BloqueoActivo', '=', 1);
+            })
+            ->leftJoin('bloqueos as b2', 'b2.idBloqueo', '=', 'bac.idBloqueo')
+            ->leftJoin('bloqueoPersonas as bc', function ($join) {
+                $join->on('bc.uid', '=', 'a.uid')
+                    ->on('bc.secuencia', '=', 'a.secuencia')
+                    ->where('bc.idBloqueo', '=', 3)
+                    ->where('bc.BloqueoActivo', '=', 1);
+            })
+            ->leftJoin('bloqueos as b3', 'b3.idBloqueo', '=', 'bc.idBloqueo')
+            ->leftJoin('bloqueoPersonas as bd', function ($join) {
+                $join->on('bd.uid', '=', 'a.uid')
+                    ->on('bd.secuencia', '=', 'a.secuencia')
+                    ->where('bd.idBloqueo', '=', 4)
+                    ->where('bd.BloqueoActivo', '=', 1);
+            })
+            ->leftJoin('bloqueos as b4', 'b4.idBloqueo', '=', 'bd.idBloqueo')
+            ->leftJoin('grupos as gp', function ($join) use ($idPeriodo) {
+                $join->on(DB::raw("gp.grupo"), '=', DB::raw("
+                    CONCAT(LPAD(asp.idCarrera, 2, '0'), turno.letra, 1, 'A')
+                "))
+                ->where('gp.idPeriodo', '=', $idPeriodo);
+            })
+            ->where('asp.idNivel', $idNivel)
+            ->where('a.idPeriodoIng', $idPeriodo)
+            ->whereNotExists(function ($query) use ($idPeriodo) {
+                $query->select(DB::raw(1))
+                    ->from('ciclos as c2')
+                    ->whereRaw('c2.uid = asp.uid')
+                    ->whereRaw('c2.secuencia = asp.secuencia')
+                    ->where('c2.idPeriodo', $idPeriodo);
+            })
+            ->select([
+                'a.uid',
+                'a.idPlan',
+                'a.matricula',
+                'p.nombre',
+                'p.primerApellido',
+                'p.segundoApellido',
+                'a.idNivel',
+                'nv.descripcion as nivel',
+                'a.idCarrera',
+                'car.descripcion AS carrera',
+                DB::raw("'" . $idPeriodo . "' as idPeriodo"),
+                DB::raw("'" . $descripcionP . "' as periodo"),
+                'gp.grupo',
+                DB::raw('1 as semestre'),
+                DB::raw("IF(b1.descripcion = 'ADEUDO', TRUE, FALSE) as adeudo"),
+                DB::raw("IF(b2.descripcion = 'ACADEMICO', TRUE, FALSE) as academico"),
+                DB::raw("IF(b3.descripcion = 'CASTIGO', TRUE, FALSE) as castigo"),
+                DB::raw("IF(b4.descripcion = 'DOCUMENTOS', TRUE, FALSE) as documentos"),
+            ])
+            ->distinct()
+            ->get();
+
+        // 🔹 SEGUNDA QUERY (alumnos con ciclos previos)
+        $result2 = DB::table('ciclos as c')
+            ->join('alumno as a', function ($join) {
+                $join->on('a.uid', '=', 'c.uid')
+                    ->on('a.secuencia', '=', 'c.secuencia');
+            })
+            ->join('carrera as car', function ($join) {
+                $join->on('car.idNivel', '=', 'c.idNivel')
+                    ->on('car.idCarrera', '=', 'a.idCarrera');
+            })
+            ->join('nivel as nv', 'nv.idNivel', '=', 'c.idNivel')
+            ->join('persona as p', 'p.uid', '=', 'a.uid')
+            ->leftJoin('bloqueoPersonas as ba', function ($join) {
+                $join->on('ba.uid', '=', 'a.uid')
+                    ->on('ba.secuencia', '=', 'a.secuencia')
+                    ->where('ba.idBloqueo', '=', 1)
+                    ->where('ba.BloqueoActivo', '=', 1);
+            })
+            ->leftJoin('bloqueos as b1', 'b1.idBloqueo', '=', 'ba.idBloqueo')
+            ->leftJoin('bloqueoPersonas as bac', function ($join) {
+                $join->on('bac.uid', '=', 'a.uid')
+                    ->on('bac.secuencia', '=', 'a.secuencia')
+                    ->where('bac.idBloqueo', '=', 2)
+                    ->where('bac.BloqueoActivo', '=', 1);
+            })
+            ->leftJoin('bloqueos as b2', 'b2.idBloqueo', '=', 'bac.idBloqueo')
+            ->leftJoin('bloqueoPersonas as bc', function ($join) {
+                $join->on('bc.uid', '=', 'a.uid')
+                    ->on('bc.secuencia', '=', 'a.secuencia')
+                    ->where('bc.idBloqueo', '=', 3)
+                    ->where('bc.BloqueoActivo', '=', 1);
+            })
+            ->leftJoin('bloqueos as b3', 'b3.idBloqueo', '=', 'bc.idBloqueo')
+            ->leftJoin('bloqueoPersonas as bd', function ($join) {
+                $join->on('bd.uid', '=', 'a.uid')
+                    ->on('bd.secuencia', '=', 'a.secuencia')
+                    ->where('bd.idBloqueo', '=', 4)
+                    ->where('bd.BloqueoActivo', '=', 1);
+            })
+            ->leftJoin('bloqueos as b4', 'b4.idBloqueo', '=', 'bd.idBloqueo')
+            ->leftJoin('grupos as gp', function ($join) use ($idPeriodo) {
+                $join->on(DB::raw("gp.grupo"), '=', DB::raw("
+                    CONCAT(SUBSTRING(c.grupo, 1, 3),
+                    CAST(SUBSTRING(c.grupo, 4, 1) AS UNSIGNED) + 1,
+                    SUBSTRING(c.grupo, 5, 1))
+                "))
+                ->where('gp.idPeriodo', '=', $idPeriodo);
+            })
+            ->where('c.idNivel', $idNivel)
+            ->where('c.idPeriodo', $idPeriodo)
+            ->select([
+                'a.uid',
+                'a.idPlan',
+                'a.matricula',
+                'p.nombre',
+                'p.primerApellido',
+                'p.segundoApellido',
+                'c.idNivel',
+                'nv.descripcion as nivel',
+                'a.idCarrera',
+                'car.descripcion AS carrera',
+                DB::raw("'" . $idPeriodo . "' as idPeriodo"),
+                DB::raw("'" . $descripcionP . "' as periodo"),
+                'gp.grupo',
+                DB::raw('CAST(SUBSTRING(gp.grupo, 4, 1) AS UNSIGNED) as semestre'),
+                DB::raw("IF(b1.descripcion = 'ADEUDO', TRUE, FALSE) as adeudo"),
+                DB::raw("IF(b2.descripcion = 'ACADEMICO', TRUE, FALSE) as academico"),
+                DB::raw("IF(b3.descripcion = 'CASTIGO', TRUE, FALSE) as castigo"),
+                DB::raw("IF(b4.descripcion = 'DOCUMENTOS', TRUE, FALSE) as documentos"),
+            ])
+            ->distinct()
+            ->get();
+
+        // 4️⃣ Combinar resultados del periodo actual con los previos
+        $finalResult = $finalResult->merge($result)->merge($result2);
     }
+
+    // 5️⃣ Devolver todos los resultados como JSON
+    return response()->json($finalResult, 200);
+}
+
 
      public function store(Request $request){
 

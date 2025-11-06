@@ -47,41 +47,41 @@ class FichasController extends Controller
     
     $datos = $datos = DB::table('edocta as edo')
     ->select([
-        'CONS.*',
-        DB::raw("Algoritmo45Fun(CONCAT('CE',matricula), ".$fechaPago[0]->fechaPagoLinea.", total) AS lineaPago")
-    ])
-    ->from(DB::raw("(
-                    SELECT 
-                        carrera.descripcion AS nombreCarrera,
-                        edo.uid,matricula,
-                        CONCAT(
-                            GROUP_CONCAT(DISTINCT CONCAT(s.descripcion, ' ') ORDER BY s.descripcion SEPARATOR ' + '),
-                            ' '
-                        ) AS servicios,
-                        SUM(CASE WHEN tipomovto ='C' THEN importe ELSE importe * -1 END) AS total,
-                        CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre) AS nombre
-                    FROM edocta AS edo
-                    INNER JOIN alumno AS al ON al.uid = edo.uid
-                    INNER JOIN servicio AS s ON s.idServicio = edo.idServicio
-                    INNER JOIN carrera ON carrera.idCarrera = al.idCarrera
-                    INNER JOIN persona ON persona.uid = al.uid
-                    LEFT JOIN configuracionTesoreria AS inscripcion 
-                        ON inscripcion.idNivel = al.idNivel
-                        AND inscripcion.idServicioInscripcion = s.idServicio
-                    LEFT JOIN configuracionTesoreria AS colegiatura 
-                        ON colegiatura.idNivel = al.idNivel
-                        AND colegiatura.idServicioColegiatura = s.idServicio
-                    WHERE parcialidad = ".$parcialidad." 
-                    AND idPeriodo = ".$idPeriodo." 
-                    AND al.idCarrera = ".$idCarrera."
-                    GROUP BY 
-                        carrera.descripcion,
-                        edo.uid,
-                        persona.primerApellido,
-                        persona.segundoApellido,
-                        persona.nombre,matricula
-                ) AS CONS"))
-                ->get();
+            'CONS.*',
+            DB::raw("Algoritmo45Fun(CONCAT('CE',matricula), ".$fechaPago[0]->fechaPagoLinea.", total) AS lineaPago")
+        ])
+        ->from(DB::raw("(
+                        SELECT 
+                            carrera.descripcion AS nombreCarrera,
+                            edo.uid,matricula,
+                            CONCAT(
+                                GROUP_CONCAT(DISTINCT CONCAT(s.descripcion, ' ') ORDER BY s.descripcion SEPARATOR ' + '),
+                                ' '
+                            ) AS servicios,
+                            SUM(CASE WHEN tipomovto ='C' THEN importe ELSE importe * -1 END) AS total,
+                            CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre) AS nombre
+                        FROM edocta AS edo
+                        INNER JOIN alumno AS al ON al.uid = edo.uid
+                        INNER JOIN servicio AS s ON s.idServicio = edo.idServicio
+                        INNER JOIN carrera ON carrera.idCarrera = al.idCarrera
+                        INNER JOIN persona ON persona.uid = al.uid
+                        LEFT JOIN configuracionTesoreria AS inscripcion 
+                            ON inscripcion.idNivel = al.idNivel
+                            AND inscripcion.idServicioInscripcion = s.idServicio
+                        LEFT JOIN configuracionTesoreria AS colegiatura 
+                            ON colegiatura.idNivel = al.idNivel
+                            AND colegiatura.idServicioColegiatura = s.idServicio
+                        WHERE parcialidad = ".$parcialidad." 
+                        AND idPeriodo = ".$idPeriodo." 
+                        AND al.idCarrera = ".$idCarrera."
+                        GROUP BY 
+                            carrera.descripcion,
+                            edo.uid,
+                            persona.primerApellido,
+                            persona.segundoApellido,
+                            persona.nombre,matricula
+                    ) AS CONS"))
+                    ->get();
 
 
 
