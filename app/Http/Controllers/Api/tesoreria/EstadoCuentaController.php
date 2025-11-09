@@ -98,19 +98,19 @@ class EstadoCuentaController extends Controller
                     END
                 ELSE 
                 CASE WHEN s.idServicio = recargo.idServicioRecargo THEN
-                    CASE edo.referencia
-                            WHEN '00000001' THEN 'ENERO'
-                            WHEN '00000002' THEN 'FEBRERO'
-                            WHEN '00000003' THEN 'MARZO'
-                            WHEN '00000004' THEN 'ABRIL'
-                            WHEN '00000005' THEN 'MAYO'
-                            WHEN '00000006' THEN 'JUNIO'
-                            WHEN '00000007' THEN 'JULIO'
-                            WHEN '00000008' THEN 'AGOSTO'
-                            WHEN '00000009' THEN 'SEPTIEMBRE'
-                            WHEN '00000010' THEN 'OCTUBRE'
-                            WHEN '00000011' THEN 'NOVIEMBRE'
-                            WHEN '00000012' THEN 'DICIEMBRE'
+                    CASE CONVERT(edo.referencia, UNSIGNED)
+                            WHEN 1 THEN 'ENERO'
+                            WHEN 2 THEN 'FEBRERO'
+                            WHEN 3 THEN 'MARZO'
+                            WHEN 4 THEN 'ABRIL'
+                            WHEN 5 THEN 'MAYO'
+                            WHEN 6 THEN 'JUNIO'
+                            WHEN 7 THEN 'JULIO'
+                            WHEN 8 THEN 'AGOSTO'
+                            WHEN 9 THEN 'SEPTIEMBRE'
+                            WHEN 10 THEN 'OCTUBRE'
+                            WHEN 11 THEN 'NOVIEMBRE'
+                            WHEN 12 THEN 'DICIEMBRE'
                             ELSE ''
                         END
                         ELSE ''

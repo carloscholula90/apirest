@@ -4,5 +4,5 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
 
-Route::get('/{idPeriodo}/{idCarrera}/{parcialidad}', [FichasController::class, 'generarYGuardarPDF']);
+Route::get('/{idPeriodo}/{idNivel}/{idCarrera}', [FichasController::class, 'generarYGuardarPDF']);
   

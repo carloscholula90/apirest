@@ -6,179 +6,216 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;  
-use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDSFormat;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\RoundBlockSizeMode\RoundBlockSizeModeMargin;
+use Illuminate\Support\Facades\Log;  
+use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF; 
+use Illuminate\Support\Str;
 
+class FichasController extends Controller{
 
-class FichasController extends Controller
-{
-    public function generarYGuardarPDF($idPeriodo, $idCarrera, $parcialidad)
-{
+    public function generarYGuardarPDF($idPeriodo, $idNivel,$idCarrera){
+
     $orientation = 'P';
     $size = 'letter';
     $nameReport = 'fichaPago_' . mt_rand(100, 999) . '.pdf';
     DB::statement("SET lc_time_names = 'es_ES'");
     
-    $fechaPago = DB::table('edocta as edo')
-                ->select([
-                    DB::raw("DATE_FORMAT(edo.fechaPago, '%d/%m/%Y') AS fechaPago"),
-                    DB::raw("DATE_FORMAT(edo.fechaPago, '%Y%m%d') AS fechaPagoLinea"),
-                    DB::raw("UPPER(DATE_FORMAT(edo.fechaPago, '%M')) AS mes")
-                    ])
-                ->join('alumno as al', 'al.uid', '=', 'edo.uid')
-                ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
-                ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
-                ->join('persona', 'persona.uid', '=', 'al.uid')
-
-                ->leftJoin('configuracionTesoreria as colegiatura', function($join) {
-                    $join->on('colegiatura.idNivel', '=', 'al.idNivel')
-                        ->on('colegiatura.idServicioColegiatura', '=', 's.idServicio');
-                })
-                ->where('idPeriodo', $idPeriodo)
-                ->where('al.idCarrera',$idCarrera)
-                ->groupBy('edo.fechaPago')
-                ->get();
-
-    
-    $datos = $datos = DB::table('edocta as edo')
-    ->select([
-            'CONS.*',
-            DB::raw("Algoritmo45Fun(CONCAT('CE',matricula), ".$fechaPago[0]->fechaPagoLinea.", total) AS lineaPago")
-        ])
-        ->from(DB::raw("(
-                        SELECT 
-                            carrera.descripcion AS nombreCarrera,
-                            edo.uid,matricula,
-                            CONCAT(
-                                GROUP_CONCAT(DISTINCT CONCAT(s.descripcion, ' ') ORDER BY s.descripcion SEPARATOR ' + '),
-                                ' '
-                            ) AS servicios,
-                            SUM(CASE WHEN tipomovto ='C' THEN importe ELSE importe * -1 END) AS total,
-                            CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre) AS nombre
-                        FROM edocta AS edo
-                        INNER JOIN alumno AS al ON al.uid = edo.uid
-                        INNER JOIN servicio AS s ON s.idServicio = edo.idServicio
-                        INNER JOIN carrera ON carrera.idCarrera = al.idCarrera
-                        INNER JOIN persona ON persona.uid = al.uid
-                        LEFT JOIN configuracionTesoreria AS inscripcion 
-                            ON inscripcion.idNivel = al.idNivel
+    $datos = DB::select("SELECT
+                            CONS.nombre,
+                            CONS.matricula,
+                            CONS.servicios,
+                            VENC.fchVencimiento,
+                            CONS.total,
+                            DATE_FORMAT(VENC.fchVencimiento, '%Y-%m-%d') as fechaVencimiento,
+                            Algoritmo45Fun(CONCAT('CE', CONS.matricula), DATE_FORMAT(VENC.fchVencimiento, '%Y-%m-%d'), CONS.total) AS lineaPago
+                            FROM (
+                            SELECT
+                                edo.uid,
+                                al.matricula,
+                                edo.parcialidad,
+                                edo.secuencia,
+                                CONCAT(
+                                GROUP_CONCAT(DISTINCT s.descripcion ORDER BY s.descripcion SEPARATOR ' + ')
+                                ) AS servicios,
+                                SUM(CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE -edo.importe END) AS total,
+                                CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre) AS nombre
+                            FROM edocta AS edo
+                            INNER JOIN alumno AS al ON al.uid = edo.uid
+                            INNER JOIN servicio AS s ON s.idServicio = edo.idServicio
+                            INNER JOIN persona ON persona.uid = al.uid
+                            LEFT JOIN configuracionTesoreria AS inscripcion
+                                ON inscripcion.idNivel = al.idNivel
                             AND inscripcion.idServicioInscripcion = s.idServicio
-                        LEFT JOIN configuracionTesoreria AS colegiatura 
-                            ON colegiatura.idNivel = al.idNivel
+                            LEFT JOIN configuracionTesoreria AS reinscripcion
+                                ON reinscripcion.idNivel = al.idNivel
+                            AND reinscripcion.idServicioReinscripcion = s.idServicio
+                            LEFT JOIN configuracionTesoreria AS colegiatura
+                                ON colegiatura.idNivel = al.idNivel
                             AND colegiatura.idServicioColegiatura = s.idServicio
-                        WHERE parcialidad = ".$parcialidad." 
-                        AND idPeriodo = ".$idPeriodo." 
-                        AND al.idCarrera = ".$idCarrera."
-                        GROUP BY 
-                            carrera.descripcion,
-                            edo.uid,
-                            persona.primerApellido,
-                            persona.segundoApellido,
-                            persona.nombre,matricula
-                    ) AS CONS"))
-                    ->get();
+                            WHERE
+                                edo.idPeriodo =".$idPeriodo.
+                               " AND al.idCarrera = ".$idCarrera.
+                               " AND al.idNivel =".$idNivel.
+                               " AND (
+                                colegiatura.idServicioColegiatura IS NOT NULL
+                                OR reinscripcion.idServicioReinscripcion IS NOT NULL
+                                OR inscripcion.idServicioInscripcion IS NOT NULL
+                                )
+                            GROUP BY
+                                edo.parcialidad,
+                                edo.uid,
+                                persona.primerApellido,
+                                persona.segundoApellido,
+                                persona.nombre,
+                                al.matricula,
+                                edo.secuencia
+                            ) AS CONS
+                            LEFT JOIN (
+                            SELECT
+                                edo.uid AS idAlumno,
+                                edo.secuencia AS seq,
+                                edo.parcialidad AS parcialidaF,
+                                edo.fechaVencimiento AS fchVencimiento
+                            FROM edocta AS edo
+                            INNER JOIN alumno AS al ON al.uid = edo.uid
+                            INNER JOIN servicio AS s ON s.idServicio = edo.idServicio
+                            LEFT JOIN configuracionTesoreria AS inscripcion
+                                ON inscripcion.idNivel = al.idNivel
+                            AND inscripcion.idServicioInscripcion = s.idServicio
+                            LEFT JOIN configuracionTesoreria AS reinscripcion
+                                ON reinscripcion.idNivel = al.idNivel
+                            AND reinscripcion.idServicioReinscripcion = s.idServicio
+                            LEFT JOIN configuracionTesoreria AS colegiatura
+                                ON colegiatura.idNivel = al.idNivel
+                            AND colegiatura.idServicioColegiatura = s.idServicio
+                            WHERE
+                                edo.idPeriodo = ".$idPeriodo.
+                               " AND al.idCarrera = ".$idCarrera.
+                                " AND al.idNivel =".$idNivel.
+                               " AND edo.tipomovto = 'C'
+                                AND (
+                                colegiatura.idServicioColegiatura IS NOT NULL
+                                OR reinscripcion.idServicioReinscripcion IS NOT NULL
+                                OR inscripcion.idServicioInscripcion IS NOT NULL
+                                )
+                            GROUP BY
+                                edo.uid, edo.secuencia, edo.parcialidad, edo.fechaVencimiento
+                            ) AS VENC
+                            ON VENC.idAlumno = CONS.uid
+                            AND VENC.parcialidaF = CONS.parcialidad
+                            AND VENC.seq = CONS.secuencia
+                            ORDER BY CONS.matricula, VENC.parcialidaF
+                        ");
 
+    $resultados = collect($datos);
 
-
-    
-    if ($datos->isEmpty()) {
-        return response()->json(['status' => 404, 'message' => 'Datos no encontrados']);
+    if ($resultados->isEmpty()) {
+        return response()->json(['message' => 'Sin resultados'], 404);
     }
 
-    $datosRecibos = $datos[0];   
-    $fecha = Carbon::now('America/Mexico_City')->translatedFormat('d \d\e F \d\e Y');
-    $fecha = strtoupper($fecha);
-    $totalFormateado = number_format($datosRecibos->total, 2, '.', ',');
-
-    // ✅ Generar QR en PNG base64 (sin Imagick ni SVG)
-            
-        try {
-            $qrCode = new QrCode($datosRecibos->comprobante ?? 'Contenido vacío');
+    $imagePathEnc = public_path('images/encPag.png');
+    $imagePathPie = public_path('images/piePag.png');
+    // Crear una nueva instancia de CustomTCPDF (extendido de TCPDF)   
+    $pdf = new CustomTCPDF($orientation, PDF_UNIT, $size, true, 'UTF-8', false);
         
-            $writer = new PngWriter();
-            $result = $writer->write($qrCode);
-
-            $qrPngData = $result->getString();
-            $qrBase64 = base64_encode($qrPngData);
-        } catch (\Throwable $e) {
-            \Log::error('Error generando QR: ' . $e->getMessage());
-            $qrBase64 = null;
-        }   
-
-    $pdf = new CustomTCPDSFormat($orientation, PDF_UNIT, $size, true, 'UTF-8', false);
+    // Configurar los encabezados, las rutas de las imágenes y otros parámetros
+    $pdf->setImagePaths($imagePathEnc, $imagePathPie,$orientation,false);
+    $pdf->SetFont('helvetica', '', 14);
     $pdf->SetCreator(PDF_CREATOR);
     $pdf->SetAuthor('SIAWEB');
-    $pdf->SetMargins(30, 10, 20);
-    $pdf->SetAutoPageBreak(false, 0);
+    $pdf->SetMargins(15, 30, 15);  
+    $pdf->SetAutoPageBreak(TRUE, 25);
     $pdf->AddPage();
-     $imageUrl = 'https://siaweb.com.mx/images/FichaPago.jpg';
-        $pdf->Image($imageUrl, 0, 0, $pdf->getPageWidth(), $pdf->getPageHeight());
 
+    // Generar la tabla HTML para los datos
+    $html = '<table>';    
+    $html .= '<tr><td colspan="2" style="font-size: 12px;"><b>BBVA BANCOMER</b></td></tr>';
+    $html .= '<tr><td colspan="2" style="font-size: 12px;"><b>CONVENIO CIE:0779857 A NOMBRE DE UNIVERSIDAD ALVA EDISON</b></td></tr>';
+    $html .= '<br>';
+   
+    $name=''; 
+    foreach ($resultados as $fila) {
+        if($name==''||$name!=$fila->nombre){
+            if($name!=''){
+                 $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edisòn en apoyo a la situacion
+                    economica, mantendra la beca de 50%, por lo que el costo de la colegiatura es de $1200.00
+                    con fecha limite de pago los dias 10 de cada mes. En caso contrario se aplicara un recargo del 20%
+                </td></tr><br><tr>
+                <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son instransferibles e indivuales.</td></tr>';
+             // Cierra la tabla actual y escribe en el PDF
+             $html .= '</table>';
+             $pdf->writeHTML($html, true, false, true, false, '');
+            
+             // 🔹 Nuevo salto de página para el siguiente alumno
+             $pdf->AddPage(); 
+             $html = '<table>'; 
+             
+             $html .= '<tr><td colspan="2" style="font-size: 12px;"><b>BBVA BANCOMER</b></td></tr>';
+             $html .= '<tr><td colspan="2" style="font-size: 12px;"><b>CONVENIO CIE:0779857 A NOMBRE DE UNIVERSIDAD ALVA EDISON</b></td></tr>';
+             $html .= '<br>';
+            }
+            $html .= '<tr>
+                <td style="width: 150px; font-size: 8pt;">NOMBRE:</td>
+                <td style="font-size: 12pt;">' . $fila->nombre . '</td>
+                </tr>';
+            $html .= '<tr>
+                <td style="width: 150px; font-size: 8pt;">MATRICULA:</td>
+                <td style="font-size: 12pt;">' .$fila->matricula. '</td>
+                </tr><br>';
+        }
+        $name=$fila->nombre;
+        Carbon::setLocale('es'); // Establece el idioma a español
+        $fecha = Carbon::parse($fila->fechaVencimiento)->translatedFormat('d/F/Y');
+        $mes = Carbon::parse($fila->fechaVencimiento)->translatedFormat('F Y');
+        $total = number_format($fila->total, 2, '.', ',');
+        if (Str::contains($fila->servicios, 'COLEGIATURA'))
+            $html .= '<tr>
+                <td style="width: 150px; font-size: 8pt;">'.mb_strtoupper($mes,'UTF-8').'</td>
+                <td style="font-size: 12pt;">' .$fila->lineaPago. '</td>
+                </tr>';
+        else
+            $html .='<tr>
+                <td style="width: 150px; font-size: 8t;">'.$fila->servicios.' '.mb_strtoupper($mes,'UTF-8').'</td>
+                <td style="font-size: 12pt;">' .$fila->lineaPago. '</td>
+                </tr>';        
+        
+        $html .= '<tr>
+                <td style="width: 150px; font-size: 12pt;"><b>$'.$total.'</b></td>
+                <td style="width: 300px; font-size: 12pt;">FECHA LIMITE DE PAGO '.mb_strtoupper($fecha, 'UTF-8'). '</td>
+                </tr><br>';
+    }  
 
-    $html = '<br><br><br><br><br><br><br><br>';
-   
-   
-    $html .= '<br><br><br>
-    <table border="0" cellpadding="1" style="font-family: Arial; font-size: 10pt;line-height: 1.5;">
-       <br>
-       <tr>
-            <td style="width: 20cm; font-size: 11pt;"><b>FICHA DE PAGO</b></td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>LINEA DE CAPTURA:</b>' . $datosRecibos->lineaPago . '</td>
-        </tr>
-       <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>FECHA DE IMPRESIÓN:</b>' . $fecha . '</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>NOMBRE DEL ALUMNO:</b>'. $datosRecibos->nombre .'</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>CARRERA: </b>' . $datosRecibos->nombreCarrera . '</td>
-        </tr> 
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>VENCIMIENTO: </b>'.$fechaPago[0]->fechaPago.'</td>
-        </tr> 
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>IMPORTE:</b>$ ' . $totalFormateado . '</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>CONCEPTO:</b>' . $datosRecibos->servicios .' '.$fechaPago[0]->mes. '</td>
-        </tr>
-    </table>';
-    
-    if ($qrBase64) {
-        $html .= '<br><div style="text-align:left;"><img src="data:image/png;base64,' . $qrBase64 . '" style="width: 75px;" /></div>';
-    } 
-   
-    $html .= '
-    <br><br><br><br><br><br><br><br><br><br>';
-   
+    $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edisòn en apoyo a la situacion
+                    economica, mantendra la beca de 50%, por lo que el costo de la colegiatura es de $1200.00
+                    con fecha limite de pago los dias 10 de cada mes. En caso contrario se aplicara un recargo del 20%
+                </td></tr><br><tr>
+                <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son instransferibles e indivuales.</td></tr>';
   
-
+    $html .= '</table>';     
     $pdf->writeHTML($html, true, false, true, false, '');
-
-    $filePath = storage_path('app/public/' . $nameReport);
-    $pdf->Output($filePath, 'F');
-
-    if (file_exists($filePath)) {
-        return response()->json([
-            'status' => 200,
-
-
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
-        ]);
-    } else {
-        return response()->json([
-            'status' => 500,
-            'message' => 'Error al generar el reporte'
-        ]);
-    }
+    
+    $nameReport = 'rptFichas.pdf';
+    $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo
+       
+    $pdf->Output($filePath, 'F');  // 'F' para guardar el archivo en el servidor
+    
+    // Ahora puedes verificar si el archivo se ha guardado correctamente en la ruta especificada.
+        if (file_exists($filePath)) {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte'
+            ]);
+        }
 }
 
 }
