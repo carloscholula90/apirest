@@ -1,6 +1,7 @@
 <?php  
   
 namespace App\Http\Controllers\Api\serviciosGenerales;
+use Illuminate\Support\Facades\Log; 
 use TCPDF; // Si extiende TCPDF, asegúrate de incluir esta línea.   
    
 class CustomTCPDF extends TCPDF
@@ -18,9 +19,6 @@ class CustomTCPDF extends TCPDF
     public function __construct($orientation = 'L', $unit = 'mm', $size = 'A4', $unicode = true, $encoding = 'UTF-8', $diskcache = false)
     {
         parent::__construct($orientation, $unit, $size, $unicode, $encoding, $diskcache);
-        //$this->AddFont('TitilliumWeb-Regular', '', 'TitilliumWeb-Regular.php'); // Regular
-        //$this->AddFont('TitilliumWeb-Bold', 'B', 'TitilliumWeb-Bold.php');   // Bold
-        //$this->AddFont('TitilliumWeb-Italic', 'I', 'TitilliumWeb-Italic.php'); // Italic
     }   
 
     // Método para establecer las rutas de las imágenes
@@ -66,17 +64,25 @@ class CustomTCPDF extends TCPDF
     {
         $this->SetFont('helvetica', '', 8);
         if(!$this->aquaMark){       
-            if ($this->imagePathPie && $this->CurOrientation === "P") 
+            if ($this->imagePathPie && ($this->CurOrientation === "P" || $this->CurOrientation === "PU")) 
                 $this->Image($this->imagePathPie, 50, 287, 180, 0, '', '', '', false, 300);  // Imagen pie de página
-            else $this->Image($this->imagePathPie, 120, 200, 180, 0, '', '', '', false, 300);  // Imagen en otra posición
+            else 
+                $this->Image($this->imagePathPie, 120, 200, 180, 0, '', '', '', false, 300);  // Imagen en otra posición
         } 
 
         $this->SetY(-15);      
         $this->SetX(10);
         date_default_timezone_set('America/Mexico_City');    
         $this->Cell(90, 10, date('d/m/Y H:i:s'), 0, 0, 'L');           
-        $this->SetX(180);  
-        $this->Cell(0, 10, 'Página ' . $this->getAliasNumPage() . ' de ' . $this->getAliasNbPages(), 0, 0, 'R'); 
+        $this->SetX(180); 
+
+        Log::info('secuencia:'.$this->CurOrientation);
+        
+        if ($this->imagePathPie && $this->CurOrientation === "PU")  
+            $this->Cell(0, 10, 'Página 1 de 1', 0, 0, 'R'); 
+        else 
+             $this->Cell(0, 10, 'Página ' . $this->getAliasNumPage() . ' de ' . $this->getAliasNbPages(), 0, 0, 'R'); 
+   
     }  
 
     public function getPages()

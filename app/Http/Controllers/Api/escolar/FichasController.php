@@ -18,9 +18,13 @@ use Illuminate\Support\Str;
 
 class FichasController extends Controller{
 
-    public function generarYGuardarPDF($idPeriodo, $idNivel,$idCarrera){
 
-    $orientation = 'P';
+    public function generarYGuardarPDFAlumno($idPeriodo, $idNivel,$idCarrera,$uid){
+        $this->generarYGuardarPDF($idPeriodo, $idNivel,$idCarrera,$uid);
+    } 
+
+    public function generarYGuardarPDF($idPeriodo, $idNivel,$idCarrera,$uid=0){
+
     $size = 'letter';
     $nameReport = 'fichaPago_' . mt_rand(100, 999) . '.pdf';
     DB::statement("SET lc_time_names = 'es_ES'");
@@ -32,18 +36,30 @@ class FichasController extends Controller{
                             VENC.fchVencimiento,
                             CONS.total,
                             DATE_FORMAT(VENC.fchVencimiento, '%Y-%m-%d') as fechaVencimiento,
-                            Algoritmo45Fun(CONCAT('CE', CONS.matricula), DATE_FORMAT(VENC.fchVencimiento, '%Y-%m-%d'), CONS.total) AS lineaPago
+                            Algoritmo45Fun(CONCAT(LPAD(CONS.matricula, 7, '0'),
+                            LPAD(
+                                CASE 
+                                    WHEN FIND_IN_SET(idServicioColegiatura, CONS.serviciosClv) > 0 THEN idServicioColegiatura
+                                    WHEN FIND_IN_SET(idServicioReinscripcion, CONS.serviciosClv) > 0 THEN idServicioReinscripcion
+                                    ELSE idServicioInscripcion
+                                END,
+                            3, '0')),
+                            DATE_FORMAT(VENC.fchVencimiento, '%Y-%m-%d'), CONS.total) AS lineaPago
                             FROM (
                             SELECT
                                 edo.uid,
                                 al.matricula,
                                 edo.parcialidad,
                                 edo.secuencia,
-                                CONCAT(
                                 GROUP_CONCAT(DISTINCT s.descripcion ORDER BY s.descripcion SEPARATOR ' + ')
-                                ) AS servicios,
+                                 AS servicios,
+                                GROUP_CONCAT(DISTINCT s.idServicio ORDER BY s.idServicio SEPARATOR ' , ')
+                                 AS serviciosClv,
                                 SUM(CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE -edo.importe END) AS total,
-                                CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre) AS nombre
+                                CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre) AS nombre,
+                                MAX(colegiatura.idServicioColegiatura) AS idServicioColegiatura,
+                                MAX(reinscripcion.idServicioReinscripcion) AS idServicioReinscripcion,
+                                MAX(inscripcion.idServicioInscripcion) AS idServicioInscripcion
                             FROM edocta AS edo
                             INNER JOIN alumno AS al ON al.uid = edo.uid
                             INNER JOIN servicio AS s ON s.idServicio = edo.idServicio
@@ -61,6 +77,7 @@ class FichasController extends Controller{
                                 edo.idPeriodo =".$idPeriodo.
                                " AND al.idCarrera = ".$idCarrera.
                                " AND al.idNivel =".$idNivel.
+                               ($uid>0?" AND al.uid=".$uid:"").
                                " AND (
                                 colegiatura.idServicioColegiatura IS NOT NULL
                                 OR reinscripcion.idServicioReinscripcion IS NOT NULL
@@ -104,7 +121,9 @@ class FichasController extends Controller{
                                 OR inscripcion.idServicioInscripcion IS NOT NULL
                                 )
                             GROUP BY
-                                edo.uid, edo.secuencia, edo.parcialidad, edo.fechaVencimiento
+                                edo.uid, edo.secuencia, edo.parcialidad, edo.fechaVencimiento,
+                                colegiatura.idServicioColegiatura, reinscripcion.idServicioReinscripcion,
+                                inscripcion.idServicioInscripcion
                             ) AS VENC
                             ON VENC.idAlumno = CONS.uid
                             AND VENC.parcialidaF = CONS.parcialidad
@@ -121,10 +140,10 @@ class FichasController extends Controller{
     $imagePathEnc = public_path('images/encPag.png');
     $imagePathPie = public_path('images/piePag.png');
     // Crear una nueva instancia de CustomTCPDF (extendido de TCPDF)   
-    $pdf = new CustomTCPDF($orientation, PDF_UNIT, $size, true, 'UTF-8', false);
+    $pdf = new CustomTCPDF('------', PDF_UNIT, $size, true, 'UTF-8', false);
         
     // Configurar los encabezados, las rutas de las imágenes y otros parámetros
-    $pdf->setImagePaths($imagePathEnc, $imagePathPie,$orientation,false);
+    $pdf->setImagePaths($imagePathEnc, $imagePathPie,'---',false);
     $pdf->SetFont('helvetica', '', 14);
     $pdf->SetCreator(PDF_CREATOR);
     $pdf->SetAuthor('SIAWEB');

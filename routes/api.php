@@ -71,6 +71,10 @@ Route::prefix('becas')->group(function () {
     require base_path('routes/tesoreria/becas.php');
 });
 
+Route::prefix('becasalumnos')->group(function () {
+    require base_path('routes/tesoreria/becasalumno.php');
+});
+
 Route::prefix('bloqueos')->group(function () {
     require base_path('routes/seguridad/bloqueos.php');
 });
@@ -82,6 +86,10 @@ Route::prefix('ciudades')->group(function () {
 Route::prefix('codigospostales')->group(function () {  
     require base_path('routes/general/codigospostales.php');
 });
+
+Route::prefix('configuraciones')->group(function () {
+    require base_path('routes/tesoreria/configuraciones.php');
+}); 
 
 Route::prefix('contactos')->group(function () {
     require base_path('routes/general/contactos.php');
