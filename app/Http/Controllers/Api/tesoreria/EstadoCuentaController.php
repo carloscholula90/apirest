@@ -650,9 +650,8 @@ Log::info('cargos2:'.$registro->cargos.' idServicioColegiatura '.$registro->idSe
                 $concepto = $mov['concepto'];
                 $abono = $mov['abono'];
 
-                $sinPrefijo = substr($concepto, 2);
-                $matricula = (int) substr($sinPrefijo, 0, 8); 
-                $servicio = (int) substr($sinPrefijo, 8, 3); 
+                $matricula = (int) substr($concepto, 0, 8); 
+                $servicio = (int) substr($concepto, 8, 3); 
                 $datosAlumno = DB::table('alumno')
                         ->join('periodo', 'periodo.idNivel', '=', 'alumno.idNivel')
                         ->leftJoin('edocta', function($join) use ($servicio) {
