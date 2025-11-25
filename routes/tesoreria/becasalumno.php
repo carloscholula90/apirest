@@ -3,7 +3,7 @@ use App\Http\Controllers\Api\tesoreria\BecasAlumnoController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
-
+Route::get('/', [BecasAlumnoController::class, 'index']);
 Route::post('/generaReporte', [BecasAlumnoController::class, 'generaReporte']);   
 Route::post('/imprimeXls', [BecasAlumnoController::class, 'exportaExcel']);
 Route::get('/', [BecasAlumnoController::class, 'index']);

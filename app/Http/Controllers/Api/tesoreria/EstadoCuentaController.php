@@ -12,11 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth; 
 
 
-class EstadoCuentaController extends Controller
-{
-
-    
-
+class EstadoCuentaController extends Controller{
 
     public function index($uid,$idPeriodo,$matricula)
     {
@@ -48,84 +44,94 @@ class EstadoCuentaController extends Controller
     $total = $saldoResult[0]->total ?? 0;
 
             // Armar select dinámico
-            $selects = [
-                'edo.parcialidad',
-                'al.uid',
-                'edo.referencia',
-                'al.idNivel',
-                'al.idCarrera',
-                'al.matricula',
-                'edo.tipomovto',
-                'nivel.descripcion as nivel',
-                'carrera.descripcion as nombreCarrera',
-                'persona.nombre',
-                'persona.primerapellido as apellidopat',
-                'persona.segundoapellido as apellidomat',
-                DB::raw("CONCAT( s.descripcion, ' ', 
-                    CASE WHEN colegiatura.idServicioColegiatura = s.idServicio THEN
-                        CASE WHEN edo.tipomovto = 'A' THEN
-                            CASE edo.referencia
-                                WHEN '10000001' THEN 'ENERO'
-                                WHEN '10000002' THEN 'FEBRERO'
-                                WHEN '10000003' THEN 'MARZO'
-                                WHEN '10000004' THEN 'ABRIL'
-                                WHEN '10000005' THEN 'MAYO'
-                                WHEN '10000006' THEN 'JUNIO'
-                                WHEN '10000007' THEN 'JULIO'
-                                WHEN '10000008' THEN 'AGOSTO'
-                                WHEN '10000009' THEN 'SEPTIEMBRE'
-                                WHEN '10000010' THEN 'OCTUBRE'
-                                WHEN '10000011' THEN 'NOVIEMBRE'
-                                WHEN '10000012' THEN 'DICIEMBRE'
-                                ELSE ''
-                        END
-                    ELSE
-                        CASE MONTH(edo.FechaPago)
-                            WHEN 1 THEN 'ENERO'
-                            WHEN 2 THEN 'FEBRERO'
-                            WHEN 3 THEN 'MARZO'
-                            WHEN 4 THEN 'ABRIL'
-                            WHEN 5 THEN 'MAYO'
-                            WHEN 6 THEN 'JUNIO'
-                            WHEN 7 THEN 'JULIO'
-                            WHEN 8 THEN 'AGOSTO'
-                            WHEN 9 THEN 'SEPTIEMBRE'
-                            WHEN 10 THEN 'OCTUBRE'
-                            WHEN 11 THEN 'NOVIEMBRE'
-                            WHEN 12 THEN 'DICIEMBRE'
-                            ELSE ''
-                        END
-                    END
-                ELSE 
-                CASE WHEN s.idServicio = recargo.idServicioRecargo THEN
-                    CASE CONVERT(edo.referencia, UNSIGNED)
-                            WHEN 1 THEN 'ENERO'
-                            WHEN 2 THEN 'FEBRERO'
-                            WHEN 3 THEN 'MARZO'
-                            WHEN 4 THEN 'ABRIL'
-                            WHEN 5 THEN 'MAYO'
-                            WHEN 6 THEN 'JUNIO'
-                            WHEN 7 THEN 'JULIO'
-                            WHEN 8 THEN 'AGOSTO'
-                            WHEN 9 THEN 'SEPTIEMBRE'
-                            WHEN 10 THEN 'OCTUBRE'
-                            WHEN 11 THEN 'NOVIEMBRE'
-                            WHEN 12 THEN 'DICIEMBRE'
-                            ELSE ''
-                        END
-                        ELSE ''
-                END
-                                                
-                END) AS servicio"),
-                'fp.descripcion as formaPago',
-                'edo.fechaMovto as fechaPago',
-                'edo.consecutivo',
-                'edo.idServicio',
-                'inscripcion.idServicioInscripcion',
-                'colegiatura.idServicioColegiatura',
-                DB::raw("CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE null END as cargo"),
-                DB::raw("CASE WHEN edo.tipomovto != 'C' THEN edo.importe ELSE null END as abono"),
-            ];
+           $selects = [
+                        'edo.parcialidad',
+                        'al.uid',
+                        'edo.referencia',
+                        'al.idNivel',
+                        'al.idCarrera',
+                        'al.matricula',
+                        'edo.tipomovto',
+                        'nivel.descripcion as nivel',
+                        'carrera.descripcion as nombreCarrera',
+                        'persona.nombre',
+                        'persona.primerapellido as apellidopat',
+                        'persona.segundoapellido as apellidomat',
+
+                        DB::raw("
+                            CONCAT(
+                                s.descripcion, ' ',
+                                CASE 
+                                    -- CASO 1: SERVICIO DE COLEGIATURA
+                                    WHEN colegiatura.idServicioColegiatura = s.idServicio THEN
+                                        CASE 
+                                            WHEN edo.tipomovto = 'A' THEN
+                                                CASE CONVERT(edo.referencia, UNSIGNED)
+                                                    WHEN 1 THEN 'ENERO'
+                                                    WHEN 2 THEN 'FEBRERO'
+                                                    WHEN 3 THEN 'MARZO'
+                                                    WHEN 4 THEN 'ABRIL'
+                                                    WHEN 5 THEN 'MAYO'
+                                                    WHEN 6 THEN 'JUNIO'
+                                                    WHEN 7 THEN 'JULIO'
+                                                    WHEN 8 THEN 'AGOSTO'
+                                                    WHEN 9 THEN 'SEPTIEMBRE'
+                                                    WHEN 10 THEN 'OCTUBRE'
+                                                    WHEN 11 THEN 'NOVIEMBRE'
+                                                    WHEN 12 THEN 'DICIEMBRE'
+                                                    ELSE ''
+                                                END
+                                            ELSE 
+                                                CASE MONTH(edo.FechaPago)
+                                                    WHEN 1 THEN 'ENERO'
+                                                    WHEN 2 THEN 'FEBRERO'
+                                                    WHEN 3 THEN 'MARZO'
+                                                    WHEN 4 THEN 'ABRIL'
+                                                    WHEN 5 THEN 'MAYO'
+                                                    WHEN 6 THEN 'JUNIO'
+                                                    WHEN 7 THEN 'JULIO'
+                                                    WHEN 8 THEN 'AGOSTO'
+                                                    WHEN 9 THEN 'SEPTIEMBRE'
+                                                    WHEN 10 THEN 'OCTUBRE'
+                                                    WHEN 11 THEN 'NOVIEMBRE'
+                                                    WHEN 12 THEN 'DICIEMBRE'
+                                                    ELSE ''
+                                                END
+                                        END
+
+                                    -- CASO 2: SERVICIO DE RECARGO
+                                    WHEN s.idServicio = recargo.idServicioRecargo THEN
+                                        CASE CONVERT(edo.referencia, UNSIGNED)
+                                            WHEN 1 THEN 'ENERO'
+                                            WHEN 2 THEN 'FEBRERO'
+                                            WHEN 3 THEN 'MARZO'
+                                            WHEN 4 THEN 'ABRIL'
+                                            WHEN 5 THEN 'MAYO'
+                                            WHEN 6 THEN 'JUNIO'
+                                            WHEN 7 THEN 'JULIO'
+                                            WHEN 8 THEN 'AGOSTO'
+                                            WHEN 9 THEN 'SEPTIEMBRE'
+                                            WHEN 10 THEN 'OCTUBRE'
+                                            WHEN 11 THEN 'NOVIEMBRE'
+                                            WHEN 12 THEN 'DICIEMBRE'
+                                            ELSE ''
+                                        END
+
+                                    ELSE ''
+                                END
+                            ) AS servicio
+                        "),
+
+                        'fp.descripcion as formaPago',
+                        'edo.fechaMovto as fechaPago',
+                        'edo.consecutivo',
+                        'edo.idServicio',
+                        'inscripcion.idServicioInscripcion',
+                        'colegiatura.idServicioColegiatura',
+
+                        DB::raw("CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE NULL END AS cargo"),
+                        DB::raw("CASE WHEN edo.tipomovto != 'C' THEN edo.importe ELSE NULL END AS abono")
+                    ];
 
             // Agregar vencido y total solo si existen (validados)
             if (!is_null($vencido)) {
@@ -632,171 +638,162 @@ Log::info('cargos2:'.$registro->cargos.' idServicioColegiatura '.$registro->idSe
         return $this->returnData('folio',$newId,200);   
     }
 
-
     public function guardarMovtos(Request $request){
-        DB::beginTransaction(); 
-         try {   
-                    
-            $movimientos = $request->all();  
-            
-            if (!is_array($movimientos)) 
-                return response()->json(['error' => 'Datos inválidos, se espera un arreglo'], 400);
-           
-           foreach ($movimientos as $index => $mov) {
-            if (!isset($mov['dia'], $mov['concepto'], $mov['abono'])) 
-                return response()->json(['error' => "Falta campo en elemento $index",], 400);
     
-                $dia = $mov['dia'];
-                $concepto = $mov['concepto'];
-                $abono = $mov['abono'];
+    DB::beginTransaction();
+    try {
 
-                $matricula = (int) substr($concepto, 0, 8); 
-                $servicio = (int) substr($concepto, 8, 3); 
-                $datosAlumno = DB::table('alumno')
-                        ->join('periodo', 'periodo.idNivel', '=', 'alumno.idNivel')
-                        ->leftJoin('edocta', function($join) use ($servicio) {
-                                                    $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
-                                                        ->on('edocta.uid', '=', 'alumno.uid')
-                                                        ->on('edocta.secuencia', '=', 'alumno.secuencia')
-                                                        ->where('edocta.idServicio', $servicio);
-                                                })
-                        ->select(
-                            'alumno.uid',
-                            'alumno.secuencia',
-                            'periodo.idNivel',
-                            'periodo.idPeriodo',
-                            'edocta.parcialidad',
-                            'edocta.importe'
-                        )
-                        ->where('periodo.activo', 1)
-                        ->where('alumno.matricula', $matricula)
-                        ->orderByDesc('edocta.parcialidad')
-                        ->get();
-            
-            $validacionLinea = DB::table('alumno')
-                        ->join('periodo', 'periodo.idNivel', '=', 'alumno.idNivel')
-                        ->leftJoin('edocta', function($join) use ($servicio) {
-                                                    $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
-                                                        ->on('edocta.uid', '=', 'alumno.uid')
-                                                        ->on('edocta.secuencia', '=', 'alumno.secuencia')
-                                                        ->where('edocta.idServicio', $servicio);
-                                                })
-                        ->select(
-                            'alumno.uid',
-                            'alumno.secuencia',
-                            'periodo.idNivel',
-                            'periodo.idPeriodo',
-                            'edocta.parcialidad',
-                            'edocta.importe'
-                        )
-                        ->where('periodo.activo', 1)
-                        ->where('alumno.matricula', $matricula)
-                        ->where('edocta.referencia', $concepto)
-                        ->get();
+        $movimientos = $request->all();
+        $registrosMal = [];
 
-                if (!$validacionLinea->isEmpty()) {
-                    $data = [
-                            'message' => 'Error, el archivo ya habia sido cargado de manera previa',
-                            'status' => 400
-                        ];
-                        return response()->json($data, 400);
-                }
-              
-                $fila = $datosAlumno->first(); // Devuelve el primer (y único) resultado o null
-              
-                if ($fila) {
-                    $dataParcialidad = DB::table('alumno')
-                        ->join('periodo', 'periodo.idNivel', '=', 'alumno.idNivel')
-                        ->leftJoin('edocta', function($join) use ($servicio) {
-                                                    $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
-                                                        ->on('edocta.uid', '=', 'alumno.uid')
-                                                        ->on('edocta.secuencia', '=', 'alumno.secuencia')
-                                                        ->where('edocta.idServicio', $servicio);
-                                                })
-                        ->select('edocta.parcialidad')
-                        ->where('periodo.activo', 1)
-                        ->where('edocta.tipomovto', 'A')
-                        ->where('alumno.matricula', $matricula)
-                        ->where('edocta.referencia', $concepto)
-                        ->get();
-
-                    $parcialidad =0;    
-                    if($dataParcialidad) {   
-                        $fParcialidad = $dataParcialidad->first(); 
-                        if(isset($fParcialidad->parcialidad))
-                            $parcialidad =$fParcialidad->parcialidad;
-                        else $parcialidad=1;
-                    }
-                    $fecha = \Carbon\Carbon::createFromFormat('d-m-Y', $dia)->format('Y-m-d'); 
-                    $maxConsecutivo = DB::table('alumno')
-                                    ->join('periodo', 'periodo.idNivel', '=', 'alumno.idNivel')
-                                    ->leftJoin('edocta', function($join) use ($servicio) {
-                                        $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
-                                            ->on('edocta.uid', '=', 'alumno.uid')
-                                            ->on('edocta.secuencia', '=', 'alumno.secuencia')
-                                            ->where('edocta.idServicio', $servicio);
-                                    })
-                                    ->where('periodo.activo', 1)
-                                    ->where('alumno.matricula', $matricula)
-                                    ->max('consecutivo');
-
-                if($fila->parcialidad > 0){
-                    if($abono>$fila->importe){
-                        DB::table('edocta')->insert([
-                                    'uid' => $fila->uid,
-                                    'secuencia' => $fila->secuencia,
-                                    'idServicio' => $servicio,
-                                    'consecutivo' => $maxConsecutivo+1,
-                                    'importe' => $fila->importe,
-                                    'idPeriodo' => $fila->idPeriodo,
-                                    'fechaMovto' => $fecha,
-                                    'tipomovto' => 'A',  
-                                    'parcialidad' => $parcialidad,
-                                    'referencia'=>$concepto,
-                                    'FechaPago'=> $fecha
-                                ]);
-
-                        DB::table('edocta')->insert([
-                                    'uid' => $fila->uid,
-                                    'secuencia' => $fila->secuencia,
-                                    'idServicio' => $servicio,
-                                    'consecutivo' => $maxConsecutivo + 2,
-                                    'importe' => $abono-$fila->importe,
-                                    'idPeriodo' => $fila->idPeriodo,
-                                    'fechaMovto' => $fecha,
-                                    'tipomovto' => 'A',  
-                                    'parcialidad' => ($parcialidad + 1),
-                                    'referencia'=>$concepto,
-                                    'FechaPago'=> $fecha
-                                ]);  
-                                }   
-                        else
-                             DB::table('edocta')->insert([
-                                    'uid' => $fila->uid,
-                                    'secuencia' => $fila->secuencia,
-                                    'idServicio' => $servicio,
-                                    'consecutivo' => $maxConsecutivo+1,
-                                    'importe' => $abono,
-                                    'idPeriodo' => $fila->idPeriodo,
-                                    'fechaMovto' => $fecha,
-                                    'tipomovto' => 'A',  
-                                    'parcialidad' => $parcialidad,
-                                    'referencia'=>$concepto,
-                                    'FechaPago'=> $fecha
-                                ]);
-                }    
-            } 
-           }
-            // 👉 Todas se ejecutan en la misma sesión hasta aquí
-            DB::commit(); // 🔒 Confirma todos los cambios
-            $data = [ 'message' => 'Registros guardados',
-                       'status' => 400];
-            return response()->json($data, 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['error' => $e->getMessage()]);
+        if (!is_array($movimientos)) {
+            return response()->json(['error' => 'Datos inválidos, se espera un arreglo'], 400);
         }
-    }
 
- }
+        foreach ($movimientos as $index => $mov) {
+
+            if (!isset($mov['dia'], $mov['concepto'], $mov['abono'], $mov['transaccion'])) {
+                return response()->json([
+                    'error' => "Falta campo en elemento $index",
+                ], 400);
+            }
+
+            $fecha = Carbon::createFromFormat('d-m-Y', $mov['dia'])->format('Y-m-d');
+            $transaccion = $mov['transaccion'];
+            $abono = floatval($mov['abono']);
+
+            $matricula = (int) substr($mov['concepto'], 0, 7);
+            $servicio = (int) substr($mov['concepto'], 8, 3);
+        
+            $result = DB::table('periodo')
+                            ->join('alumno', 'periodo.idNivel', '=', 'alumno.idNivel')
+                            ->leftJoin('edocta', function ($join) use ($transaccion) {
+                                $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
+                                    ->where('edocta.transaccion', '=',$transaccion);
+                            })
+                            ->where('periodo.activo', 1)
+                            ->where('alumno.matricula', $matricula)
+                            ->select('alumno.uid', 'periodo.idPeriodo','edocta.transaccion')
+                            ->first();
+
+            if (!$result) {
+                $registrosMal[] = [
+                    'matricula' => $matricula,
+                    'mensaje'   => 'No existe la matricula en el sistema',
+                    'importe'   => $abono
+                ];
+                continue;
+            }
+
+            $uid = $result->uid;
+            $idPeriodo = $result->idPeriodo;
+          
+            if (isset($result->transExistente)) {
+                     $registrosMal[] = [
+                            'matricula' => $matricula,
+                            'mensaje'   => 'La transaccion ya se encuentra dada de alta en el periodo',
+                            'importe'   => $abono
+                            ];
+                continue;
+            }
+
+            while ($abono > 0) {
+                    $datosEdo = $result = DB::table('edocta as ec')
+                                ->select(
+                                    's.idServicio',
+                                    'ec.importe',
+                                    'ec.parcialidad',
+                                    'ec.idPeriodo',
+                                    'ec.secuencia',
+                                    'ec.uid',
+                                    'ec.referencia'
+                                )
+                                ->join('servicio as s', 's.idServicio', '=', 'ec.idServicio')
+                                ->join('configuracionTesoreria as ct', function ($join) {
+                                    $join->on('ct.idServicioColegiatura', '=', 'ec.idServicio')
+                                        ->orOn('ct.idServicioRecargo', '=', 'ec.idServicio')
+                                        ->orOn('ec.idServicio', '=', 'ct.idServicioInscripcion');
+                                })
+                                ->joinSub(
+                                    DB::table('edocta as ec2')
+                                        ->select(
+                                            'ec2.parcialidad as parc',
+                                            's2.idServicio',
+                                            DB::raw("SUM(CASE WHEN ec2.tipomovto = 'C' 
+                                                            THEN ec2.importe 
+                                                            ELSE -1 * ec2.importe END) AS total")
+                                        )
+                                        ->join('servicio as s2', 's2.idServicio', '=', 'ec2.idServicio')
+                                        ->join('configuracionTesoreria as ct2', function ($join) {
+                                            $join->on('ct2.idServicioColegiatura', '=', 'ec2.idServicio')
+                                                ->orOn('ct2.idServicioRecargo', '=', 'ec2.idServicio')
+                                                ->orOn('ec2.idServicio', '=', 'ct2.idServicioInscripcion');
+                                        })
+                                        ->where('ec2.uid', $uid)
+                                        ->where('ec2.idPeriodo', $idPeriodo)
+                                        ->groupBy('ec2.parcialidad', 's2.idServicio'),'p',
+
+                                    function ($join) {
+                                        $join->on('p.parc', '=', 'ec.parcialidad')
+                                            ->on('p.idServicio', '=', 's.idServicio')
+                                            ->where('p.total', '>', 0);
+                                    }
+
+                                )
+                                ->where('ec.uid', $uid)
+                                ->where('ec.idPeriodo', $idPeriodo)
+                                ->where('ec.tipomovto', 'C')
+                                ->where('p.total', '>', 0)
+                                ->orderBy('ec.parcialidad', 'ASC')
+                                ->orderBy('s.descripcion', 'DESC')
+                                ->first();   
+
+                // No quedan cargos por pagar
+                if (!$datosEdo) {
+                    break;
+                }
+
+                Log::info("Datos seleccionados para aplicar abono", (array)$datosEdo);
+                $importeAplicar = min($abono, $datosEdo->importe);
+
+                $maxConsecutivo = DB::table('edocta')
+                    ->where('uid', $uid)
+                    ->where('idPeriodo', $idPeriodo)
+                    ->max('consecutivo') ?? 0;
+
+                DB::table('edocta')->insert([
+                                    'uid' => $uid,
+                                    'secuencia' => $datosEdo->secuencia,
+                                    'idServicio' => $datosEdo->idServicio,
+                                    'consecutivo' => $maxConsecutivo + 1,
+                                    'importe' => $importeAplicar,
+                                    'idPeriodo' => $datosEdo->idPeriodo,
+                                    'fechaMovto' => $fecha,
+                                    'tipomovto' => 'A',
+                                    'parcialidad' => $datosEdo->parcialidad,
+                                    'referencia' => $datosEdo->referencia,
+                                    'transaccion' => $transaccion,
+                                    'FechaPago' => $fecha,
+                                    'idFormaPago' => $mov['idFormaPago']
+                ]);
+                $abono -= $importeAplicar;
+            }
+        }
+        DB::commit();
+
+        return response()->json([
+            'message' => 'Registros guardados',
+            'error'   => $registrosMal,
+            'status'  => 200
+        ], 200);
+
+    } catch (\Exception $e) {
+
+        DB::rollBack();
+        return response()->json([
+            'error' => $e->getMessage()
+        ], 500);
+    }
+    }
+}
 

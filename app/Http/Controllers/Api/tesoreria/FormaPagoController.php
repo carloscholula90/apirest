@@ -13,8 +13,7 @@ class FormaPagoController extends Controller{
     protected $pdfController;
 
     // Inyección de la clase PdfReportGenerator
-    public function __construct(pdfController $pdfController)
-    {
+    public function __construct(pdfController $pdfController){
         $this->pdfController = $pdfController;
     }
 
@@ -24,8 +23,7 @@ class FormaPagoController extends Controller{
         return $this->returnData('formaspagos',$formaspagos,200);
     }   
 
-    public function store(Request $request)
-    {
+    public function store(Request $request){
 
         $validator = Validator::make($request->all(), [
                     'descripcion' => 'required|max:255'
@@ -39,6 +37,8 @@ class FormaPagoController extends Controller{
         try {
             $formaspagos = FormaPago::create([
                             'idFormaPago' => $newId,
+                            'archivo' => $request->archivo,
+                            'solicita4digitos' => $request->solicita4digitos,
                             'descripcion' => strtoupper(trim($request->descripcion))
             ]);
         } catch (QueryException $e) {
@@ -61,7 +61,7 @@ class FormaPagoController extends Controller{
             return $this->returnData('formaspagos',$formaspagos,200);   
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->returnEstatus('Forma de pago no encontrado',404,null); 
-        }
+        }   
     }
     
     public function destroy($idFormaPago){
@@ -83,7 +83,9 @@ class FormaPagoController extends Controller{
 
         $validator = Validator::make($request->all(), [
                     'idFormaPago' => 'required|numeric|max:255',
-                    'descripcion' => 'required|max:255'
+                    'descripcion' => 'required|max:255',
+                    'solicita4digitos' => 'required|max:255',
+                    'archivo' => 'required|numeric|max:1'
         ]);
 
         if ($validator->fails()) 
@@ -91,6 +93,8 @@ class FormaPagoController extends Controller{
             
         $formasPagos->idFormaPago = $request->idFormaPago;
         $formasPagos->descripcion = strtoupper(trim($request->descripcion));
+        $formasPagos->archivo = $request->archivo;
+        $formasPagos->solicita4digitos = $request->solicita4digitos;
         $formasPagos->save();
         return $this->returnData('FormaPago',$formasPagos,200);
     }
@@ -104,7 +108,8 @@ class FormaPagoController extends Controller{
 
         $validator = Validator::make($request->all(), [
                                     'idFormaPago' => 'required|numeric|max:255',
-                                    'descripcion' => 'required|max:255'
+                                    'descripcion' => 'required|max:255',
+                                    'archivo' => 'required|numeric|max:1'
         ]);
 
         if ($validator->fails()) 
@@ -114,7 +119,13 @@ class FormaPagoController extends Controller{
             $formasPagos->idFormaPago = $request->idFormaPago;        
 
         if ($request->has('descripcion')) 
-            $formasPagos->descripcion = strtoupper(trim($request->descripcion));        
+            $formasPagos->descripcion = strtoupper(trim($request->descripcion)); 
+        
+        if ($request->has('archivo')) 
+            $formasPagos->archivo = strtoupper(trim($request->archivo)); 
+
+        if ($request->has('solicita4digitos')) 
+            $formasPagos->solicita4digitos = strtoupper(trim($request->solicita4digitos)); 
 
         $formasPagos->save();
         return $this->returnEstatus('FormaPago actualizado',200,null);    
@@ -126,15 +137,15 @@ class FormaPagoController extends Controller{
         $formasPagos = FormaPago::select(
                 'idFormaPago',
                 'descripcion',
-                'solicita4digitos'
+                'solicita4digitos',
+                'archivo'
             )
             ->get();
         return $formasPagos;
     }
 
       // Función para generar el reporte de personas
-      public function generaReport()
-      {
+    public function generaReport(){
         $formasPagos = $this->getFormaPago();  
      
          // Si no hay personas, devolver un mensaje de error
