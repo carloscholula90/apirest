@@ -57,7 +57,7 @@ class EstadoCuentaController extends Controller{
                         'persona.nombre',
                         'persona.primerapellido as apellidopat',
                         'persona.segundoapellido as apellidomat',
-
+                        'fechaVencimiento AS fechaLimite',
                         DB::raw("
                             CONCAT(
                                 s.descripcion, ' ',
@@ -706,7 +706,7 @@ Log::info('cargos2:'.$registro->cargos.' idServicioColegiatura '.$registro->idSe
                                     'ec.idPeriodo',
                                     'ec.secuencia',
                                     'ec.uid',
-                                    'ec.referencia'
+                                    DB::raw("CONCAT('000000', DATE_FORMAT(ec.FechaPago, '%m')) as referencia")
                                 )
                                 ->join('servicio as s', 's.idServicio', '=', 'ec.idServicio')
                                 ->join('configuracionTesoreria as ct', function ($join) {
@@ -753,7 +753,6 @@ Log::info('cargos2:'.$registro->cargos.' idServicioColegiatura '.$registro->idSe
                     break;
                 }
 
-                Log::info("Datos seleccionados para aplicar abono", (array)$datosEdo);
                 $importeAplicar = min($abono, $datosEdo->importe);
 
                 $maxConsecutivo = DB::table('edocta')
@@ -777,7 +776,18 @@ Log::info('cargos2:'.$registro->cargos.' idServicioColegiatura '.$registro->idSe
                                     'idFormaPago' => $mov['idFormaPago']
                 ]);
                 $abono -= $importeAplicar;
+
             }
+            DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
+            $saldoResult = DB::select("SELECT @vencido AS vencido, @total AS total");
+            $vencido = $saldoResult[0]->vencido ?? 0;
+    Log::info("Datos seleccionados para aplicar abono". $vencido);
+            
+            if($vencido==0)
+                DB::table('bloqueoPersonas')
+                    ->where('uid', $uid)
+                    ->where('idBloqueo', 1)
+                    ->delete();
         }
         DB::commit();
 

@@ -67,6 +67,10 @@ Route::prefix('carreras')->group(function () {
     require base_path('routes/escolar/carreras.php');
 });
 
+Route::prefix('cargos')->group(function () {
+    require base_path('routes/tesoreria/cargos.php');
+});
+
 Route::prefix('becas')->group(function () {
     require base_path('routes/tesoreria/becas.php');
 });

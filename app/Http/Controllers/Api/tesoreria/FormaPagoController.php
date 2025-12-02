@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Api\serviciosGenerales\pdfController;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
 
 class FormaPagoController extends Controller{
 
@@ -152,9 +154,9 @@ class FormaPagoController extends Controller{
          if ($formasPagos->isEmpty())
              return $this->returnEstatus('No se encontraron datos para generar el reporte',404,null);
          
-         $headers = ['ID', 'DESCRIPCION'];
-         $columnWidths = [80,500];   
-         $keys = ['idFormaPago', 'descripcion'];
+         $headers = ['ID', 'DESCRIPCION','4 DIGITOS','ARCHIVO'];
+         $columnWidths = [80,300,100,100];   
+         $keys = ['idFormaPago', 'descripcion','solicita4digitos','archivo'];
         
          $formasPagosArray = $formasPagos->map(function ($formasPagos) {
              return $formasPagos->toArray();
@@ -165,6 +167,27 @@ class FormaPagoController extends Controller{
      }  
 
      public function exportaExcel() {
-        return $this->exportaXLS('formaPago','idFormaPago',['CLAVE', 'DESCRIPCIÓN'],'descripcion');     
+        // Ruta del archivo a almacenar en el disco público
+        $path = storage_path('app/public/formaspagos_rpt.xlsx');
+        $selectColumns = ['idFormaPago', 'descripcion','solicita4digitos','archivo']; // Seleccionar columnas específicas
+        $namesColumns = ['ID', 'DESCRIPCION','4 DIGITOS','ARCHIVO']; // Seleccionar columnas específicas
+        $export = new GenericTableExportEsp('formaPago', 'descripcion', [], ['descripcion'], ['asc'], $selectColumns,[],$namesColumns);
+
+        // Guardar el archivo en el disco público
+        Excel::store($export, 'formaspagos_rpt.xlsx', 'public');
+       
+        // Verifica si el archivo existe usando Storage de Laravel
+        if (file_exists($path))  {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/formaspagos_rpt.xlsx' // URL pública para descargar el archivo
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte '
+            ]);
+        }
+        return $this->exportaXLS('formaPago','idFormaPago',['CLAVE', 'DESCRIPCIÓN','',''],'descripcion');     
     }
 }
