@@ -100,6 +100,11 @@ class BecasAlumnoController extends Controller{
 
         if (!$becas) 
             return $this->returnEstatus('Error al crear la Beca',500,null); 
+
+        $result = DB::select('CALL ActualizaCargosInscrip(?, ?, ?, ?)', 
+                                                        [$request->idNivel,$request->idPeriodo,
+                                                         $request->uid,$request->secuencia]);
+        Log::info('resultado :',$result);
         return $this->returnData('becas',$becas,200);   
     }
 
@@ -117,7 +122,12 @@ class BecasAlumnoController extends Controller{
                         ->where('idNivel', $idNivel)
                         ->where('idPeriodo', $idPeriodo)
                         ->where('uid', $uid)
-                        ->where('secuencia', $secuencia);        
+                        ->where('secuencia', $secuencia);   
+                        
+         $result = DB::select('CALL ActualizaCargosInscrip(?, ?, ?, ?)', 
+                                                        [$idNivel,$idPeriodo,
+                                                         $uid,$secuencia]);
+         Log::info('resultado :',$result);      
 
         if (!$elininar) 
             return $this->returnEstatus('Beca no encontrada',404,null);             

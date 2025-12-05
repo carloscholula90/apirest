@@ -162,10 +162,10 @@ class IngresosController extends Controller
                             ->where('cta.FechaPago', '<=', DB::raw("STR_TO_DATE('" . $idFechaFin . "', '%Y-%m-%d')"))
                             ->groupBy('ca.idCarrera', 'ca.descripcion');
 
-            if (isset($idCajero)) 
+            if ($idCajero>0) 
                 $data->where('cta.uidcajero', '=', $idCajero);   
         
-            if (isset($idCarrera)) 
+            if ($idCarrera>0) 
                 $data->where('ca.idCarrera', '=', $idCarrera);
         
             $results = $data->get();

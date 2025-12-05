@@ -250,9 +250,34 @@ class EstadoCuentaController extends Controller{
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>UID:</b> '.$generalesRow['uid'].'</td></tr>';
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Matricula:</b> '.$generalesRow['matricula'].'</td></tr>';  
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Nombre:</b> '.$generalesRow['nombre'].' '.$generalesRow['apellidopat'].' '.$generalesRow['apellidomat'].'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Beca:</b> '.$generalesRow['beca'].'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Beca inscripcion:</b> '.$generalesRow['importeInsc'].'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Beca colegiatura:</b> '.$generalesRow['importeCole'].'</td></tr>';
+        
+        if(isset($generalesRow['beca']))
+            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Beca:</b> '.$generalesRow['beca'].'</td></tr>';
+        
+        $valueInscripcion = isset($generalesRow['importeInsc']) ? $generalesRow['importeInsc'] : '0'; 
+        $valueColegiatura = isset($generalesRow['importeCole']) ? $generalesRow['importeCole'] : '0'; 
+       
+        if(isset($generalesRow['beca']))
+             if(number_format((float)$valueInscripcion, 2, '.', ',')>0)
+                $html2 .= '<tr><td colspan="7" style="font-size: 9px;">
+                                            <table>
+                                                <tr>
+                                                    <td width="15px"></td>
+                                                    <td><b>Inscripcion:</b> '.$generalesRow['importeInsc'].'</td>
+                                                </tr>
+                                            </table>
+                                        </td></tr>';
+        
+        if(isset($generalesRow['beca']))
+             if(number_format((float)$valueColegiatura, 2, '.', ',')>0)
+                  $html2 .= '<tr><td colspan="7" style="font-size: 9px;">
+                                            <table>
+                                                <tr>
+                                                    <td width="15px"></td>
+                                                    <td><b>Colegitura:</b> '.$generalesRow['importeCole'].'</td>
+                                                </tr>
+                                            </table>
+                                        </td></tr>';
        
         $html2 .= '<tr><td colspan="7"></td></tr>';
         $html2 .= '<tr><td colspan="7"></td></tr>';
@@ -269,16 +294,21 @@ class EstadoCuentaController extends Controller{
             $html2 .= '<tr>';   
             foreach ($keys as $index => $key) {  
                 
-                if($key=='cargo')  
-                     $total =   $total + isset($row[$key]) ? $row[$key] : 0;
-                else if($key=='abono')  
-                     $total =   $total - isset($row[$key]) ? $row[$key] : 0;   
+                if($key=='cargo'|| $key == 'abono'){
+                    if($key=='cargo')  
+                        $total =   $total + isset($row[$key]) ? $row[$key] : 0;
+                    else if($key=='abono')  
+                        $total =   $total - isset($row[$key]) ? $row[$key] : 0;
 
-                
-                $value = isset($row[$key]) ? $row[$key] : '';     
-                $html2 .= '<td width="' . $columnWidths[$index] . '">' . ($value !== null ? htmlspecialchars((string)$value) : '') . '</td>';
+                        $value = isset($row[$key]) ? $row[$key] : '';     
+                   $html2 .= '<td align="right">$ '.($value !== null ? number_format((float)$value, 2, '.', ',') : '') . '</td>';
+                  }
+                else{
+                    $value = isset($row[$key]) ? $row[$key] : '';     
+                    $html2 .= '<td width="' . $columnWidths[$index] . '">' . ($value !== null ? htmlspecialchars((string)$value) : '') . '</td>';
+                }
             }
-                $html2 .= '</tr>';
+            $html2 .= '</tr>';
         }
 
         $html2 .= '<tr><td colspan="7"></td></tr>';   
