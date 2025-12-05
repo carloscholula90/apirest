@@ -50,11 +50,11 @@ class IngresosController extends Controller
             ->where('cta.FechaPago', '<=', DB::raw("STR_TO_DATE('" . $idFechaFin . "', '%Y-%m-%d')"))
             ->where('cta.tipomovto', '=', 'A');
 
-        if (isset($idCajero)) 
-            $results->where('cta.uidcajero', '=', $idCajero);   
+        if ($idCajero>0) 
+            $data->where('cta.uidcajero', '=', $idCajero);   
         
-        if (isset($idCarrera)) 
-            $results->where('ca.idCarrera', '=', $idCarrera);
+        if ($idCarrera>0) 
+            $data->where('ca.idCarrera', '=', $idCarrera);
         
         $results = $data->get();     
 
@@ -107,11 +107,11 @@ class IngresosController extends Controller
                             ->where('cta.FechaPago', '<=', DB::raw("STR_TO_DATE('" . $idFechaFin . "', '%Y-%m-%d')"))
                             ->groupBy('cta.uidcajero', 'pers.nombre', 'pers.primerApellido', 'pers.segundoApellido');
 
-            if (isset($idCajero)) 
-                $results->where('cta.uidcajero', '=', $idCajero);   
+            if ($idCajero>0) 
+                $data->where('cta.uidcajero', '=', $idCajero);   
         
-            if (isset($idCarrera)) 
-                $results->where('ca.idCarrera', '=', $idCarrera);
+            if ($idCarrera>0) 
+                $data->where('ca.idCarrera', '=', $idCarrera);
         
             $results = $data->get();
 
@@ -163,10 +163,10 @@ class IngresosController extends Controller
                             ->groupBy('ca.idCarrera', 'ca.descripcion');
 
             if (isset($idCajero)) 
-                $results->where('cta.uidcajero', '=', $idCajero);   
+                $data->where('cta.uidcajero', '=', $idCajero);   
         
             if (isset($idCarrera)) 
-                $results->where('ca.idCarrera', '=', $idCarrera);
+                $data->where('ca.idCarrera', '=', $idCarrera);
         
             $results = $data->get();
 

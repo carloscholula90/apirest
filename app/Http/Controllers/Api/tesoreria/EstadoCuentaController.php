@@ -62,7 +62,7 @@ class EstadoCuentaController extends Controller{
                             CONCAT(
                                 s.descripcion, ' ',
                                 CASE 
-                                    -- CASO 1: SERVICIO DE COLEGIATURA
+                                    
                                     WHEN colegiatura.idServicioColegiatura = s.idServicio THEN
                                         CASE 
                                             WHEN edo.tipomovto = 'A' THEN
@@ -123,12 +123,14 @@ class EstadoCuentaController extends Controller{
                         "),
 
                         'fp.descripcion as formaPago',
-                        'edo.fechaMovto as fechaPago',
+                        DB::raw("DATE_FORMAT(edo.fechaMovto, '%d/%m/%Y') as fechaPago"),
                         'edo.consecutivo',
                         'edo.idServicio',
                         'inscripcion.idServicioInscripcion',
                         'colegiatura.idServicioColegiatura',
-
+                        'bec.descripcion AS beca',
+                        'beca.importeInsc',
+                        'beca.importeCole',
                         DB::raw("CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE NULL END AS cargo"),
                         DB::raw("CASE WHEN edo.tipomovto != 'C' THEN edo.importe ELSE NULL END AS abono")
                     ];
@@ -156,6 +158,12 @@ class EstadoCuentaController extends Controller{
                     $join->on('inscripcion.idNivel', '=', 'al.idNivel')
                         ->on('inscripcion.idServicioInscripcion', '=', 's.idServicio');
                 })
+                ->leftJoin('becaAlumno as beca', function ($join) {
+                    $join->on('al.idNivel', '=', 'beca.idNivel')
+                        ->on('al.uid', '=', 'beca.uid')
+                        ->on('beca.idPeriodo', '=', 'edo.idPeriodo');
+                })
+                ->leftJoin('beca as bec', 'bec.idBeca', '=', 'beca.idBeca')               
                 ->leftJoin('configuracionTesoreria as colegiatura', function ($join) {
                     $join->on('colegiatura.idNivel', '=', 'al.idNivel')
                         ->on('colegiatura.idServicioColegiatura', '=', 's.idServicio');
@@ -242,6 +250,10 @@ class EstadoCuentaController extends Controller{
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>UID:</b> '.$generalesRow['uid'].'</td></tr>';
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Matricula:</b> '.$generalesRow['matricula'].'</td></tr>';  
         $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Nombre:</b> '.$generalesRow['nombre'].' '.$generalesRow['apellidopat'].' '.$generalesRow['apellidomat'].'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Beca:</b> '.$generalesRow['beca'].'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Beca inscripcion:</b> '.$generalesRow['importeInsc'].'</td></tr>';
+        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>Beca colegiatura:</b> '.$generalesRow['importeCole'].'</td></tr>';
+       
         $html2 .= '<tr><td colspan="7"></td></tr>';
         $html2 .= '<tr><td colspan="7"></td></tr>';
         $html2 .= '<tr>';
@@ -313,7 +325,7 @@ class EstadoCuentaController extends Controller{
                                         'movimientos' => 'required|array'              
         ]);
         $userId = Auth::id(); 
-Log::info('Usuario logueado', ['user_id' => auth()->id()]);
+
 
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
@@ -411,11 +423,11 @@ Log::info('Usuario logueado', ['user_id' => auth()->id()]);
                 $importeProrratear = $movimiento['importe'] - $importe;
             }//if($importe >= $movimiento['importe'])
             }// if($idServicioInscripcion==$movimiento['idServicio'])
-Log::info('importeProrratear1:'.$importeProrratear);
+
         if($idServicioColegiatura==$movimiento['idServicio']){
             $importeProrratear = $movimiento['importe'];
         }
-Log::info('importeProrratear2:'.$importeProrratear);
+
         
         if($importeProrratear > 0){ //Importe a prorratear en colegiatura
                     $resultados = DB::table('configuracionTesoreria as ct')
@@ -479,7 +491,7 @@ Log::info('importeProrratear2:'.$importeProrratear);
                                         ->where('idServicio',$registro->idServicioCargo)
                                         ->max('consecutivo');
                 $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
-  Log::info('cargos:'.$registro->cargos);
+  
                 if($registro->cargos>0){
                     $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
                     if($importeProrratear>$registro->cargos){ //Se cubren todos los cargos
@@ -503,7 +515,7 @@ Log::info('importeProrratear2:'.$importeProrratear);
                         $importeProrratear = $importeProrratear-$registro->cargos;
                 }
                 else {
-                      Log::info('cargos2:'.$registro->cargos);
+                      
                     $edoCta = EstadoCuenta::create([
                                                 'uid'=> $request->uid,
                                                 'secuencia'=> $request->secuencia,
@@ -533,7 +545,7 @@ Log::info('importeProrratear2:'.$importeProrratear);
                                         ->where('idServicio',$registro->idServicioColegiatura)
                                         ->max('consecutivo');
             $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
-Log::info('cargos2:'.$registro->cargos.' idServicioColegiatura '.$registro->idServicioColegiatura);
+
             if($importeProrratear - $registro->monto>0){
                      $edoCta = EstadoCuenta::create([
                                                 'uid'=> $request->uid,
@@ -781,7 +793,7 @@ Log::info('cargos2:'.$registro->cargos.' idServicioColegiatura '.$registro->idSe
             DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
             $saldoResult = DB::select("SELECT @vencido AS vencido, @total AS total");
             $vencido = $saldoResult[0]->vencido ?? 0;
-    Log::info("Datos seleccionados para aplicar abono". $vencido);
+    
             
             if($vencido==0)
                 DB::table('bloqueoPersonas')

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class CargosController extends Controller  
 {
     
-    public function index($concentrado, $idPeriodo, $idNivel, $idCarrera){ 
+    public function index($concentrado, $idPeriodo, $idNivel){ 
    
     $periodo = DB::table('periodo')
                     ->select('fechaInicio', 'fechaTermino')
