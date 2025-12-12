@@ -30,7 +30,8 @@ class ServiciosController extends Controller
         return DB::select("
             SELECT s.idServicio, s.descripcion, CASE WHEN s.tarjeta = 1 THEN 'S' ELSE 'N' END tarjeta, 
                    CASE WHEN s.efectivo = 1 THEN 'S' ELSE 'N' END efectivo,
-                   CASE WHEN s.cargoAutomatico = 1 THEN 'S' ELSE 'N' END cargoAutomatico
+                   CASE WHEN s.cargoAutomatico = 1 THEN 'S' ELSE 'N' END cargoAutomatico,
+                   s.tipoEdoCta
             FROM servicio s
             ORDER BY s.idServicio");
     }
@@ -41,7 +42,8 @@ class ServiciosController extends Controller
                                     'descripcion' => 'required|max:255',
                                     'efectivo' => 'required|numeric',
                                     'tarjeta' => 'required|numeric',
-                                    'cargoAutomatico' => 'required|numeric'
+                                    'cargoAutomatico' => 'required|numeric',
+                                    'tipoEdoCta' => 'required|numeric'
         ]);   
        
         if ($validator->fails()) 
@@ -54,7 +56,8 @@ class ServiciosController extends Controller
                                 'descripcion' => strtoupper(trim($request->descripcion)),
                                 'efectivo' => $request->efectivo,
                                 'tarjeta' => $request->tarjeta,
-                                'cargoAutomatico' => $request->cargoAutomatico
+                                'cargoAutomatico' => $request->cargoAutomatico,
+                                'tipoEdoCta'=> $request->tipoEdoCta
                     ]);
             
         return $this->returnData('servicios',null,200);
@@ -79,7 +82,8 @@ class ServiciosController extends Controller
                                     'tarjeta' => 'required|numeric',
                                     'descripcion' => 'required|max:255',
                                     'idServicio' => 'required|numeric',
-                                    'cargoAutomatico' => 'required|numeric'
+                                    'cargoAutomatico' => 'required|numeric',
+                                    'tipoEdoCta' => 'required|numeric'
         ]);
 
         if ($validator->fails()) 
@@ -90,7 +94,9 @@ class ServiciosController extends Controller
                 ->update(['efectivo' => $request->efectivo,
                           'tarjeta' => $request->tarjeta,
                           'descripcion' => $request->descripcion,
-                          'cargoAutomatico' => $request->cargoAutomatico]);
+                          'cargoAutomatico' => $request->cargoAutomatico,
+                          'tipoEdoCta' => $request->tipoEdoCta
+                        ]);
 
         return $this->returnData('servicios',null,200);
     }    
@@ -99,9 +105,10 @@ class ServiciosController extends Controller
       public function generaReporte(){
         
          $datos = DB::table('servicio as s')
-        ->select([
+                ->select([
             's.idServicio',
-            's.descripcion',
+            's.descripcion',            
+            's.tipoEdoCta',
             DB::raw("CASE WHEN s.tarjeta = 1 THEN 'S' ELSE 'N' END AS tarjeta"),
             DB::raw("CASE WHEN s.efectivo = 1 THEN 'S' ELSE 'N' END AS efectivo"),
             DB::raw("CASE WHEN s.cargoAutomatico = 1 THEN 'S' ELSE 'N' END AS cargoAutomatico"),
@@ -113,9 +120,9 @@ class ServiciosController extends Controller
          if ($datos->isEmpty())
              return $this->returnEstatus('No se encontraron datos para generar el reporte',404,null);
          
-         $headers = ['ID SERVICIO','DESCRIPCION','EFECTIVO','TARJETA','CARGA AUTOMATICO'];
-         $columnWidths = [100,200,100,100,100];   
-         $keys = ['idServicio','descripcion','efectivo','tarjeta','cargoAutomatico'];
+         $headers = ['ID SERVICIO','DESCRIPCION','TIPO EDO CTA','EFECTIVO','TARJETA','CARGA AUTOMATICO'];
+         $columnWidths = [100,200,100,100,100,100];   
+         $keys = ['idServicio','descripcion','tipoEdoCta','efectivo','tarjeta','cargoAutomatico'];
         
          $datosArray = $datos->map(function ($item) {
             return (array) $item;
@@ -127,10 +134,11 @@ class ServiciosController extends Controller
         // Ruta del archivo a almacenar en el disco público
         $path = storage_path('app/public/serviciosRpt.xlsx');
         $selectColumns = ['idServicio', 'descripcion',
+                    "tipoEdoCta", 
                     DB::raw('CASE WHEN tarjeta = 1 THEN "S" ELSE "N" END tarjeta'),
-                    DB::raw('CASE WHEN efectivo = 1 THEN "S" ELSE "N" END as efectivo'),
+                    DB::raw('CASE WHEN efectivo = 1 THEN "S" ELSE "N" END as efectivo'),           
                     DB::raw('CASE WHEN cargoAutomatico = 1 THEN "S" ELSE "N" END as cargoAutomatico')]; // Seleccionar columnas específicas
-        $namesColumns = ['ID SERVICIO','DESCRIPCION','EFECTIVO','TARJETA','CARGA AUTOMATICO'];
+        $namesColumns = ['ID SERVICIO','DESCRIPCION','TIPO EDO CTA','EFECTIVO','TARJETA','CARGA AUTOMATICO'];
         $export = new GenericTableExportEsp('servicio', 'descripcion', [], ['idServicio'], ['asc'], $selectColumns, [],$namesColumns);
 
         // Guardar el archivo en el disco público

@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\Auth;
 
 class EstadoCuentaController extends Controller{
 
-    public function index($uid,$idPeriodo,$matricula)
+    public function index($uid,$idPeriodo,$matricula,$tipoEdoCta)
     {
-        $resultados = $this->obtenerEstadoCuenta($uid,$idPeriodo,$matricula);
+        $resultados = $this->obtenerEstadoCuenta($uid,$idPeriodo,$matricula,$tipoEdoCta);
         return $this->returnData('EstadoCuenta',$resultados,200);
     }
 
@@ -34,7 +34,7 @@ class EstadoCuentaController extends Controller{
      return $this->returnData('folios',$resultados,200);
     }
 
-    public function obtenerEstadoCuenta($uid, $idPeriodo, $matricula, $qr = null)
+    public function obtenerEstadoCuenta($uid, $idPeriodo, $matricula, $tipoEdoCta, $qr = null)
 {
     // Ejecutar procedimiento almacenado
     DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
@@ -183,7 +183,7 @@ class EstadoCuentaController extends Controller{
                 $query->where('edo.idPeriodo', $idPeriodo)
                     ->where('al.matricula', $matricula);
             }
-
+            $query->where('s.tipoEdoCta', $tipoEdoCta);
             // Ordenar y obtener resultados
             $edocuenta = $query->orderByDesc('inscripcion.idServicioInscripcion')
                             ->orderByDesc('colegiatura.idServicioColegiatura')
@@ -196,9 +196,9 @@ class EstadoCuentaController extends Controller{
             return $edocuenta;
     }
 
-    public function generaReporte($uid,$idPeriodo,$matricula){
+    public function generaReporte($uid,$idPeriodo,$matricula,$tipoEdoCta){
 
-        $results = $this->obtenerEstadoCuenta($uid,$idPeriodo,$matricula);
+        $results = $this->obtenerEstadoCuenta($uid,$idPeriodo,$matricula,$tipoEdoCta);
        
     // Si no hay personas, devolver un mensaje de error
         if ($results->isEmpty())

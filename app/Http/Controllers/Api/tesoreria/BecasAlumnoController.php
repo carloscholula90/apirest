@@ -101,10 +101,8 @@ class BecasAlumnoController extends Controller{
         if (!$becas) 
             return $this->returnEstatus('Error al crear la Beca',500,null); 
 
-        $result = DB::select('CALL ActualizaCargosInscrip(?, ?, ?, ?)', 
-                                                        [$request->idNivel,$request->idPeriodo,
+         DB::statement("CALL ActualizaCargosInscrip(?, ?, ?,?,?)", [$request->idNivel,$request->idPeriodo,
                                                          $request->uid,$request->secuencia]);
-        Log::info('resultado :',$result);
         return $this->returnData('becas',$becas,200);   
     }
 
@@ -123,13 +121,10 @@ class BecasAlumnoController extends Controller{
                         ->where('idPeriodo', $idPeriodo)
                         ->where('uid', $uid)
                         ->where('secuencia', $secuencia);   
-                        
-         $result = DB::select('CALL ActualizaCargosInscrip(?, ?, ?, ?)', 
-                                                        [$idNivel,$idPeriodo,
+         
+        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?,?,?)", [$idNivel,$idPeriodo,
                                                          $uid,$secuencia]);
-         Log::info('resultado :',$result);      
-
-        if (!$elininar) 
+          if (!$elininar) 
             return $this->returnEstatus('Beca no encontrada',404,null);             
         $elininar->delete();
         return $this->returnEstatus('Beca eliminada',200,null); 
@@ -147,6 +142,10 @@ class BecasAlumnoController extends Controller{
                             'importeInsc'       => $request->importeInsc,
                             'fechaModificacion' => Carbon::now(),
                         ]);
+
+        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?,?,?)", [$request->idNivel,$request->idPeriodo,
+                                                        $request->uid,$request->secuencia]);
+                     
         return $this->returnData('Beca',"Actualizado ",200);
     }
 

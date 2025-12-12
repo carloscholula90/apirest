@@ -19,6 +19,7 @@ class Servicio extends Model
                         'descripcion',
                         'efectivo',
                         'tarjeta',
-                        'cargoAutomatico'
+                        'cargoAutomatico',
+                        'tipoEdoCta'
     ];
 }
