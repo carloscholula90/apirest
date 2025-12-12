@@ -101,7 +101,7 @@ class BecasAlumnoController extends Controller{
         if (!$becas) 
             return $this->returnEstatus('Error al crear la Beca',500,null); 
 
-         DB::statement("CALL ActualizaCargosInscrip(?, ?, ?,?,?)", [$request->idNivel,$request->idPeriodo,
+         DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?)", [$request->idNivel,$request->idPeriodo,
                                                          $request->uid,$request->secuencia]);
         return $this->returnData('becas',$becas,200);   
     }
@@ -122,11 +122,12 @@ class BecasAlumnoController extends Controller{
                         ->where('uid', $uid)
                         ->where('secuencia', $secuencia);   
          
-        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?,?,?)", [$idNivel,$idPeriodo,
-                                                         $uid,$secuencia]);
           if (!$elininar) 
             return $this->returnEstatus('Beca no encontrada',404,null);             
         $elininar->delete();
+         DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?)", [$idNivel,$idPeriodo,
+                                                         $uid,$secuencia]);
+       
         return $this->returnEstatus('Beca eliminada',200,null); 
     }
 
@@ -143,7 +144,7 @@ class BecasAlumnoController extends Controller{
                             'fechaModificacion' => Carbon::now(),
                         ]);
 
-        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?,?,?)", [$request->idNivel,$request->idPeriodo,
+        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?)", [$request->idNivel,$request->idPeriodo,
                                                         $request->uid,$request->secuencia]);
                      
         return $this->returnData('Beca',"Actualizado ",200);
