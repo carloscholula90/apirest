@@ -37,7 +37,9 @@ class EstadoCuentaController extends Controller{
     public function obtenerEstadoCuenta($uid, $idPeriodo, $matricula, $tipoEdoCta, $qr = null)
 {
     // Ejecutar procedimiento almacenado
-    DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
+    if($tipoEdoCta==1)
+        DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
+    else DB::statement("CALL saldo2(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
     $saldoResult = DB::select("SELECT @vencido AS vencido, @total AS total");
 
     $vencido = $saldoResult[0]->vencido ?? 0;
@@ -55,18 +57,20 @@ class EstadoCuentaController extends Controller{
                         'nivel.descripcion as nivel',
                         'carrera.descripcion as nombreCarrera',
                         'persona.nombre',
+                        'inscripcion.idServicioInscripcion',
+                        'reinscrip.idServicioReinscripcion',            
+                        'colegiatura.idServicioColegiatura',
+                        'recargo.idServicioRecargo',
+                        'notacargo.idServicioNotaCargo',
+                        'notacred.idServicioNotaCredito',
                         'persona.primerapellido as apellidopat',
                         'persona.segundoapellido as apellidomat',
                         'fechaVencimiento AS fechaLimite',
-                        DB::raw("
-                            CONCAT(
-                                s.descripcion, ' ',
-                                CASE 
-                                    
-                                    WHEN colegiatura.idServicioColegiatura = s.idServicio THEN
-                                        CASE 
-                                            WHEN edo.tipomovto = 'A' THEN
-                                                CASE CONVERT(edo.referencia, UNSIGNED)
+                        DB::raw("CONCAT(s.descripcion, ' ',
+                                    CASE WHEN colegiatura.idServicioColegiatura = s.idServicio
+                                            OR recargo.idServicioRecargo = s.idServicio
+                                            THEN
+                                                CASE CONVERT(SUBSTRING(edo.referencia, 4), UNSIGNED)
                                                     WHEN 1 THEN 'ENERO'
                                                     WHEN 2 THEN 'FEBRERO'
                                                     WHEN 3 THEN 'MARZO'
@@ -81,51 +85,15 @@ class EstadoCuentaController extends Controller{
                                                     WHEN 12 THEN 'DICIEMBRE'
                                                     ELSE ''
                                                 END
-                                            ELSE 
-                                                CASE MONTH(edo.FechaPago)
-                                                    WHEN 1 THEN 'ENERO'
-                                                    WHEN 2 THEN 'FEBRERO'
-                                                    WHEN 3 THEN 'MARZO'
-                                                    WHEN 4 THEN 'ABRIL'
-                                                    WHEN 5 THEN 'MAYO'
-                                                    WHEN 6 THEN 'JUNIO'
-                                                    WHEN 7 THEN 'JULIO'
-                                                    WHEN 8 THEN 'AGOSTO'
-                                                    WHEN 9 THEN 'SEPTIEMBRE'
-                                                    WHEN 10 THEN 'OCTUBRE'
-                                                    WHEN 11 THEN 'NOVIEMBRE'
-                                                    WHEN 12 THEN 'DICIEMBRE'
-                                                    ELSE ''
-                                                END
-                                        END
-
-                                    -- CASO 2: SERVICIO DE RECARGO
-                                    WHEN s.idServicio = recargo.idServicioRecargo THEN
-                                        CASE CONVERT(edo.referencia, UNSIGNED)
-                                            WHEN 1 THEN 'ENERO'
-                                            WHEN 2 THEN 'FEBRERO'
-                                            WHEN 3 THEN 'MARZO'
-                                            WHEN 4 THEN 'ABRIL'
-                                            WHEN 5 THEN 'MAYO'
-                                            WHEN 6 THEN 'JUNIO'
-                                            WHEN 7 THEN 'JULIO'
-                                            WHEN 8 THEN 'AGOSTO'
-                                            WHEN 9 THEN 'SEPTIEMBRE'
-                                            WHEN 10 THEN 'OCTUBRE'
-                                            WHEN 11 THEN 'NOVIEMBRE'
-                                            WHEN 12 THEN 'DICIEMBRE'
                                             ELSE ''
                                         END
-
-                                    ELSE ''
-                                END
-                            ) AS servicio
-                        "),
+                                    ) AS servicio
+                                "),
 
                         'fp.descripcion as formaPago',
                         DB::raw("DATE_FORMAT(edo.fechaMovto, '%d/%m/%Y') as fechaPago"),
                         'edo.consecutivo',
-                        'edo.idServicio',
+                        'edo.idServicio',  
                         'inscripcion.idServicioInscripcion',
                         'colegiatura.idServicioColegiatura',
                         'bec.descripcion AS beca',
@@ -171,6 +139,18 @@ class EstadoCuentaController extends Controller{
                 ->leftJoin('configuracionTesoreria as recargo', function ($join) {
                     $join->on('recargo.idNivel', '=', 'al.idNivel')
                         ->on('recargo.idServicioRecargo', '=', 's.idServicio');
+                })                
+                ->leftJoin('configuracionTesoreria as notacargo', function ($join) {
+                    $join->on('notacargo.idNivel', '=', 'al.idNivel')
+                        ->on('notacargo.idServicioNotaCargo', '=', 's.idServicio');
+                })
+                 ->leftJoin('configuracionTesoreria as notacred', function ($join) {
+                    $join->on('notacred.idNivel', '=', 'al.idNivel')
+                        ->on('notacred.idServicioNotaCredito', '=', 's.idServicio');
+                })    
+                ->leftJoin('configuracionTesoreria as reinscrip', function ($join) {
+                    $join->on('reinscrip.idNivel', '=', 'al.idNivel')
+                        ->on('reinscrip.idServicioReinscripcion', '=', 's.idServicio');
                 })
                 ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
                 ->join('persona', 'persona.uid', '=', 'al.uid')
@@ -186,12 +166,15 @@ class EstadoCuentaController extends Controller{
             $query->where('s.tipoEdoCta', $tipoEdoCta);
             // Ordenar y obtener resultados
             $edocuenta = $query->orderByDesc('inscripcion.idServicioInscripcion')
-                            ->orderByDesc('colegiatura.idServicioColegiatura')
-                            ->orderBy('edo.idServicio')
-                            ->orderBy('edo.parcialidad')
-                            ->orderByDesc('edo.tipomovto')
-                            ->distinct()
-                            ->get();
+                             ->orderByDesc('reinscrip.idServicioReinscripcion')            
+                             ->orderByDesc('colegiatura.idServicioColegiatura')
+                             ->orderByDesc('recargo.idServicioRecargo')
+                             ->orderByDesc('notacargo.idServicioNotaCargo')
+                             ->orderByDesc('notacred.idServicioNotaCredito')
+                             ->orderBy('edo.parcialidad')
+                             ->orderByDesc('edo.tipomovto')
+                             ->distinct()
+                             ->get();
 
             return $edocuenta;
     }
@@ -274,7 +257,7 @@ class EstadoCuentaController extends Controller{
                                             <table>
                                                 <tr>
                                                     <td width="15px"></td>
-                                                    <td><b>Colegitura:</b> '.$generalesRow['importeCole'].'</td>
+                                                    <td><b>Colegiatura:</b> '.$generalesRow['importeCole'].'</td>
                                                 </tr>
                                             </table>
                                         </td></tr>';
@@ -342,343 +325,272 @@ class EstadoCuentaController extends Controller{
         }    
     }
 
-/**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-         $validator = Validator::make($request->all(), [
-                                        'uid' => 'required|max:255',
-                                        'secuencia' => 'required|max:255',
-                                        'idPeriodo' => 'required|max:255',
-                                        'uidcajero' => 'required|max:255',
-                                        'movimientos' => 'required|array'              
+    private function obtenerServiciosTesoreria($uid,$secuencia){
+        return DB::table('configuracionTesoreria as ct')
+            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+                $join->on('ct.idNivel', '=', 'al.idNivel')
+                    ->where('al.uid', '=', $uid)
+                    ->where('al.secuencia', '=', $secuencia);
+            })
+            ->select(
+                'ct.idServicioColegiatura',
+                'ct.idServicioInscripcion',
+                'ct.idServicioRecargo',
+                'ct.idServicioNotaCredito'
+            )
+            ->first(); // Retorna un solo registro
+    }
+
+
+    public function store(Request $request){
+
+        $data = $request->validate(['uid'         => 'required',
+                                    'secuencia'   => 'required',
+                                    'idPeriodo'   => 'required',
+                                    'uidcajero'   => 'required',
+                                    'movimientos' => 'required|array'
         ]);
-        $userId = Auth::id(); 
 
+        $uid = $data['uid'];
+        $secuencia = $data['secuencia'];
+        $fecha = Carbon::now('America/Mexico_City')->format('Y-m-d');
 
-        if ($validator->fails()) 
-            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+        DB::beginTransaction();
+        try {
 
-        $fecha = Carbon::now('America/Mexico_City')->locale('es')->translatedFormat('Y-m-d');
-        $maxId = EstadoCuenta::max('folio');  
-        $newId = $maxId ? $maxId + 1 : 1; 
-    
-        try{
-        $result = DB::table('configuracionTesoreria as ct')
-                        ->join('alumno as al', function ($join) use ($request) {
-                            $join->on('ct.idNivel', '=', 'al.idNivel')
-                                ->where('al.uid', '=', $request->uid)
-                                ->where('al.secuencia', '=', $request->secuencia);
-                        })
-                        ->select(
-                            'ct.idServicioColegiatura',
-                            'ct.idServicioInscripcion',
-                            'ct.idServicioRecargo'
-                        )
-                        ->first(); // solo un registro
+            $folio = (EstadoCuenta::max('folio') ?? 0) + 1;
+            $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia);
 
-                    if ($result) {
-                        $idServicioColegiatura = $result->idServicioColegiatura;
-                        $idServicioInscripcion = $result->idServicioInscripcion;
-                        $idServicioRecargo     = $result->idServicioRecargo;
-                    }
-
-       
-        foreach ($request->movimientos as $movimiento) {
-       
-            $consecutivo = EstadoCuenta::where('uid', $request->uid)
-                                        ->where('secuencia', $request->secuencia)
-                                        ->where('idServicio', $movimiento['idServicio'])
-                                        ->max('consecutivo');
-            $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
-        
-            //Validar si el registro corresponde a inscripcion 
-            $importe = DB::table('edocta as edo')
-                        ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioInscripcion')
-                        ->join('alumno as al', function ($join) use ($request) {
-                            $join->on('al.uid', '=', 'edo.uid')
-                                ->on('al.secuencia', '=', 'edo.secuencia')
-                                ->where('al.uid', '=', $request->uid)
-                                ->where('al.secuencia', '=', $request->secuencia);
-                        })
-                        ->join('periodo as per', function ($join) {
-                            $join->on('per.idNivel', '=', 'al.idNivel')
-                                ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                                ->where('per.activo', '=', 1);
-                        })
-                        ->where('ct.idServicioInscripcion', '=', $movimiento['idServicio'])
-                        ->selectRaw("IFNULL(SUM(CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE -1 * edo.importe END), 0) as importe")
-                        ->value('importe'); // Devuelve solo el valor
+            foreach ($data['movimientos'] as $movimiento) 
+                $this->procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $data['idPeriodo'], $data['uidcajero'], $fecha, $folio);
             
-        $importeProrratear = 0;  
-        if($idServicioInscripcion==$movimiento['idServicio']) {       
-            if($importe >= $movimiento['importe']){ // Indica que el servicio que se integrò se asocia a inscripciòn  
-                //Solo es un abono
-                $edoCta = EstadoCuenta::create([
-                        'uid'=> $request->uid,
-                        'secuencia'=> $request->secuencia,
-                        'idServicio'=> $movimiento['idServicio'],
-                        'consecutivo'=> $consecutivo,
-                        'importe'=> $movimiento['importe'],
-                        'idPeriodo'=> $request->idPeriodo,
-                        'fechaMovto'=> $fecha,
-                        'idformaPago'=> $movimiento['idformaPago'],
-                        'cuatrodigitos'=> $movimiento['cuatrodigitos'],
-                        'tipomovto'=> $movimiento['tipomovto'],
-                        'FechaPago'=> $fecha,
-                        'folio'=> $newId,
-                        'uidcajero'=> $request->uidcajero
-                    ]);
-                    $importeProrratear = 0;
-                    break; 
-            } else {
-                //pago completo
-                $edoCta = EstadoCuenta::create([
-                        'uid'=> $request->uid,
-                        'secuencia'=> $request->secuencia,
-                        'idServicio'=> $movimiento['idServicio'],
-                        'consecutivo'=> $consecutivo,
-                        'importe'=> $importe,
-                        'idPeriodo'=> $request->idPeriodo,
-                        'fechaMovto'=> $fecha,
-                        'idformaPago'=> $movimiento['idformaPago'],
-                        'cuatrodigitos'=> $movimiento['cuatrodigitos'],
-                        'tipomovto'=> $movimiento['tipomovto'],
-                        'FechaPago'=> $fecha,
-                        'folio'=> $newId,
-                        'uidcajero'=> $request->uidcajero
-                    ]);
-                    //Importe a prorratear
-                $importeProrratear = $movimiento['importe'] - $importe;
-            }//if($importe >= $movimiento['importe'])
-            }// if($idServicioInscripcion==$movimiento['idServicio'])
-
-        if($idServicioColegiatura==$movimiento['idServicio']){
-            $importeProrratear = $movimiento['importe'];
+            DB::commit();
+            return $this->returnData('folio', $folio, 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return $this->returnEstatus('Error al crear el registro', 500, $e->getMessage());
         }
-
-        
-        if($importeProrratear > 0){ //Importe a prorratear en colegiatura
-                    $resultados = DB::table('configuracionTesoreria as ct')
-                            ->join('alumno as al', function ($join) use ($request) {
-                                $join->on('ct.idNivel', '=', 'al.idNivel')
-                                    ->where('al.uid', '=', $request->uid)
-                                    ->where('al.secuencia', '=', $request->secuencia);
-                            })
-                            ->join('periodo as per', function ($join) {
-                                $join->on('per.idNivel', '=', 'al.idNivel')
-                                    ->where('per.activo', '=', 1);
-                            })
-                            ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
-                            ->join('servicioCarrera as sc', function ($join) {
-                                $join->on('sc.idNivel', '=', 'ct.idNivel')
-                                    ->on('sc.idPeriodo', '=', 'per.idPeriodo');
-                            })
-                            ->join('servicio as s', 's.idServicio', '=', 'sc.idServicio')
-                            ->join('edocta as cta', function ($join) use ($request) {
-                                $join->on('cta.idServicio', '=', 's.idServicio')
-                                    ->where('cta.uid', '=', $request->uid)
-                                    ->where('cta.tipomovto', '=', 'C')
-                                    ->where('cta.secuencia', '=', $request->secuencia)
-                                    ->whereColumn('cta.idPeriodo', 'per.idPeriodo');
-                            })
-                            ->leftJoin('edocta as ctaA', function ($join) use ($request) {
-                                $join->on('ctaA.idServicio', '=', 's.idServicio')
-                                    ->on('ctaA.parcialidad', '=', 'cta.parcialidad')
-                                    ->where('ctaA.uid', '=', $request->uid)
-                                    ->where('ctaA.tipomovto', '=', 'A')
-                                    ->where('ctaA.secuencia', '=', $request->secuencia)
-                                    ->whereColumn('ctaA.idPeriodo', 'per.idPeriodo');
-                            })
-                            ->leftJoin('edocta as cargos', function ($join) use ($request) {
-                                $join->on('cargos.idServicio', '=', 'ct.idServicioRecargo')
-                                    ->on('cargos.parcialidad', '=', 'cta.parcialidad')
-                                    ->where('cargos.uid', '=', $request->uid)
-                                    ->where('cargos.tipomovto', '=', 'C')
-                                    ->where('cargos.secuencia', '=', $request->secuencia)
-                                    ->whereColumn('cargos.idPeriodo', 'per.idPeriodo');
-                            })
-                            ->leftJoin('servicio as r', 'r.idServicio', '=', 'cargos.idServicio')
-                            ->whereColumn('ct.idServicioColegiatura', 'sc.idServicio')
-                            ->whereRaw('cta.importe - IFNULL(ctaA.importe, 0) > 0')
-                            ->orderBy('cta.parcialidad')
-                            ->select([
-                                'cta.parcialidad',
-                                's.idServicio',
-                                DB::raw('(cta.importe - IFNULL(ctaA.importe, 0)) AS monto'),
-                                DB::raw('cargos.idServicio AS idServicioCargo'),
-                                 DB::raw('ct.idServicioColegiatura'),
-                               
-                                DB::raw('IFNULL(cargos.importe, 0) AS cargos'),
-                                DB::raw("CONCAT('100000', LPAD(MONTH(cta.fechaVencimiento), 2, '0')) as mes")
-                            ])
-                            ->get();
-        
-            foreach ($resultados as $registro) {
-                $consecutivo = EstadoCuenta::where('uid', $request->uid)
-                                        ->where('secuencia', $request->secuencia)
-                                        ->where('idServicio',$registro->idServicioCargo)
-                                        ->max('consecutivo');
-                $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
-  
-                if($registro->cargos>0){
-                    $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
-                    if($importeProrratear>$registro->cargos){ //Se cubren todos los cargos
-                        $edoCta = EstadoCuenta::create([
-                                                'uid'=> $request->uid,
-                                                'secuencia'=> $request->secuencia,
-                                                'idServicio'=> $registro->idServicioCargo,
-                                                'consecutivo'=> $consecutivo,
-                                                'importe'=>$registro->cargos,
-                                                'idPeriodo'=> $request->idPeriodo,
-                                                'fechaMovto'=> $fecha,
-                                                'idformaPago'=> $movimiento['idformaPago'],
-                                                'cuatrodigitos'=> $movimiento['cuatrodigitos'],
-                                                'tipomovto'=> $movimiento['tipomovto'],
-                                                'FechaPago'=> $fecha,
-                                                'folio'=> $newId,
-                                                'referencia'=>$registro->mes,
-                                                'parcialidad'=> $registro->parcialidad,
-                                                'uidcajero'=> $request->uidcajero
-                        ]);
-                        $importeProrratear = $importeProrratear-$registro->cargos;
-                }
-                else {
-                      
-                    $edoCta = EstadoCuenta::create([
-                                                'uid'=> $request->uid,
-                                                'secuencia'=> $request->secuencia,
-                                                'idServicio'=> $registro->idServicioCargo,
-                                                'consecutivo'=> $consecutivo,
-                                                'importe'=>$importeProrratear,
-                                                'idPeriodo'=> $request->idPeriodo,
-                                                'fechaMovto'=> $fecha,
-                                                'idformaPago'=> $movimiento['idformaPago'],
-                                                'cuatrodigitos'=> $movimiento['cuatrodigitos'],
-                                                'tipomovto'=> $movimiento['tipomovto'],
-                                                'FechaPago'=> $fecha,
-                                                'folio'=> $newId,
-                                                'referencia'=>$registro->mes,
-                                                'parcialidad'=> $registro->parcialidad,
-                                                'uidcajero'=> $request->uidcajero
-                        ]);
-                        $importeProrratear=0;
-                        break;
-        }//if($importeProrratear>$registro->cargos)
-    }//if($registro->cargos>0)
-    //No tiene cargos pendientes entonces el importe se va a la colegiatura
-        
-    if($importeProrratear >0){
-            $consecutivo = EstadoCuenta::where('uid', $request->uid)
-                                        ->where('secuencia', $request->secuencia)
-                                        ->where('idServicio',$registro->idServicioColegiatura)
-                                        ->max('consecutivo');
-            $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
-
-            if($importeProrratear - $registro->monto>0){
-                     $edoCta = EstadoCuenta::create([
-                                                'uid'=> $request->uid,
-                                                'secuencia'=> $request->secuencia,
-                                                'idServicio'=> $registro->idServicioColegiatura,
-                                                'consecutivo'=> $consecutivo,
-                                                'importe'=>$registro->monto,
-                                                'idPeriodo'=> $request->idPeriodo,
-                                                'fechaMovto'=> $fecha,
-                                                'idformaPago'=> $movimiento['idformaPago'],
-                                                'cuatrodigitos'=> $movimiento['cuatrodigitos'],
-                                                'tipomovto'=> $movimiento['tipomovto'],
-                                                'FechaPago'=> $fecha,
-                                                'folio'=> $newId,
-                                                'referencia'=>$registro->mes,
-                                                'parcialidad'=>$registro->parcialidad,
-                                                'uidcajero'=>$request->uidcajero
-                        ]);
-                        $importeProrratear= $importeProrratear - $registro->monto;
-  
     }
-    else {
-             $edoCta = EstadoCuenta::create([
-                                                'uid'=> $request->uid,
-                                                'secuencia'=> $request->secuencia,
-                                                'idServicio'=> $registro->idServicioColegiatura,
-                                                'consecutivo'=> $consecutivo,
-                                                'importe'=>$importeProrratear,
-                                                'idPeriodo'=> $request->idPeriodo,
-                                                'fechaMovto'=> $fecha,
-                                                'idformaPago'=> $movimiento['idformaPago'],
-                                                'cuatrodigitos'=> $movimiento['cuatrodigitos'],
-                                                'tipomovto'=> $movimiento['tipomovto'],
-                                                'FechaPago'=> $fecha,
-                                                'folio'=> $newId,
-                                                'referencia'=>$registro->mes,
-                                                'parcialidad'=>$registro->parcialidad,
-                                                'uidcajero'=>$request->uidcajero
-                        ]);
-                        $importeProrratear= 0;
-                        break;
-  
-    }
-    }
-    }//foreach ($resultados as $registro) 
-    }// if($importeProrratear > 0)
-    else {//Es cualquier otro servicio
-        $consecutivo = EstadoCuenta::where('uid', $request->uid)
-                                        ->where('secuencia', $request->secuencia)
-                                        ->where('idServicio',$movimiento['idServicio'])
-                                        ->max('consecutivo');
-        
 
-        if($movimiento['cargoAut']==1){
-            $consecutivo = $consecutivo ? $consecutivo + 1 : 1;
-            $edoCta = EstadoCuenta::create([
-                                            'uid'=> $request->uid,
-                                            'secuencia'=> $request->secuencia,
-                                            'idServicio'=> $movimiento['idServicio'],
-                                            'consecutivo'=> $consecutivo,
-                                            'importe'=> $movimiento['importe'],
-                                            'idPeriodo'=> $request->idPeriodo,
-                                            'fechaMovto'=> $fecha,
-                                            'tipomovto'=> 'C',
-                                            'FechaPago'=> $fecha,
-                                            'uidcajero'=> $request->uidcajero
-                    ]);
-                }
-                $consecutivo = $consecutivo + 1 ;    
-                $edoCta = EstadoCuenta::create([
-                                            'uid'=> $request->uid,
-                                            'secuencia'=> $request->secuencia,
-                                            'idServicio'=> $movimiento['idServicio'],
-                                            'consecutivo'=> $consecutivo,
-                                            'importe'=> $movimiento['importe'],
-                                            'idPeriodo'=> $request->idPeriodo,
-                                            'fechaMovto'=> $fecha,
-                                            'idformaPago'=> $movimiento['idformaPago'],
-                                            'cuatrodigitos'=> $movimiento['cuatrodigitos'],
-                                            'tipomovto'=> $movimiento['tipomovto'],
-                                            'FechaPago'=> $fecha,
-                                            'folio'=> $newId,
-                                            'uidcajero'=> $request->uidcajero
+    private function calcularImporteInscripcion(string $uid, string $secuencia, int $idServicioInscripcion){
+    // Obtenemos el importe de pagos y notas de crédito
+        $importe = DB::table('edocta as edo')
+            ->selectRaw("IFNULL(SUM(CASE 
+                            WHEN edo.tipomovto = 'C' THEN edo.importe
+                            ELSE -1 * edo.importe
+                        END), 0) - IFNULL(notaCred.importeCred, 0) AS importe")
+            ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioInscripcion')
+            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+                $join->on('al.uid', '=', 'edo.uid')
+                    ->on('al.secuencia', '=', 'edo.secuencia')
+                    ->where('al.uid', '=', $uid)
+                    ->where('al.secuencia', '=', $secuencia);
+            })
+            ->join('periodo as per', function ($join) {
+                $join->on('per.idNivel', '=', 'al.idNivel')
+                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
+                    ->where('per.activo', '=', 1);
+            })
+            ->leftJoin(DB::raw("(
+                SELECT edo.referencia AS referenciaNotaCred,
+                    IFNULL(SUM(edo.importe), 0) AS importeCred
+                FROM edocta AS edo
+                INNER JOIN configuracionTesoreria AS ct
+                    ON edo.idServicio = ct.idServicioNotaCredito
+                INNER JOIN alumno AS al 
+                    ON al.uid = edo.uid AND al.secuencia = edo.secuencia
+                INNER JOIN periodo AS per 
+                    ON per.idNivel = al.idNivel AND edo.idPeriodo = per.idPeriodo AND per.activo = 1
+                WHERE al.uid = {$uid}
+                AND al.secuencia = {$secuencia}
+                GROUP BY edo.referencia
+            ) AS notaCred"), 'edo.referencia', '=', 'notaCred.referenciaNotaCred')
+            ->where('ct.idServicioInscripcion', $idServicioInscripcion)
+            ->value('importe'); // Devuelve solo el valor
+        return $importe ?? 0;
+    }
+
+
+    private function procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $idPeriodo, $uidcajero, $fecha, $folio){
+
+        $consecutivo = $this->siguienteConsecutivo($uid, $secuencia, $movimiento['idServicio']);
+
+        if ($movimiento['idServicio'] == $servicios->idServicioInscripcion) {
+
+            $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion);
+            $pagoInscripcion = min($movimiento['importe'], $importeInscripcion);
+            $restante = $movimiento['importe'] - $pagoInscripcion;
+
+            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+                                                            'secuencia' => $secuencia,
+                                                            'consecutivo' => $consecutivo,
+                                                            'importe' => $pagoInscripcion,
+                                                            'idPeriodo' => $idPeriodo,
+                                                            'fechaMovto' => $fecha,
+                                                            'folio' => $folio,
+                                                            'uidcajero' => $uidcajero
+            ]));
+
+            if ($restante > 0) 
+                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero);
+
+        } 
+        else if($movimiento['idServicio'] == $servicios->idServicioColegiatura)
+            $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
+        else if($movimiento['idServicio'] == $servicios->idServicioNotaCredito) 
+               $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero, $servicios->idServicioNotaCredito);
+         else $this->procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios);
+    }
+
+    private function obtenerPendientes( $uid,  $secuencia){
+
+    return DB::table('configuracionTesoreria as ct')
+        ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+            $join->on('ct.idNivel', '=', 'al.idNivel')
+                 ->where('al.uid', '=', $uid)
+                 ->where('al.secuencia', '=', $secuencia);
+        })
+        ->join('periodo as per', function ($join) {
+            $join->on('per.idNivel', '=', 'al.idNivel')
+                 ->where('per.activo', '=', 1);
+        })
+        ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
+        ->join('servicioCarrera as sc', function ($join) {
+            $join->on('sc.idNivel', '=', 'ct.idNivel')
+                 ->on('sc.idPeriodo', '=', 'per.idPeriodo');
+        })
+        ->join('servicio as s', 's.idServicio', '=', 'sc.idServicio')
+        ->join('edocta as cta', function ($join) use ($uid, $secuencia) {
+            $join->on('cta.idServicio', '=', 's.idServicio')
+                 ->where('cta.uid', '=', $uid)
+                 ->where('cta.secuencia', '=', $secuencia)
+                 ->where('cta.tipomovto', '=', 'C')
+                 ->whereColumn('cta.idPeriodo', 'per.idPeriodo');
+        })
+        ->leftJoin('edocta as cargos', function ($join) use ($uid, $secuencia) {
+            $join->on('cargos.idServicio', '=', 'ct.idServicioRecargo')
+                 ->on('cargos.parcialidad', '=', 'cta.parcialidad')
+                 ->where('cargos.uid', '=', $uid)
+                 ->where('cargos.secuencia', '=', $secuencia)
+                 ->where('cargos.tipomovto', '=', 'C')
+                 ->whereColumn('cargos.idPeriodo', 'per.idPeriodo');
+        })
+        ->leftJoin('edocta as ctaA', function ($join) use ($uid) {
+            $join->on('ctaA.parcialidad', '=', 'cta.parcialidad')
+                 ->where('ctaA.uid', '=', $uid)
+                 ->where('ctaA.tipomovto', '=', 'A')
+                 ->whereColumn('ctaA.idPeriodo', 'per.idPeriodo')
+                 ->whereColumn('ctaA.referencia', 'cta.referencia');
+        })
+        ->leftJoin('edocta as ctaR', function ($join) use ($uid) {
+            $join->on('ctaR.parcialidad', '=', 'cta.parcialidad')
+                 ->where('ctaR.uid', '=', $uid)
+                 ->where('ctaR.tipomovto', '=', 'A')
+                 ->whereColumn('ctaR.idPeriodo', 'per.idPeriodo')
+                 ->whereColumn('ctaR.referencia', 'cargos.referencia');
+        })
+        ->leftJoin('servicio as r', 'r.idServicio', '=', 'cargos.idServicio')
+        ->whereColumn('ct.idServicioColegiatura', 'sc.idServicio')
+        ->whereRaw('(cta.importe - IFNULL(ctaA.importe, 0)) > 0')
+        ->orderBy('cta.parcialidad')
+        ->select([
+            'cta.parcialidad',
+            'cta.referencia as referenciaCole',
+            'cargos.referencia as referenciaCargos',
+            DB::raw('(cta.importe - IFNULL(ctaA.importe, 0)) AS monto'),
+            DB::raw('cargos.idServicio AS idServicioCargo'),
+            'ct.idServicioColegiatura',
+            DB::raw('(cargos.importe - IFNULL(ctaR.importe, 0)) AS cargos'),
+        ])
+        ->get();
+    }
+
+
+    private function prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $importeRestante, $fecha, $folio, $uidcajero,$idServicioNotaCredito){
+        $pendientes = $this->obtenerPendientes($uid, $secuencia, $idPeriodo, $servicios);
+
+        foreach ($pendientes as $registro) {
+            // 1️⃣ Pagar recargos primero
+            if ($registro->cargos > 0 && $importeRestante > 0) {
+                $pago = min($importeRestante, $registro->cargos);
+                $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$registro->idServicioCargo;
+                $this->crearMovimiento(['uid' => $uid,
+                                        'secuencia' => $secuencia,
+                                        'idServicio' => $idServicioNota,
+                                        'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia, $registro->idServicioCargo),
+                                        'importe' => $pago,
+                                        'idPeriodo' => $idPeriodo,
+                                        'fechaMovto' => $fecha,
+                                        'idformaPago' => $movimiento['idformaPago'],
+                                        'cuatrodigitos' => $movimiento['cuatrodigitos'],
+                                        'tipomovto' => $movimiento['tipomovto'],
+                                        'FechaPago' => $fecha,
+                                        'folio' => $folio,
+                                        'referencia' => $registro->referenciaCargos,
+                                        'parcialidad' => $registro->parcialidad,
+                                        'uidcajero' => $uidcajero
                 ]);
-    }
-           
+                $importeRestante -= $pago;
+            }
+
+            // 2️⃣ Pagar colegiatura
+            if ($registro->monto > 0 && $importeRestante > 0) {
+                $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$registro->idServicioColegiatura;
                 
-        
+                $pago = min($importeRestante, $registro->monto);
+                $this->crearMovimiento([
+                                        'uid' => $uid,
+                                        'secuencia' => $secuencia,
+                                        'idServicio' => $idServicioNota,
+                                        'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia, $registro->idServicioColegiatura),
+                                        'importe' => $pago,
+                                        'idPeriodo' => $idPeriodo,
+                                        'fechaMovto' => $fecha,
+                                        'idformaPago' => $movimiento['idformaPago'],
+                                        'cuatrodigitos' => $movimiento['cuatrodigitos'],
+                                        'tipomovto' => $movimiento['tipomovto'],
+                                        'FechaPago' => $fecha,
+                                        'folio' => $folio,
+                                        'referencia' => $registro->referenciaCole,
+                                        'parcialidad' => $registro->parcialidad,
+                                        'uidcajero' => $uidcajero
+                ]);
+                $importeRestante -= $pago;
+            }
+
+            if ($importeRestante <= 0) break;
         }
 
-        } catch (QueryException $e) {
-                    // Capturamos el error relacionado con las restricciones
-                    if ($e->getCode() == '23000') 
-                        // Código de error para restricción violada (por ejemplo, clave foránea)
-                        return $this->returnEstatus('El registro ya se encuentra dado de alta',400,null);
-                        
-                    return $this->returnEstatus('Error al insertar el registro',400,null);
-                }
-
-        if (!$edoCta) 
-            return $this->returnEstatus('Error al crear el registro',500,null); 
-        return $this->returnData('folio',$newId,200);   
+        // 3️⃣ Sobrante: aplicarlo como pago adelantado
+        if ($importeRestante > 0) {
+            $this->crearMovimiento(array_merge($movimiento, [
+                'uid' => $uid,
+                'idServicio' => $servicios->idServicioNotaCredito,
+                'secuencia' => $secuencia,
+                'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia, $movimiento['idServicio']),
+                'importe' => $importeRestante,
+                'idPeriodo' => $idPeriodo,
+                'fechaMovto' => $fecha,
+                'folio' => $folio,
+                'uidcajero' => $uidcajero
+            ]));
+        }
     }
+
+    private function procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios){
+        
+        $consecutivo = $this->siguienteConsecutivo($uid, $secuencia, $movimiento['idServicio']);
+        $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+                                                        'secuencia' => $secuencia,
+                                                        'consecutivo' => $consecutivo,
+                                                        'idPeriodo' => $idPeriodo,
+                                                        'fechaMovto' => $fecha,
+                                                        'folio' => $folio,
+                                                        'uidcajero' => $uidcajero
+        ]));
+    }
+
+
 
     public function guardarMovtos(Request $request){
     
