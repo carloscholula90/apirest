@@ -17,72 +17,93 @@ use Endroid\QrCode\RoundBlockSizeMode\RoundBlockSizeModeMargin;
 
 class ReciboController extends Controller
 {
-    public function generarYGuardarPDF($uid, $folio)
-{
+
+    public function validarQR($uid,$qr){
+        return $this->generarYGuardarPDF($uid,0,$qr);
+    }
+
+    public function generarYGuardarPDF($uid, $folio,$qr = null){
+
     $orientation = 'P';
     $size = 'letter';
     $nameReport = 'recibos_' . mt_rand(100, 999) . '.pdf';
 
     $datos = DB::table('edocta as edo')
-        ->select([
-            'carrera.descripcion as nombreCarrera',
-            'edo.fechaPago',
-            'edo.uid',
-            'edo.folio',
-            'edo.comprobante',
-            DB::raw("GROUP_CONCAT(DISTINCT CONCAT( s.descripcion, ' ',
-                                            CASE WHEN colegiatura.idServicioColegiatura = s.idServicio THEN                            
-                                            CASE edo.referencia
-                                                    WHEN '10000001' THEN 'ENERO'
-                                                    WHEN '10000002' THEN 'FEBRERO'
-                                                    WHEN '10000003' THEN 'MARZO'
-                                                    WHEN '10000004' THEN 'ABRIL'
-                                                    WHEN '10000005' THEN 'MAYO'
-                                                    WHEN '10000006' THEN 'JUNIO'
-                                                    WHEN '10000007' THEN 'JULIO'
-                                                    WHEN '10000008' THEN 'AGOSTO'
-                                                    WHEN '10000009' THEN 'SEPTIEMBRE'
-                                                    WHEN '10000010' THEN 'OCTUBRE'
-                                                    WHEN '10000011' THEN 'NOVIEMBRE'
-                                                    WHEN '10000012' THEN 'DICIEMBRE'
-                                                    ELSE ''
-                                                    END
-                                else ''
-                                end ) ORDER BY s.descripcion SEPARATOR ',') as servicios"),
-            DB::raw('SUM(importe) as total'),
-            DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre')
-        ])
-        ->join('alumno as al', 'al.uid', '=', 'edo.uid')
-        ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
-        
-        ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
-        ->join('persona', 'persona.uid', '=', 'al.uid')
-        ->leftJoin('configuracionTesoreria AS inscripcion', function($join) {
+                    ->select([
+                        'carrera.descripcion as nombreCarrera',
+                        'edo.fechaPago',
+                        'edo.uid',
+                        'edo.folio',
+                        'edo.comprobante',
+                        DB::raw("
+                            GROUP_CONCAT(
+                                DISTINCT CONCAT(
+                                    s.descripcion, ' ',
+                                    CASE 
+                                        WHEN colegiatura.idServicioColegiatura = s.idServicio
+                                            OR recargo.idServicioRecargo = s.idServicio
+                                        THEN
+                                            CASE CONVERT(SUBSTRING(edo.referencia, 4), UNSIGNED)
+                                                WHEN 1 THEN 'ENE'
+                                                WHEN 2 THEN 'FEB'
+                                                WHEN 3 THEN 'MAR'
+                                                WHEN 4 THEN 'ABR'
+                                                WHEN 5 THEN 'MAY'
+                                                WHEN 6 THEN 'JUN'
+                                                WHEN 7 THEN 'JUL'
+                                                WHEN 8 THEN 'AGO'
+                                                WHEN 9 THEN 'SEP'
+                                                WHEN 10 THEN 'OCT'
+                                                WHEN 11 THEN 'NOV'
+                                                WHEN 12 THEN 'DIC'
+                                                ELSE ''
+                                            END
+                                        ELSE ''
+                                    END
+                                )
+                                ORDER BY s.descripcion SEPARATOR ','
+                            ) as servicios
+                        "),
+                        DB::raw('SUM(importe) as total'),
+                        DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre')
+                    ])
+                    ->join('alumno as al', 'al.uid', '=', 'edo.uid')
+                    ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
+                    ->leftJoin('configuracionTesoreria as recargo', function ($join) {
+                        $join->on('recargo.idNivel', '=', 'al.idNivel')
+                            ->on('recargo.idServicioRecargo', '=', 's.idServicio');
+                    })
+                    ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
+                    ->join('persona', 'persona.uid', '=', 'al.uid')
+                    ->leftJoin('configuracionTesoreria as inscripcion', function ($join) {
                         $join->on('inscripcion.idNivel', '=', 'al.idNivel')
-                            ->on(function($query) {
-                                $query->on('inscripcion.idServicioInscripcion', '=', 's.idServicio');
-                            });
+                            ->on('inscripcion.idServicioInscripcion', '=', 's.idServicio');
                     })
-                    ->leftJoin('configuracionTesoreria AS colegiatura', function($join) {
+                    ->leftJoin('configuracionTesoreria as colegiatura', function ($join) {
                         $join->on('colegiatura.idNivel', '=', 'al.idNivel')
-                            ->on(function($query) {
-                                $query->on('colegiatura.idServicioColegiatura', '=', 's.idServicio');
-                            });
+                            ->on('colegiatura.idServicioColegiatura', '=', 's.idServicio');
                     })
-        ->where('edo.uid', $uid)
-        ->where('edo.folio', $folio)
-        ->where('edo.tipomovto','A')
-        ->groupBy(
-            'carrera.descripcion',
-            'edo.fechaPago',
-            'edo.uid',
-            'edo.folio',
-            'persona.primerApellido',
-            'persona.segundoApellido',
-            'persona.nombre',
-            'edo.comprobante'
-        )
-        ->get();
+                    ->where('edo.uid', $uid)
+                    ->where('edo.tipomovto', 'A');
+
+                if ($folio > 0) {
+                    $datos->where('edo.folio', $folio);
+                }
+
+                if ($qr > 0) {
+                    $datos->where('edo.comprobante', $qr);
+                }
+
+                $datos = $datos->groupBy(
+                    'carrera.descripcion',
+                    'edo.fechaPago',
+                    'edo.uid',
+                    'edo.folio',
+                    'persona.primerApellido',
+                    'persona.segundoApellido',
+                    'persona.nombre',
+                    'edo.comprobante'
+                )->get();
 
     if ($datos->isEmpty()) {
         return response()->json(['status' => 404, 'message' => 'Datos no encontrados']);
@@ -124,22 +145,25 @@ class ReciboController extends Controller
    
    
     $html .= '<br><br><br>
-    <table border="0" cellpadding="1" style="font-family: Arial; font-size: 10pt;line-height: 1.5;">
+    <table border="0" cellpadding="1" style="font-family: Arial; line-height: 1.5;">
      <tr>
             <td style="width: 20cm; font-size: 9pt;">Puebla, Pue. a ' . $fecha . '</td>
         </tr>   
         <tr>
-            <td style="width: 20cm; font-size: 10pt;"><b>Recibo de:</b> ' . $datosRecibos->nombre . '</td>
+            <td style="width: 20cm; font-size: 9pt;"><b>Recibo de:</b> ' . $datosRecibos->nombre . '</td>
         </tr>
+         <tr>
+            <td style="width: 20cm; font-size: 9pt;"><b>Carrera: </b>' . $datosRecibos->nombreCarrera . '</td>
+        </tr> 
         <tr>
             <td style="width: 20cm; font-size: 9pt;"><b>La cantidad de: </b>$ ' . $totalFormateado . '</td>
         </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>Por concepto de: </b>' . $datosRecibos->servicios . '</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>Carrera: </b>' . $datosRecibos->nombreCarrera . '</td>
-        </tr>       
+         <tr>
+        <td style="width: 20cm; font-size: 9pt; word-wrap: break-word; word-break: break-word;">
+            <b>Por concepto de: </b>' . $datosRecibos->servicios . '
+        </td>
+    </tr>
+             
     </table>';
     if ($qrBase64) {
         $html .= '<br><br><br><div style="text-align:left;"><img src="data:image/png;base64,' . $qrBase64 . '" style="width: 75px;" /></div>';
@@ -156,18 +180,19 @@ class ReciboController extends Controller
             <td style="width: 20cm; font-size: 9pt;">Puebla, Pue. a ' . $fecha . '</td>
         </tr>
         <tr>
-            <td style="width: 20cm; font-size: 10pt;"><b>Recibo de:</b> ' . $datosRecibos->nombre . '</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>La cantidad de: </b>$ ' . $totalFormateado . '</td>
-        </tr>
-        <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>Por concepto de: </b>' . $datosRecibos->servicios . '</td>
+            <td style="width: 20cm; font-size: 9pt;"><b>Recibo de:</b> ' . $datosRecibos->nombre . '</td>
         </tr>
         <tr>
             <td style="width: 20cm; font-size: 9pt;"><b>Carrera: </b>' . $datosRecibos->nombreCarrera . '</td>
         </tr>
-        
+        <tr>
+            <td style="width: 20cm; font-size: 9pt;"><b>La cantidad de: </b>$ ' . $totalFormateado . '</td>
+        </tr>
+         <tr>
+        <td style="width: 20cm; font-size: 9pt; word-wrap: break-word; word-break: break-word;">
+            <b>Por concepto de: </b>' . $datosRecibos->servicios . '
+        </td>
+    </tr>
     </table>';
     if ($qrBase64) {
         $html .= '<br><br><br><div style="text-align:left;"><img src="data:image/png;base64,' . $qrBase64 . '" style="width: 75px;" /></div>';
@@ -209,35 +234,35 @@ class ReciboController extends Controller
                 'persona.segundoapellido as apellidomat',
                 DB::raw("CASE WHEN colegiatura.idServicioColegiatura = s.idServicio THEN
                     CASE WHEN edo.tipomovto = 'A' THEN
-                        CASE edo.referencia
-                            WHEN '10000001' THEN 'ENERO'
-                            WHEN '10000002' THEN 'FEBRERO'
-                            WHEN '10000003' THEN 'MARZO'
-                            WHEN '10000004' THEN 'ABRIL'
-                            WHEN '10000005' THEN 'MAYO'
-                            WHEN '10000006' THEN 'JUNIO'
-                            WHEN '10000007' THEN 'JULIO'
-                            WHEN '10000008' THEN 'AGOSTO'
-                            WHEN '10000009' THEN 'SEPTIEMBRE'
-                            WHEN '10000010' THEN 'OCTUBRE'
-                            WHEN '10000011' THEN 'NOVIEMBRE'
-                            WHEN '10000012' THEN 'DICIEMBRE'
+                         CASE CONVERT(SUBSTRING(edo.referencia, 4), UNSIGNED)
+                            WHEN 1 THEN 'ENE'
+                            WHEN 2 THEN 'FEB'
+                            WHEN 3 THEN 'MAR'
+                            WHEN 4 THEN 'ABR'
+                            WHEN 5 THEN 'MAY'
+                            WHEN 6 THEN 'JUN'
+                            WHEN 7 THEN 'JUL'
+                            WHEN 8 THEN 'AGOS'
+                            WHEN 9 THEN 'SEPT'
+                            WHEN 10 THEN 'OCT'
+                            WHEN 11 THEN 'NOV'
+                            WHEN 12 THEN 'DIC'
                             ELSE ''
                         END
                     ELSE
                         CASE MONTH(edo.FechaPago)
-                            WHEN 1 THEN 'ENERO'
-                            WHEN 2 THEN 'FEBRERO'
-                            WHEN 3 THEN 'MARZO'
-                            WHEN 4 THEN 'ABRIL'
-                            WHEN 5 THEN 'MAYO'
-                            WHEN 6 THEN 'JUNIO'
-                            WHEN 7 THEN 'JULIO'
-                            WHEN 8 THEN 'AGOSTO'
-                            WHEN 9 THEN 'SEPTIEMBRE'
-                            WHEN 10 THEN 'OCTUBRE'
-                            WHEN 11 THEN 'NOVIEMBRE'
-                            WHEN 12 THEN 'DICIEMBRE'
+                            WHEN 1 THEN 'ENE'
+                            WHEN 2 THEN 'FEB'
+                            WHEN 3 THEN 'MAR'
+                            WHEN 4 THEN 'ABR'
+                            WHEN 5 THEN 'MAY'
+                            WHEN 6 THEN 'JUN'
+                            WHEN 7 THEN 'JUL'
+                            WHEN 8 THEN 'AGOS'
+                            WHEN 9 THEN 'SEPT'
+                            WHEN 10 THEN 'OCT'
+                            WHEN 11 THEN 'NOV'
+                            WHEN 12 THEN 'DIC'
                             ELSE ''
                         END
                     END

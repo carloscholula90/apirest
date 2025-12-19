@@ -20,15 +20,11 @@ class EstadoCuentaController extends Controller{
         return $this->returnData('EstadoCuenta',$resultados,200);
     }
 
-    public function validarQR($uid,$qr){
-        $resultados = $this->obtenerEstadoCuenta($uid,null,null,$qr);
-        return $this->returnData('movimientos',$resultados,200);
-    }
-
-    public function obtenerFolios($uid){
+    public function obtenerFolios($uid,$tipoEdoCta){
             $resultados = DB::table('edocta')
                     ->select(DB::raw('SUM(importe) as importe'), 'folio','fechaMovto')                        
                     ->where('uid', $uid)
+                   
                     ->groupBy('folio','fechaMovto')
                     ->get();
      return $this->returnData('folios',$resultados,200);
@@ -378,7 +374,7 @@ class EstadoCuentaController extends Controller{
             ->selectRaw("IFNULL(SUM(CASE 
                             WHEN edo.tipomovto = 'C' THEN edo.importe
                             ELSE -1 * edo.importe
-                        END), 0) - IFNULL(notaCred.importeCred, 0) AS importe")
+                        END), 0) - SUM(IFNULL(notaCred.importeCred, 0)) AS importe")
             ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioInscripcion')
             ->join('alumno as al', function ($join) use ($uid, $secuencia) {
                 $join->on('al.uid', '=', 'edo.uid')
@@ -410,33 +406,52 @@ class EstadoCuentaController extends Controller{
         return $importe ?? 0;
     }
 
+        private function obtieneReferenciaInscripcion($uid, $secuencia, $idServicioInscripcion){
+        $referencia = DB::table('edocta as edo')
+            ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioInscripcion')
+            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+                $join->on('al.uid', '=', 'edo.uid')
+                    ->on('al.secuencia', '=', 'edo.secuencia')
+                    ->where('al.uid', $uid)
+                    ->where('al.secuencia', $secuencia);
+            })
+            ->join('periodo as per', function ($join) {
+                $join->on('per.idNivel', '=', 'al.idNivel')
+                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
+                    ->where('per.activo', 1);
+            })
+            ->where('ct.idServicioInscripcion', $idServicioInscripcion) 
+            ->value('edo.referencia');
+ Log::info('idServicioInscripcion:'.$idServicioInscripcion);
+ Log::info('uid:'.$uid);
+ Log::info('secuencia:'.$secuencia);
+        return $referencia ?? 0;
+    }
 
     private function procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $idPeriodo, $uidcajero, $fecha, $folio){
-
-        $consecutivo = $this->siguienteConsecutivo($uid, $secuencia, $movimiento['idServicio']);
-
+     
         if ($movimiento['idServicio'] == $servicios->idServicioInscripcion) {
-
             $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion);
             $pagoInscripcion = min($movimiento['importe'], $importeInscripcion);
             $restante = $movimiento['importe'] - $pagoInscripcion;
 
             $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
                                                             'secuencia' => $secuencia,
-                                                            'consecutivo' => $consecutivo,
+                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
                                                             'importe' => $pagoInscripcion,
                                                             'idPeriodo' => $idPeriodo,
+                                                            'referencia' =>  $this->obtieneReferenciaInscripcion($uid, $secuencia,$servicios->idServicioInscripcion),
                                                             'fechaMovto' => $fecha,
                                                             'folio' => $folio,
                                                             'uidcajero' => $uidcajero
             ]));
 
             if ($restante > 0) 
-                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero);
-
+                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,$servicios->idServicioColegiatura);
+   
         } 
         else if($movimiento['idServicio'] == $servicios->idServicioColegiatura)
-            $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
+            $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,$servicios->idServicioColegiatura);
         else if($movimiento['idServicio'] == $servicios->idServicioNotaCredito) 
                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero, $servicios->idServicioNotaCredito);
          else $this->procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios);
@@ -505,6 +520,37 @@ class EstadoCuentaController extends Controller{
         ->get();
     }
 
+    private function siguienteConsecutivo($uid, $secuencia, $idServicio){
+        return (int) DB::table('edocta')
+            ->where('uid', $uid)
+            ->where('secuencia', $secuencia)
+            ->max('consecutivo') + 1;
+    }
+
+        private function crearMovimiento($data) {
+            $movimiento = [ 'uid'         =>  $data['uid'],
+                            'secuencia'   =>  $data['secuencia'],
+                            'idServicio'  =>  $data['idServicio'],
+                            'idPeriodo'   => $data['idPeriodo'],
+                            'importe'     => round($data['importe'], 2),
+                            'tipomovto'   => $data['tipomovto'],
+                            'referencia'  => $data['referencia'] ?? null,
+                            'parcialidad' => $data['parcialidad'] ?? 1,
+                            'fechaMovto'  => $data['fechaMovto'] ?? now(),
+                            'FechaPago'   => $data['FechaPago'] ?? now(),
+                            'idformaPago' => $data['idformaPago'] ?? null,
+                            'cuatrodigitos' => $data['cuatrodigitos'] ?? null,
+                            'folio'       => $data['folio'] ?? null,
+                            'uidcajero'   => $data['uidcajero'] ?? null,
+        ];
+
+        // Consecutivo automático
+        $movimiento['consecutivo'] =
+            $this->siguienteConsecutivo($data['uid'], $data['secuencia'], $data['idPeriodo']);
+
+        return EstadoCuenta::create($movimiento);
+    }
+
 
     private function prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $importeRestante, $fecha, $folio, $uidcajero,$idServicioNotaCredito){
         $pendientes = $this->obtenerPendientes($uid, $secuencia, $idPeriodo, $servicios);
@@ -517,7 +563,6 @@ class EstadoCuentaController extends Controller{
                 $this->crearMovimiento(['uid' => $uid,
                                         'secuencia' => $secuencia,
                                         'idServicio' => $idServicioNota,
-                                        'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia, $registro->idServicioCargo),
                                         'importe' => $pago,
                                         'idPeriodo' => $idPeriodo,
                                         'fechaMovto' => $fecha,
@@ -536,14 +581,13 @@ class EstadoCuentaController extends Controller{
             // 2️⃣ Pagar colegiatura
             if ($registro->monto > 0 && $importeRestante > 0) {
                 $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$registro->idServicioColegiatura;
-                
+                Log::info('$importeRestante:'.$importeRestante); 
                 $pago = min($importeRestante, $registro->monto);
                 $this->crearMovimiento([
                                         'uid' => $uid,
                                         'secuencia' => $secuencia,
                                         'idServicio' => $idServicioNota,
-                                        'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia, $registro->idServicioColegiatura),
-                                        'importe' => $pago,
+                                         'importe' => $pago,
                                         'idPeriodo' => $idPeriodo,
                                         'fechaMovto' => $fecha,
                                         'idformaPago' => $movimiento['idformaPago'],
@@ -567,8 +611,7 @@ class EstadoCuentaController extends Controller{
                 'uid' => $uid,
                 'idServicio' => $servicios->idServicioNotaCredito,
                 'secuencia' => $secuencia,
-                'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia, $movimiento['idServicio']),
-                'importe' => $importeRestante,
+                 'importe' => $importeRestante,
                 'idPeriodo' => $idPeriodo,
                 'fechaMovto' => $fecha,
                 'folio' => $folio,
@@ -578,11 +621,8 @@ class EstadoCuentaController extends Controller{
     }
 
     private function procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios){
-        
-        $consecutivo = $this->siguienteConsecutivo($uid, $secuencia, $movimiento['idServicio']);
         $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
                                                         'secuencia' => $secuencia,
-                                                        'consecutivo' => $consecutivo,
                                                         'idPeriodo' => $idPeriodo,
                                                         'fechaMovto' => $fecha,
                                                         'folio' => $folio,
