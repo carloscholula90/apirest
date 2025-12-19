@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\Auth;
 
 class EstadoCuentaController extends Controller{
 
+
+    public function validarQR($uid,$qr){
+        $resultados = $this->obtenerEstadoCuenta($uid,null,null,null,$qr);
+        return $this->returnData('movimientos',$resultados,200);
+    }
+
     public function index($uid,$idPeriodo,$matricula,$tipoEdoCta)
     {
         $resultados = $this->obtenerEstadoCuenta($uid,$idPeriodo,$matricula,$tipoEdoCta);
@@ -165,6 +171,7 @@ class EstadoCuentaController extends Controller{
                 $query->where('edo.idPeriodo', $idPeriodo)
                     ->where('al.matricula', $matricula);
             }
+            if (!is_null($tipoEdoCta))
             $query->where('s.tipoEdoCta', $tipoEdoCta);
             // Ordenar y obtener resultados
             $edocuenta = $query->orderByDesc('inscripcion.idServicioInscripcion')
@@ -428,9 +435,7 @@ class EstadoCuentaController extends Controller{
             })
             ->where('ct.idServicioInscripcion', $idServicioInscripcion) 
             ->value('edo.referencia');
- Log::info('idServicioInscripcion:'.$idServicioInscripcion);
- Log::info('uid:'.$uid);
- Log::info('secuencia:'.$secuencia);
+ 
         return $referencia ?? 0;
     }
 
@@ -587,7 +592,7 @@ class EstadoCuentaController extends Controller{
             // 2️⃣ Pagar colegiatura
             if ($registro->monto > 0 && $importeRestante > 0) {
                 $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$registro->idServicioColegiatura;
-                Log::info('$importeRestante:'.$importeRestante); 
+              //  Log::info('$importeRestante:'.$importeRestante); 
                 $pago = min($importeRestante, $registro->monto);
                 $this->crearMovimiento([
                                         'uid' => $uid,
@@ -627,6 +632,12 @@ class EstadoCuentaController extends Controller{
     }
 
     private function procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios){
+        //Validamos si es un movimiento de cargo y abono
+        $servicio = DB::table('servicio as s')
+                        ->where('s.idServicio',$movimiento['idServicio'])
+                        ->where('s.cargoAutomatico', 1)
+                        ->get();
+        //Log::info('Otros servicios:'.$movimiento['idServicio']);
         $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
                                                         'secuencia' => $secuencia,
                                                         'idPeriodo' => $idPeriodo,
@@ -634,6 +645,17 @@ class EstadoCuentaController extends Controller{
                                                         'folio' => $folio,
                                                         'uidcajero' => $uidcajero
         ]));
+
+        if ($servicio) {
+             // Log::info('Entra aqui si de cargo:');
+           $movimiento['tipomovto'] ='C';
+        $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+                                                        'secuencia' => $secuencia,
+                                                        'idPeriodo' => $idPeriodo,
+                                                        'fechaMovto' => $fecha,
+                                                        'uidcajero' => $uidcajero
+                                                        ]));
+        }
     }
 
 

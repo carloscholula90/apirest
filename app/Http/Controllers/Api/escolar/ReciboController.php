@@ -18,11 +18,8 @@ use Endroid\QrCode\RoundBlockSizeMode\RoundBlockSizeModeMargin;
 class ReciboController extends Controller
 {
 
-    public function validarQR($uid,$qr){
-        return $this->generarYGuardarPDF($uid,0,$qr);
-    }
-
-    public function generarYGuardarPDF($uid, $folio,$qr = null){
+  
+    public function generarYGuardarPDF($uid, $folio){
 
     $orientation = 'P';
     $size = 'letter';
@@ -89,11 +86,7 @@ class ReciboController extends Controller
                 if ($folio > 0) {
                     $datos->where('edo.folio', $folio);
                 }
-
-                if ($qr > 0) {
-                    $datos->where('edo.comprobante', $qr);
-                }
-
+                
                 $datos = $datos->groupBy(
                     'carrera.descripcion',
                     'edo.fechaPago',
