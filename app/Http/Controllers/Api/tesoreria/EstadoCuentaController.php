@@ -21,13 +21,19 @@ class EstadoCuentaController extends Controller{
     }
 
     public function obtenerFolios($uid,$tipoEdoCta){
-            $resultados = DB::table('edocta')
-                    ->select(DB::raw('SUM(importe) as importe'), 'folio','fechaMovto')                        
-                    ->where('uid', $uid)
-                   
-                    ->groupBy('folio','fechaMovto')
-                    ->get();
-     return $this->returnData('folios',$resultados,200);
+            $datos = DB::table('edocta as edo')
+                            ->select(
+                                DB::raw('SUM(importe) as importe'),
+                                'edo.folio',
+                                'edo.fechaMovto'
+                            )
+                            ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
+                            ->where('edo.uid', $uid)       
+                            ->where('s.tipoEdoCta', $tipoEdoCta)
+                            ->whereNotNull('edo.folio')       
+                            ->groupBy('edo.folio', 'edo.fechaMovto')
+                            ->get();
+     return $this->returnData('folios',$datos,200);
     }
 
     public function obtenerEstadoCuenta($uid, $idPeriodo, $matricula, $tipoEdoCta, $qr = null)
