@@ -34,7 +34,7 @@ class ServiciosPeriodosController extends Controller
                     s.idServicio, s.descripcion AS servicio, s.tarjeta, s.efectivo,
                     sp.monto,s.cargoAutomatico
             FROM servicio s
-            INNER JOIN serviciosPeriodo sp ON sp.idServicio = s.idServicio
+            INNER JOIN servicioXPeriodo sp ON sp.idServicio = s.idServicio
             INNER JOIN nivel n ON n.idNivel = sp.idNivel
             INNER JOIN periodo p ON p.idNivel = sp.idNivel AND p.idPeriodo = sp.idPeriodo
             WHERE (p.activo = 1 OR p.inscripciones = 1)
@@ -103,7 +103,7 @@ class ServiciosPeriodosController extends Controller
 
     public function destroy($idNivel,$idPeriodo,$idServicio)
     {
-        $destroy = DB::table('serviciosPeriodo')
+        $destroy = DB::table('servicioXPeriodo')
                             ->where('idNivel', $idNivel  )
                             ->where('idPeriodo', $idPeriodo)
                             ->where('idServicio', $idServicio)
@@ -128,7 +128,7 @@ class ServiciosPeriodosController extends Controller
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-        DB::table('serviciosPeriodo')
+        DB::table('servicioXPeriodo')
                 ->where('idNivel', $request->idNivel)
                 ->where('idPeriodo', $request->idPeriodo)
                 ->where('idServicio', $request->idServicio)
@@ -158,7 +158,7 @@ class ServiciosPeriodosController extends Controller
      }  
 
       public function getDatos(){
-         $resultado = DB::table('serviciosPeriodo as sp')
+         $resultado = DB::table('servicioXPeriodo as sp')
                 ->select(
                     'p.descripcion as periodo',
                     'n.descripcion as nivel',
@@ -207,7 +207,7 @@ class ServiciosPeriodosController extends Controller
                 ]
                 ];
 
-        $export = new GenericTableExportEsp('serviciosPeriodo', 'descripcion', [], ['nivel.idNivel','periodo.idPeriodo'], ['asc','desc'], $selectColumns, $joins,$namesColumns);
+        $export = new GenericTableExportEsp('servicioXPeriodo', 'descripcion', [], ['nivel.idNivel','periodo.idPeriodo'], ['asc','desc'], $selectColumns, $joins,$namesColumns);
 
         // Guardar el archivo en el disco público
         Excel::store($export, 'serviciosPeriodosRpt.xlsx', 'public');

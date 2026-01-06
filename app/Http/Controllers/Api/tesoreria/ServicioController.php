@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+use Carbon\Carbon;
 
 class ServicioController extends Controller
 {
@@ -81,6 +82,9 @@ private function obtenerPendientes($uid, $secuencia){
         's.efectivo',
         's.tarjeta',
         'per.idPeriodo',
+        'cta.uid',
+        'cta.consecutivo',
+        'cta.secuencia',
         'cta.parcialidad',
         's.idServicio',
         's.tipoEdoCta',
@@ -132,6 +136,9 @@ private function obtenerPendientesPorPagar($uid, $secuencia){
         's.efectivo',
         's.tarjeta',
         'per.idPeriodo',
+        'cta.uid',
+        'cta.consecutivo',
+        'cta.secuencia',
         'cta.parcialidad',
         's.idServicio',
         's.tipoEdoCta',
@@ -267,6 +274,9 @@ public function condonacion($uid, $secuencia, $tipoEdoCta){
                     's.efectivo',
                     's.tarjeta',
                     'per.idPeriodo',
+                    'cta.uid',
+                    'cta.consecutivo',
+                    'cta.secuencia',
                     's.idServicio',
                     's.tipoEdoCta',
                     DB::raw('cta.importe -IFNULL(ctaA.importe, 0) as monto'),
@@ -339,11 +349,14 @@ public function condonacion($uid, $secuencia, $tipoEdoCta){
             ->where('tipoEdoCta', '=', $tipoEdoCta)
             ->whereRaw('(cta.importe - IFNULL(ctaA.importe, 0)) > 0')
             ->orderBy('cta.parcialidad')
-            ->select([
+            ->select([     
                 'niv.idNivel',
                 'niv.descripcion as nivel',
                 's.descripcion as servicio',
                 's.efectivo',
+                'cta.uid',
+                'cta.consecutivo',
+                'cta.secuencia',
                 's.tarjeta',
                 'per.idPeriodo',
                 'cta.parcialidad',
@@ -389,36 +402,32 @@ public function store(Request $request){
             return $this->returnEstatus('Error al crear la Beca',500,null); 
         return $this->returnData('becas',$becas,200);   
     }
+
+
+    public function condonar(Request $request){
+
+        $data = $request->validate(['movimientos' => 'required|array']);
+        $fecha = Carbon::now('America/Mexico_City')->format('Y-m-d');
+        DB::beginTransaction();
+
+        try {
+
+            foreach ($data['movimientos'] as $movimiento) 
+            DB::table('edocta')
+                ->where('uid', $movimiento['uid'])
+                ->where('secuencia', $movimiento['secuencia'])
+                ->where('idServicio', $movimiento['idServicio'])
+                ->where('consecutivo', $movimiento['consecutivo'])
+                ->update([
+                    'importe' => 0,
+                    'fechaMovto' => $fecha
+                ]);
+            DB::commit();
+            return $this->returnData('mensaje', 'condonacion exitosa', 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return $this->returnEstatus('Error actualizar el registro', 500, $e->getMessage());
+        }
+    }
     
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
-    }
   }

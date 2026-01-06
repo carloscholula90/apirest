@@ -9,7 +9,7 @@ class ServiciosPeriodo extends Model
 {
    
    use HasFactory;
-   protected $table = 'serviciosPeriodo';
+   protected $table = 'servicioXPeriodo';
    protected $keyType = 'int';
    public $timestamps = false;
    public $incrementing = false;
@@ -19,6 +19,8 @@ class ServiciosPeriodo extends Model
                         'idNivel',
                         'idPeriodo',
                         'idServicio',
-                        'monto'
+                        'monto',
+                        'fechaAlta',
+                        'fechaModificacion'
     ];
 }

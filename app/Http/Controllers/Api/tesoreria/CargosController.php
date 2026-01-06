@@ -15,6 +15,12 @@ class CargosController extends Controller
     
     public function index($concentrado, $idPeriodo, $idNivel){ 
    
+    $config = DB::table('configuracion')
+                    ->where('id_campo', 1)
+                    ->first();
+
+    $activo = $config->valor ?? 0;
+
     $periodo = DB::table('periodo')
                     ->select('fechaInicio', 'fechaTermino')
                     ->where('idPeriodo', $idPeriodo)
@@ -53,7 +59,7 @@ class CargosController extends Controller
 
     if ($concentrado == 'N') {
 
-        $results = DB::table('edocta as cta')
+        $query = DB::table('edocta as cta')
             ->select(
                 'cta.uid',
                 's.descripcion as servicio',
@@ -68,7 +74,7 @@ class CargosController extends Controller
                      ->on('al.secuencia', '=', 'cta.secuencia');
             })
             ->join('servicio as s', 's.idServicio', '=', 'cta.idServicio')       
-            ->join('configuracionTesoreria as ct2', function ($join) {
+            ->leftJoin('configuracionTesoreria as ct2', function ($join) {
                         $join->on('ct2.idServicioColegiatura', '=', 'cta.idServicio')
                         ->orOn('cta.idServicio', '=', 'ct2.idServicioInscripcion');
                                         })
@@ -81,8 +87,12 @@ class CargosController extends Controller
                      ->on('ca.idCarrera', '=', 'al.idCarrera');
             })
             ->where('cta.tipomovto', 'C')
-            ->where('p.idPeriodo', $idPeriodo)
-            ->groupBy('cta.uid',
+            ->where('p.idPeriodo', $idPeriodo);
+
+            if ($activo==0) 
+                $query->where('s.tipoEdoCta', 1);
+
+            $results = $query->groupBy('cta.uid',
                       's.descripcion',
                       'pers.nombre', 
                       'pers.primerApellido', 
@@ -160,7 +170,7 @@ class CargosController extends Controller
         );
     }
     else {
-       $results = DB::table('edocta as cta')
+       $query = DB::table('edocta as cta')
                         ->select(
                             'ca.descripcion as escuela',
                             's.descripcion AS servicio',
@@ -172,7 +182,7 @@ class CargosController extends Controller
                                 ->on('al.secuencia', '=', 'cta.secuencia');
                         })
                         ->join('servicio as s', 's.idServicio', '=', 'cta.idServicio')
-                        ->join('configuracionTesoreria as ct2', function ($join) {
+                        ->leftJoin('configuracionTesoreria as ct2', function ($join) {
                             $join->on('ct2.idServicioColegiatura', '=', 'cta.idServicio')
                                 ->orOn('cta.idServicio', '=', 'ct2.idServicioInscripcion');
                         })
@@ -185,8 +195,13 @@ class CargosController extends Controller
                                 ->on('ca.idCarrera', '=', 'al.idCarrera');
                         })
                         ->where('cta.tipomovto', 'C')
-                        ->where('p.idPeriodo', $idPeriodo)
-                        ->groupBy('ca.descripcion', DB::raw("MONTH(FechaPago)"), 's.descripcion')
+                        ->where('p.idPeriodo', $idPeriodo);
+
+                         if ($activo==0) 
+                            $query->where('s.tipoEdoCta', 1);
+
+
+                        $results = $query->groupBy('ca.descripcion', DB::raw("MONTH(FechaPago)"), 's.descripcion')
                         ->get();
 
                     if ($results->count() == 0) {

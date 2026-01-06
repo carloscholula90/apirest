@@ -181,7 +181,7 @@ class EstadoCuentaController extends Controller{
                              ->orderByDesc('notacargo.idServicioNotaCargo')
                              ->orderByDesc('notacred.idServicioNotaCredito')
                              ->orderBy('edo.parcialidad')
-                             ->orderByDesc('edo.tipomovto')
+                             ->orderByDesc('edo.tipomovto')                          
                              ->distinct()
                              ->get();
 
@@ -547,7 +547,7 @@ class EstadoCuentaController extends Controller{
                             'tipomovto'   => $data['tipomovto'],
                             'referencia'  => $data['referencia'] ?? null,
                             'parcialidad' => $data['parcialidad'] ?? 1,
-                            'fechaMovto'  => $data['fechaMovto'] ?? now(),
+                            'fechaMovto'  => now()->format('Y-m-d H:i:s'),
                             'FechaPago'   => $data['FechaPago'] ?? now(),
                             'idformaPago' => $data['idformaPago'] ?? null,
                             'cuatrodigitos' => $data['cuatrodigitos'] ?? null,
@@ -637,23 +637,34 @@ class EstadoCuentaController extends Controller{
                         ->where('s.idServicio',$movimiento['idServicio'])
                         ->where('s.cargoAutomatico', 1)
                         ->get();
-        //Log::info('Otros servicios:'.$movimiento['idServicio']);
+
+        //Validamos en que parcialidad va para que se ordene de manera correcta
+        $parcialidad = DB::table('edocta as edo')
+                        ->select(DB::raw('IFNULL(MAX(edo.parcialidad), 0) + 1 AS parcialidad'))
+                        ->where('edo.idServicio', $movimiento['idServicio'])
+                        ->where('edo.uid', $uid)
+                        ->where('edo.idPeriodo', $idPeriodo)
+                        ->first();
+
+        $parcialidad = $parcialidad->parcialidad;        
+
         $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
                                                         'secuencia' => $secuencia,
                                                         'idPeriodo' => $idPeriodo,
                                                         'fechaMovto' => $fecha,
                                                         'folio' => $folio,
-                                                        'uidcajero' => $uidcajero
+                                                        'uidcajero' => $uidcajero,
+                                                        'parcialidad' => $parcialidad
         ]));
-
-        if ($servicio) {
-             // Log::info('Entra aqui si de cargo:');
-           $movimiento['tipomovto'] ='C';
-        $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+        
+        if (!$servicio->isEmpty()) {
+            $movimiento['tipomovto'] ='C';
+            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
                                                         'secuencia' => $secuencia,
                                                         'idPeriodo' => $idPeriodo,
                                                         'fechaMovto' => $fecha,
-                                                        'uidcajero' => $uidcajero
+                                                        'uidcajero' => $uidcajero,
+                                                        'parcialidad' => $parcialidad
                                                         ]));
         }
     }

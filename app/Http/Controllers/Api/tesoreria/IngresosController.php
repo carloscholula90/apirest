@@ -15,6 +15,14 @@ class IngresosController extends Controller
     
     public function index($concentrado, $idFchInicio, $idFechaFin, $idCajero = null, $idCarrera = null)
 {
+
+    $config = DB::table('configuracion')
+                    ->where('id_campo', 1)
+                    ->first();
+
+    $activo = $config->valor ?? 0;
+
+
     if ($concentrado == 'N') {
         $data = DB::table('edocta as cta')
             ->select(
@@ -33,6 +41,8 @@ class IngresosController extends Controller
                 'ca.descripcion as carrera'
             )
             ->join('persona as pers', 'pers.uid', '=', 'cta.uid')
+            ->join('servicio as s', 's.idServicio', '=', 'cta.idServicio')
+           
             ->join('alumno as al', function ($join) {
                 $join->on('al.uid', '=', 'cta.uid')
                      ->on('al.secuencia', '=', 'cta.secuencia');
@@ -56,6 +66,9 @@ class IngresosController extends Controller
         if ($idCarrera>0) 
             $data->where('ca.idCarrera', '=', $idCarrera);
         
+        if ($activo==0) 
+            $data->where('s.tipoEdoCta', 1);
+
         $results = $data->get();     
 
         $count = $results->count();
@@ -93,6 +106,7 @@ class IngresosController extends Controller
                                 DB::raw("SUM(CASE WHEN fp.descripcion LIKE '%TARJETA%' THEN cta.importe ELSE 0 END) AS tarjeta")
                             )
                             ->join('persona as pers', 'pers.uid', '=', 'cta.uidcajero')
+                            ->join('servicio as s', 's.idServicio', '=', 'cta.idServicio')           
                             ->join('formaPago as fp', 'fp.idFormaPago', '=', 'cta.idformaPago')
                             ->join('alumno as al', function ($join) {
                                             $join->on('al.uid', '=', 'cta.uid')
@@ -113,6 +127,9 @@ class IngresosController extends Controller
             if ($idCarrera>0) 
                 $data->where('ca.idCarrera', '=', $idCarrera);
         
+            if ($activo==0) 
+                $data->where('s.tipoEdoCta', 1);
+
             $results = $data->get();
 
             $count = $results->count();
@@ -156,6 +173,8 @@ class IngresosController extends Controller
                                             $join->on('ca.idNivel', '=', 'al.idNivel')
                                                  ->on('ca.idCarrera', '=', 'al.idCarrera');
                             })
+                            ->join('servicio as s', 's.idServicio', '=', 'cta.idServicio')
+        
                             ->join('formaPago as fp', 'fp.idFormaPago', '=', 'cta.idformaPago')
                             ->where('cta.tipomovto', '=', 'A')
                             ->where('cta.FechaPago', '>=', DB::raw("STR_TO_DATE('" . $idFchInicio . "', '%Y-%m-%d')"))
@@ -167,6 +186,10 @@ class IngresosController extends Controller
         
             if ($idCarrera>0) 
                 $data->where('ca.idCarrera', '=', $idCarrera);
+            
+            if ($activo==0) 
+                $data->where('s.tipoEdoCta', 1);
+
         
             $results = $data->get();
 
