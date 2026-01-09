@@ -132,7 +132,27 @@ private function obtenerPendientesPorPagar($uid, $secuencia){
     ->select([
         'niv.idNivel',
         'niv.descripcion as nivel',
-        's.descripcion as servicio',
+        DB::raw("
+                CONCAT(
+                    s.descripcion, ' ',
+                    CASE CONVERT(SUBSTRING(cta.referencia, 4), UNSIGNED)
+                        WHEN 1 THEN 'ENE'
+                        WHEN 2 THEN 'FEB'
+                        WHEN 3 THEN 'MAR'
+                        WHEN 4 THEN 'ABR'
+                        WHEN 5 THEN 'MAY'
+                        WHEN 6 THEN 'JUN'
+                        WHEN 7 THEN 'JUL'
+                        WHEN 8 THEN 'AGO'
+                        WHEN 9 THEN 'SEP'
+                        WHEN 10 THEN 'OCT'
+                        WHEN 11 THEN 'NOV'
+                        WHEN 12 THEN 'DIC'
+                        ELSE ''
+                    END
+                ) AS servicio
+            "),
+
         's.efectivo',
         's.tarjeta',
         'per.idPeriodo',
@@ -270,7 +290,27 @@ public function condonacion($uid, $secuencia, $tipoEdoCta){
                 ->select([
                     'niv.idNivel',
                     'niv.descripcion as nivel',
-                    's.descripcion as servicio',
+                    DB::raw("
+                            CONCAT(
+                                s.descripcion, ' ',
+                                CASE CONVERT(SUBSTRING(cta.referencia, 4), UNSIGNED)
+                                    WHEN 1 THEN 'ENE'
+                                    WHEN 2 THEN 'FEB'
+                                    WHEN 3 THEN 'MAR'
+                                    WHEN 4 THEN 'ABR'
+                                    WHEN 5 THEN 'MAY'
+                                    WHEN 6 THEN 'JUN'
+                                    WHEN 7 THEN 'JUL'
+                                    WHEN 8 THEN 'AGO'
+                                    WHEN 9 THEN 'SEP'
+                                    WHEN 10 THEN 'OCT'
+                                    WHEN 11 THEN 'NOV'
+                                    WHEN 12 THEN 'DIC'
+                                    ELSE ''
+                                END
+                            ) AS servicio
+                        "),
+
                     's.efectivo',
                     's.tarjeta',
                     'per.idPeriodo',
@@ -420,7 +460,8 @@ public function store(Request $request){
                 ->where('consecutivo', $movimiento['consecutivo'])
                 ->update([
                     'importe' => 0,
-                    'fechaMovto' => $fecha
+                    'fechaMovto' => $fecha,
+                    'uidcajero' => $movimiento['uidcajero']
                 ]);
             DB::commit();
             return $this->returnData('mensaje', 'condonacion exitosa', 200);

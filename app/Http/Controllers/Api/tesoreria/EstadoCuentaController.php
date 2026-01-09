@@ -54,31 +54,30 @@ class EstadoCuentaController extends Controller{
     $total = $saldoResult[0]->total ?? 0;
 
             // Armar select dinámico
-           $selects = [
-                        'edo.parcialidad',
-                        'al.uid',
-                        'edo.referencia',
-                        'al.idNivel',
-                        'al.idCarrera',
-                        'al.matricula',
-                        'edo.tipomovto',
-                        'nivel.descripcion as nivel',
-                        'carrera.descripcion as nombreCarrera',
-                        'persona.nombre',
-                        'inscripcion.idServicioInscripcion',
-                        'reinscrip.idServicioReinscripcion',            
-                        'colegiatura.idServicioColegiatura',
-                        'recargo.idServicioRecargo',
-                        'notacargo.idServicioNotaCargo',
-                        'notacred.idServicioNotaCredito',
-                        'persona.primerapellido as apellidopat',
-                        'persona.segundoapellido as apellidomat',
-                        'fechaVencimiento AS fechaLimite',
-                        DB::raw("CONCAT(s.descripcion, ' ',
-                                    CASE WHEN colegiatura.idServicioColegiatura = s.idServicio
-                                            OR recargo.idServicioRecargo = s.idServicio
-                                            THEN
-                                                CASE CONVERT(SUBSTRING(edo.referencia, 4), UNSIGNED)
+    $selects = [
+                'edo.parcialidad',
+                'al.uid',
+                'edo.referencia',
+                'al.idNivel',
+                'al.idCarrera',
+                'al.matricula',
+                'edo.tipomovto',
+                'nivel.descripcion as nivel',
+                'carrera.descripcion as nombreCarrera',
+                'persona.nombre',
+                'inscripcion.idServicioInscripcion',
+                'reinscrip.idServicioReinscripcion',            
+                'colegiatura.idServicioColegiatura',
+                'recargo.idServicioRecargo',
+                'notacargo.idServicioNotaCargo',
+                'notacred.idServicioNotaCredito',
+                'persona.primerapellido as apellidopat',
+                'persona.segundoapellido as apellidomat',
+                'fechaVencimiento AS fechaLimite',
+                    DB::raw("CONCAT(s.descripcion, ' ',
+                             CASE WHEN colegiatura.idServicioColegiatura = s.idServicio
+                                OR recargo.idServicioRecargo = s.idServicio
+                                THEN CASE CONVERT(SUBSTRING(edo.referencia, 4), UNSIGNED)
                                                     WHEN 1 THEN 'ENERO'
                                                     WHEN 2 THEN 'FEBRERO'
                                                     WHEN 3 THEN 'MARZO'
@@ -97,7 +96,6 @@ class EstadoCuentaController extends Controller{
                                         END
                                     ) AS servicio
                                 "),
-
                         'fp.descripcion as formaPago',
                         DB::raw("DATE_FORMAT(edo.fechaMovto, '%d/%m/%Y') as fechaPago"),
                         'edo.consecutivo',
@@ -205,11 +203,11 @@ class EstadoCuentaController extends Controller{
         })->toArray();       
        
         return $this->generateReport($resultsArray,$columnWidths,$keys , 'ESTADO DE CUENTA', $headers,'P','letter',
-                        'rptEstadoCta_'.$uid.'.pdf');
+                        'rptEstadoCta_'.$uid.'.pdf',$tipoEdoCta);
       
     }
 
-    public function generateReport($data, $columnWidths, $keys, $title, $headers, $orientation, $size, $nameReport)
+    public function generateReport($data, $columnWidths, $keys, $title, $headers, $orientation, $size, $nameReport,$tipoEdoCta)
     {
         // Rutas de las imágenes para el encabezado y pie
         $imagePathEnc = public_path('images/encPag.png');
@@ -306,9 +304,13 @@ class EstadoCuentaController extends Controller{
         $html2 .= '<tr><td colspan="7"></td></tr>';   
         $html2 .= '<tr><td colspan="7"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
         $html2 .= '<tr><td colspan="7"></td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL:</b>$ '.number_format($generalesRow['total'], 2, '.', ',') .'</td></tr>';
-        $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL VENCIDO:$ </b>'.number_format($generalesRow['vencido'], 2, '.', ',') .'</td></tr>';
-     
+
+        if($tipoEdoCta==1){
+            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL:</b>$ '.number_format($generalesRow['total'], 2, '.', ',') .'</td></tr>';
+            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL VENCIDO:$ </b>'.number_format($generalesRow['vencido'], 2, '.', ',') .'</td></tr>';
+        }
+        else  $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>SALDO:</b>$ '.number_format($generalesRow['total'], 2, '.', ',') .'</td></tr>';
+      
         $html2 .= '</table>';
 
         // Escribir la tabla en el PDF

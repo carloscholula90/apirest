@@ -91,6 +91,10 @@ Route::prefix('codigospostales')->group(function () {
     require base_path('routes/general/codigospostales.php');
 });
 
+Route::prefix('condonacion')->group(function () {  
+    require base_path('routes/tesoreria/condonacion.php');
+});
+
 Route::prefix('configuraciones')->group(function () {
     require base_path('routes/tesoreria/configuraciones.php');
 }); 
