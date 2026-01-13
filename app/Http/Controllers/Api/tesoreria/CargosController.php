@@ -538,5 +538,22 @@ private function renderTotalesEscuela($escuela, $totalesEscuela, $totalEscuela, 
     $html .= '<tr><td colspan="' . count($keys) . '"><hr style="border:0.5px dashed #999;"></td></tr>';
 
     return $html;
-}      
+    }
+    
+    public function actualizaCargos(){
+         $validator = Validator::make($request->all(), [
+                                    'idNivel' => 'required|max:255',
+                                    'idPeriodo' => 'required|max:255',
+                                    'uid' => 'required|max:255',
+                                    'secuencia' => 'required|max:255'
+        ]);
+
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+
+
+        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?)", [$request->idNivel,$request->idPeriodo,
+                                                        $request->uid,$request->secuencia]);
+        return $this->returnData('becas',$becas,200); 
+    }
 }

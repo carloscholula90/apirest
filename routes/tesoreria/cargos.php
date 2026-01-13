@@ -4,3 +4,4 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
 Route::get('/reportes/{concentrado}/{idPeriodo}/{idNivel}', [CargosController::class, 'index']);   
+Route::post('/actualizaCargos', [CargosController::class, 'actualizaCargos']);  
