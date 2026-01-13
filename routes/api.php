@@ -272,6 +272,10 @@ Route::prefix('rolesseguridad')->group(function () {
     require base_path('routes/seguridad/rolesseguridad.php');
 });
 
+Route::prefix('servicioscarreras')->group(function () {
+    require base_path('routes/tesoreria/servicioscarreras.php');
+});
+
 Route::prefix('serviciosperiodos')->group(function () {
     require base_path('routes/tesoreria/serviciosperiodos.php');
 });

@@ -328,6 +328,11 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     }
 
     public function getAlumno($uid){
+
+        $subCiclos = DB::table('ciclos')
+                    ->select('uid', 'secuencia', DB::raw('MAX(idPeriodo) as idPeriodo'))
+                    ->groupBy('uid', 'secuencia');
+
         $alumnos = DB::table('alumno')
                     ->join('nivel', 'nivel.idNivel', '=', 'alumno.idNivel')
                     ->join('carrera', 'carrera.idCarrera', '=', 'alumno.idCarrera')
@@ -342,7 +347,14 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
             })
             ->leftJoin('pais', 'pais.idPais', '=', 'persona.idPais')
             ->leftJoin('edoCivil', 'edoCivil.idEdoCivil', '=', 'persona.idEdoCivil')
-
+        ->leftJoinSub($subCiclos, 'c', function ($join) {
+                $join->on('c.uid', '=', 'alumno.uid')
+                    ->on('c.secuencia', '=', 'alumno.secuencia');
+            })
+            ->leftJoin('periodo as p', function ($join) {
+                $join->on('p.idPeriodo', '=', 'c.idPeriodo')
+                    ->on('p.idNivel', '=', 'alumno.idNivel');
+            })
             ->where(function($query) use ($uid) {
                 $query->where(
                     DB::raw("CONCAT(persona.nombre, ' ', persona.primerApellido, ' ', persona.segundoApellido)"), 'LIKE', '%'.$uid.'%')
@@ -353,7 +365,8 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
                             ->orWhere('persona.segundoApellido', 'LIKE', '%'.$uid.'%')
                             ->orWhere('persona.uid', 'LIKE', '%'.$uid.'%');
                     })
-                    ->select(   'alumno.uid',
+                    ->select(   'alumno.uid'
+                    ,
                         'alumno.idNivel',
                         'alumno.secuencia',
                         'alumno.idCarrera',
@@ -370,7 +383,9 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
                         'ciudad.descripcion as ciudad',
                         'estado.descripcion as estado',
                         'pais.descripcion as pais',
-                        'edoCivil.descripcion as edocivil'
+                        'edoCivil.descripcion as edocivil',
+                        'c.idPeriodo',
+                        'p.descripcion as periodo'
             )
             ->get();
 

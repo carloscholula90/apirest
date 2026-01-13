@@ -540,7 +540,7 @@ private function renderTotalesEscuela($escuela, $totalesEscuela, $totalEscuela, 
     return $html;
     }
     
-    public function actualizaCargos(){
+    public function actualizaCargos(Request $request){
          $validator = Validator::make($request->all(), [
                                     'idNivel' => 'required|max:255',
                                     'idPeriodo' => 'required|max:255',
@@ -554,6 +554,6 @@ private function renderTotalesEscuela($escuela, $totalesEscuela, $totalEscuela, 
 
         DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?)", [$request->idNivel,$request->idPeriodo,
                                                         $request->uid,$request->secuencia]);
-        return $this->returnData('becas',$becas,200); 
+        return $this->returnData('Cargos actualizados',null,200); 
     }
 }

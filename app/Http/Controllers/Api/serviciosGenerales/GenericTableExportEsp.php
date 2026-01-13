@@ -36,30 +36,20 @@ class GenericTableExportEsp implements FromQuery, WithHeadings
     public function query() {
         $query = DB::table($this->tableName);
     
-       
-            if(!isset($join['conditions'])) {  
-            foreach ($this->joins as $join) {
-                $type = $join['type'] ?? 'inner'; // Default es INNER JOIN
-                $query->join($join['table'], function ($joinTable) use ($join) {
-                    foreach ($join['conditions'] as $cond) {
-                    $joinTable->on($cond['first'], '=', $cond['second']);  }
-                }, $type);
-            }
-            }
-            else{
-                foreach ($this->joins as $join) {
-                    $type = $join['type'] ?? 'inner'; // Default es INNER JOIN
-                    $query->join($join['table'], $join['first'], '=', $join['second'], $join['type'] ?? 'inner');
-             }
+        // Uniones
+        foreach ($this->joins as $join) {
+            $type = $join['type'] ?? 'inner'; // Default es INNER JOIN
+            $query->join($join['table'], $join['first'], '=', $join['second'], $join['type'] ?? 'inner'); 
         }
     
         // Aplicar filtros
         foreach ($this->filters as $column => $value) {
             $query->where($column, '=', $value);
         }
-        
+
+       
         $query->select($this->selectColumns);
-    
+
         if (!empty($this->order) && !empty($this->direction)) {
         // Asegurarse de que ambos arreglos tengan el mismo número de elementos
             $orderCount = count($this->order);
@@ -80,10 +70,10 @@ class GenericTableExportEsp implements FromQuery, WithHeadings
         } else {
             $query->orderBy($this->nameId, $this->direction);
         }
-        
-    Log::info('Query executed', ['query' => $query->toSql()]);
+    
         return $query;
     }
+
 
     public function headings(): array{
         return $this->namesColumns;
