@@ -167,7 +167,7 @@ class CarreraController extends Controller
         // Ruta del archivo a almacenar en el disco público
         $path = storage_path('app/public/carrera_rpt.xlsx');
         $selectColumns = ['nivel.descripcion AS nivelDescripcion', 'carrera.idCarrera', 'carrera.descripcion','carrera.diaInicioCargo','carrera.diaInicioRecargo', DB::raw('CASE WHEN carrera.activo = 1 THEN "S" ELSE "N" END as activo')]; // Seleccionar columnas específicas
-        $namesColumns = ['NIVEL', 'ID-- CARRERA', 'CARRERA','DIA INICIO CARGO','DIA INICIO RECARGO','ACT']; // Seleccionar columnas específicas
+        $namesColumns = ['NIVEL', 'ID CARRERA', 'CARRERA','DIA INICIO CARGO','DIA INICIO RECARGO','ACT']; // Seleccionar columnas específicas
         
         $joins = [[ 'table' => 'nivel', // Tabla a unir
                     'first' => 'carrera.idNivel', // Columna de la tabla principal

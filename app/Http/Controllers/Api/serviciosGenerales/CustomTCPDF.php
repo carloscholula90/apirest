@@ -76,7 +76,7 @@ class CustomTCPDF extends TCPDF
         $this->Cell(90, 10, date('d/m/Y H:i:s'), 0, 0, 'L');           
         $this->SetX(180); 
 
-        Log::info('secuencia:'.$this->CurOrientation);
+     
         
         if ($this->imagePathPie && $this->CurOrientation === "PU")  
             $this->Cell(0, 10, 'Página 1 de 1', 0, 0, 'R'); 
