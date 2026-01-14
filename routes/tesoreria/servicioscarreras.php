@@ -8,5 +8,5 @@ Route::post('/imprimeXls', [ServicioCarreraController::class, 'exportaExcel']);
 Route::post('/create', [ServicioCarreraController::class, 'store']);
 Route::get('/', [ServicioCarreraController::class, 'index']);
 Route::put('/', [ServicioCarreraController::class, 'update']);
-Route::delete('/{idNivel}/{idPeriodo}/{idServicio}', [ServicioCarreraController::class, 'destroy']);
+Route::delete('/{idNivel}/{idPeriodo}/{idServicio}/{idCarrera}/{idTurno}', [ServicioCarreraController::class, 'destroy']);
 

@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\tesoreria\ServicioCarrera;
+use Carbon\Carbon;
 
 class ServicioCarreraController extends Controller
 {
@@ -85,52 +87,85 @@ class ServicioCarreraController extends Controller
     return $final;
 }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+ public function store(Request $request) {
+        
+        $validator = Validator::make($request->all(), [
+                                    'idServicio' => 'required|numeric',
+                                    'idNivel' => 'required|numeric',
+                                    'idPeriodo' => 'required|numeric',
+                                    'monto' => 'required|numeric',
+                                    'idCarrera' => 'required|numeric',
+                                    'idTurno' => 'required|numeric',
+                                    'semestre' => 'required|numeric',
+                                    'aplicaIns' => 'required|numeric'
+        ]);   
+       
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
+       
+        $servicioC = ServicioCarrera::create([
+                                'idNivel'=> $request->idNivel,
+                                'idPeriodo'=> $request->idPeriodo,
+                                'idServicio' => $request->idServicio,
+                                'idCarrera'=> $request->idCarrera,
+                                'idTurno'=> $request->idTurno,
+                                'semestre'=> $request->semestre,
+                                'monto'=> $request->monto,
+                                'aplicaIns'=> $request->aplicaIns,
+                                'fechaAlta'=> Carbon::now(),
+                                'fechaModificacion'=>Carbon::now()
+                    ]);       
+        return $this->returnData('servicios',null,200);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function destroy($idNivel,$idPeriodo,$idServicio,$idCarrera,$idTurno)
     {
-        //
+        $destroy = DB::table('servicioCarrera')
+                            ->where('idNivel', $idNivel  )
+                            ->where('idPeriodo', $idPeriodo)
+                            ->where('idServicio', $idServicio)
+                            ->where('idCarrera', $idCarrera)
+                            ->where('idTurno', $idTurno)
+                            ->delete();
+
+        if ($destroy == 0) 
+            return $this->returnEstatus('Error en la eliminacion', 404, null);
+                
+        return $this->returnEstatus('Registro eliminado',200,null); 
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
+     public function update(Request $request) {
+        
+        $validator = Validator::make($request->all(), [
+                                   'idServicio' => 'required|numeric',
+                                    'idNivel' => 'required|numeric',
+                                    'idPeriodo' => 'required|numeric',
+                                    'monto' => 'required|numeric',
+                                    'idCarrera' => 'required|numeric',
+                                    'idTurno' => 'required|numeric',
+                                    'semestre' => 'required|numeric',
+                                    'aplicaIns' => 'required|numeric'
+        ]);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
+       
+        if ($validator->fails()) 
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
+        $filas= DB::table('servicioCarrera')
+                            ->where('idNivel', $request->idNivel  )
+                            ->where('idPeriodo', $request->idPeriodo)
+                            ->where('idServicio', $request->idServicio)
+                            ->where('idCarrera', $request->idCarrera)
+                            ->where('idTurno', $request->idTurno)
+                            ->update(['monto' => $request->monto,
+                            'semestre' => $request->semestre,
+                            'aplicaIns' => $request->aplicaIns
+                                ]);
+        if ($filas > 0) 
+            return $this->returnData('datos actualizados',null,200);
+        else 
+            return $this->returnData('No se actualizo informacion',null,200);
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
     }
 
     // Función para generar el reporte de personas

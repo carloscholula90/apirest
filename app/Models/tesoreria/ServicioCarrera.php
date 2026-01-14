@@ -22,6 +22,8 @@ class ServicioCarrera extends Model
                         'idTurno',
                         'semestre',
                         'monto',
-                        'aplicaIns'
+                        'aplicaIns',
+                        'fechaAlta',
+                        'fechaModificacion'
     ];
 }
