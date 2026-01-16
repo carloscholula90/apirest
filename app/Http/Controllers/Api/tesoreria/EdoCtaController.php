@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\tesoreria;
+namespace App\Http\Controllers\Api\tesoreria;  
 
 use Illuminate\Http\Request;
 

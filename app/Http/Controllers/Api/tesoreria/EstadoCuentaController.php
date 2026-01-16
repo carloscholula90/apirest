@@ -550,7 +550,7 @@ class EstadoCuentaController extends Controller{
                             'referencia'  => $data['referencia'] ?? null,
                             'parcialidad' => $data['parcialidad'] ?? 1,
                             'fechaMovto'  => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
-                            'FechaPago'   => $data['FechaPago'] ?? nDB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
+                            'FechaPago'   => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
                             'idformaPago' => $data['idformaPago'] ?? null,
                             'cuatrodigitos' => $data['cuatrodigitos'] ?? null,
                             'folio'       => $data['folio'] ?? null,

@@ -58,7 +58,7 @@ class ReciboController extends Controller
                                         ELSE ''
                                     END
                                 )
-                                ORDER BY s.descripcion SEPARATOR ','
+                                ORDER BY s.descripcion SEPARATOR ' + '
                             ) as servicios
                         "),
                         DB::raw('SUM(importe) as total'),
