@@ -45,7 +45,6 @@ class ConfiguracionesController extends Controller{
                             'idServicioNotaCargo'=> $request->idServicioNotaCargo,
                             'idServicioNotaCredito'=> $request->idServicioNotaCredito,
                             'idServicioRecargo'=> $request->idServicioRecargo,
-                            'importeRecargo'=> $request->importeRecargo,
                             'idServicioReinscripcion'=> $request->idServicioReinscripcion,
                             'fechaAlta'=> Carbon::now(),
                             'fechaModificacion'=> Carbon::now()
@@ -88,7 +87,6 @@ class ConfiguracionesController extends Controller{
         $configuracion->idServicioNotaCargo= $request->idServicioNotaCargo;
         $configuracion->idServicioNotaCredito= $request->idServicioNotaCredito;
         $configuracion->idServicioRecargo= $request->idServicioRecargo;
-        $configuracion->importeRecargo= $request->importeRecargo;
         $configuracion->idServicioReinscripcion= $request->idServicioReinscripcion;
         $configuracion->fechaModificacion= Carbon::now();    
         $configuracion->save();
@@ -111,9 +109,9 @@ class ConfiguracionesController extends Controller{
             return (array) $item;
         })->toArray();      
          
-         $headers = ['NIVEL', 'INCRIPCION','COLEGIATURA','NOTA CARGO','NOTA CREDITO','RECARGO','IMPORTE RECARGO','REINSCRIPCION'];
+         $headers = ['NIVEL', 'INCRIPCION','COLEGIATURA','NOTA CARGO','NOTA CREDITO','RECARGO','REINSCRIPCION'];
          $columnWidths = [50,100,100,100,100,100,100,100];   
-         $keys = ['idNivel', 'idServicioInscripcion','idServicioColegiatura','idServicioNotaCargo','idServicioNotaCredito','idServicioRecargo','importeRecargo','idServicioReinscripcion'];
+         $keys = ['idNivel', 'idServicioInscripcion','idServicioColegiatura','idServicioNotaCargo','idServicioNotaCredito','idServicioRecargo','idServicioReinscripcion'];
         
         return $this->pdfController->generateReport($dataArray,$columnWidths,$keys , 'REPORTE DE CONFIGURACION DE SERVICIOS TESORERIA', $headers,'L','letter','rptConfiguraciones.pdf');
        
@@ -122,9 +120,9 @@ class ConfiguracionesController extends Controller{
      public function exportaExcel() {
         // Ruta del archivo a almacenar en el disco público
         $path = storage_path('app/public/configuracion_rpt.xlsx');
-        $namesColumns = ['NIVEL', 'INCRIPCION','COLEGIATURA','NOTA CARGO','NOTA CREDITO','RECARGO','IMPORTE RECARGO','REINSCRIPCION'];
+        $namesColumns = ['NIVEL', 'INCRIPCION','COLEGIATURA','NOTA CARGO','NOTA CREDITO','RECARGO','REINSCRIPCION'];
         
-        $selectColumns = ['idNivel', 'idServicioInscripcion','idServicioColegiatura','idServicioNotaCargo','idServicioNotaCredito','idServicioRecargo','importeRecargo','idServicioReinscripcion']; // Seleccionar columnas específicas
+        $selectColumns = ['idNivel', 'idServicioInscripcion','idServicioColegiatura','idServicioNotaCargo','idServicioNotaCredito','idServicioRecargo','idServicioReinscripcion']; // Seleccionar columnas específicas
         $export = new GenericTableExportEsp('configuracionTesoreria', 'idNivel', [], ['idNivel'], ['asc'], $selectColumns, [],$namesColumns);
 
         // Guardar el archivo en el disco público

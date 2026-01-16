@@ -16,7 +16,6 @@ class ConfiguracionTesoreria extends Model
                             'idServicioNotaCargo',
                             'idServicioNotaCredito',
                             'idServicioRecargo',
-                            'importeRecargo',
                             'idServicioReinscripcion',
                             'fechaAlta',
                             'fechaModificacion'];

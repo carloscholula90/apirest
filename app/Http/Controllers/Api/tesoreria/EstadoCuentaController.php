@@ -460,11 +460,11 @@ class EstadoCuentaController extends Controller{
             ]));
 
             if ($restante > 0) 
-                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,$servicios->idServicioColegiatura);
+                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,0);
    
         } 
         else if($movimiento['idServicio'] == $servicios->idServicioColegiatura)
-            $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,$servicios->idServicioColegiatura);
+            $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
         else if($movimiento['idServicio'] == $servicios->idServicioNotaCredito) 
                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero, $servicios->idServicioNotaCredito);
          else $this->procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios);
@@ -550,7 +550,7 @@ class EstadoCuentaController extends Controller{
                             'referencia'  => $data['referencia'] ?? null,
                             'parcialidad' => $data['parcialidad'] ?? 1,
                             'fechaMovto'  => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
-                            'FechaPago'   => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
+                            'FechaPago'   => $data['FechaPago'] ?? nDB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
                             'idformaPago' => $data['idformaPago'] ?? null,
                             'cuatrodigitos' => $data['cuatrodigitos'] ?? null,
                             'folio'       => $data['folio'] ?? null,
@@ -572,7 +572,8 @@ class EstadoCuentaController extends Controller{
             // 1️⃣ Pagar recargos primero
             if ($registro->cargos > 0 && $importeRestante > 0) {
                 $pago = min($importeRestante, $registro->cargos);
-                $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$registro->idServicioCargo;
+                $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$servicios->idServicioRecargo;
+                Log::info('$$idServicioNota:'.$idServicioNota); 
                 $this->crearMovimiento(['uid' => $uid,
                                         'secuencia' => $secuencia,
                                         'idServicio' => $idServicioNota,
