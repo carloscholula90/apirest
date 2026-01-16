@@ -364,7 +364,7 @@ class EstadoCuentaController extends Controller{
 
         $uid = $data['uid'];
         $secuencia = $data['secuencia'];
-        $fecha = Carbon::now('America/Mexico_City')->format('Y-m-d');
+        $fecha = Carbon::now();
 
         DB::beginTransaction();
         try {
@@ -549,8 +549,8 @@ class EstadoCuentaController extends Controller{
                             'tipomovto'   => $data['tipomovto'],
                             'referencia'  => $data['referencia'] ?? null,
                             'parcialidad' => $data['parcialidad'] ?? 1,
-                            'fechaMovto'  => now()->format('Y-m-d H:i:s'),
-                            'FechaPago'   => $data['FechaPago'] ?? now(),
+                            'fechaMovto'  => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
+                            'FechaPago'   => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
                             'idformaPago' => $data['idformaPago'] ?? null,
                             'cuatrodigitos' => $data['cuatrodigitos'] ?? null,
                             'folio'       => $data['folio'] ?? null,
@@ -693,7 +693,8 @@ class EstadoCuentaController extends Controller{
                 ], 400);
             }
 
-            $fecha = Carbon::createFromFormat('d-m-Y', $mov['dia'])->format('Y-m-d');
+            $fecha = Carbon::now();
+           
             $transaccion = $mov['transaccion'];
             $abono = floatval($mov['abono']);
 
@@ -795,21 +796,21 @@ class EstadoCuentaController extends Controller{
                     ->where('idPeriodo', $idPeriodo)
                     ->max('consecutivo') ?? 0;
 
-                DB::table('edocta')->insert([
+               DB::table('edocta')->insert([
                                     'uid' => $uid,
                                     'secuencia' => $datosEdo->secuencia,
                                     'idServicio' => $datosEdo->idServicio,
                                     'consecutivo' => $maxConsecutivo + 1,
                                     'importe' => $importeAplicar,
                                     'idPeriodo' => $datosEdo->idPeriodo,
-                                    'fechaMovto' => $fecha,
+                                    'fechaMovto' => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
                                     'tipomovto' => 'A',
                                     'parcialidad' => $datosEdo->parcialidad,
                                     'referencia' => $datosEdo->referencia,
                                     'transaccion' => $transaccion,
-                                    'FechaPago' => $fecha,
+                                    'FechaPago' => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
                                     'idFormaPago' => $mov['idFormaPago']
-                ]);
+                                ]);
                 $abono -= $importeAplicar;
 
             }

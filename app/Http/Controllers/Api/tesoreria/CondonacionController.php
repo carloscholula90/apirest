@@ -9,13 +9,12 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF; 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;  
+use App\Http\Controllers\Api\serviciosGenerales\GenericExport;
 
 class CondonacionController extends Controller  
 {
-    
-    public function index($idFchInicio, $idFechaFin, $idCajero = null)
-{
 
+    public function data($idFchInicio, $idFechaFin, $idCajero = null){
     $config = DB::table('configuracion')
                     ->where('id_campo', 1)
                     ->first();
@@ -49,22 +48,28 @@ class CondonacionController extends Controller
                 $data->where('s.tipoEdoCta', 1);
         
             $results = $data->orderBy('cta.uidcajero', 'asc')->get();
+   
+        $resultsArray = $results->map(function ($item) {
+            return (array) $item; // Convertir cada stdClass a un arreglo
+        })->toArray();   
+        return $resultsArray;
 
-            $count = $results->count();
+    }
+
+    public function index($idFchInicio, $idFechaFin, $idCajero = null){
+    
+     $resultsArray  = $this->data($idFchInicio, $idFechaFin, $idCajero);
+     $count = $resultsArray->count();
             
-            if($count==0)
-                return response()->json([
-                    'status' => 500,
-                    'message' => 'No hay registros para mostrar'
+        if($count==0)
+            return response()->json([
+                'status' => 500,
+                'message' => 'No hay registros para mostrar'
                 ]);       
             
         $headers = ['ID', 'NOMBRE', 'SERVICIO', 'DESCRIPCIÓN','FECHA MOV'];
         $columnWidths = [50, 200, 50, 100,100];
         $keys = ['uid', 'alumno', 'idServicio', 'servicio','fechaMovto'];
-
-        $resultsArray = $results->map(function ($item) {
-            return (array) $item; // Convertir cada stdClass a un arreglo
-        })->toArray();   
 
         return $this->generateReport(
                         $resultsArray,
@@ -75,8 +80,7 @@ class CondonacionController extends Controller
                         'P',
                         'letter',
                         'rptCondonacion' . mt_rand(100, 999) . '.pdf'
-                    );
-        
+                    );        
   }
 
     
@@ -153,6 +157,63 @@ class CondonacionController extends Controller
                 'message' => 'Error al generar el reporte'
             ]);
         }    
+    }
+
+
+   public function indexExcel($idFchInicio, $idFechaFin, $idCajero = null){
+     
+     $resultsArray  = $this->data($idFchInicio, $idFechaFin, $idCajero);
+         
+            
+        $headers = ['ID', 'NOMBRE', 'SERVICIO', 'DESCRIPCIÓN','FECHA MOV'];
+        $keys = ['uid', 'alumno', 'idServicio', 'servicio','fechaMovto'];
+
+        $excelData = [];
+        $export = new GenericExport([], $headers, $keys);
+
+        $rowNumber = 2; // encabezados ocupan la fila 1
+        $cajeroActual = null;
+
+        foreach ($resultsArray as $row) {
+
+            if ($cajeroActual !== $row['uidcajero']) {
+                $excelData[] = [
+                    'uid' => 'CAJERO: ' . $row['uidcajero'] . ' - ' . $row['cajero'],
+                    'alumno' => '',
+                    'idServicio' => '',
+                    'servicio' => '',
+                    'fechaMovto' => '',
+                ];
+
+                $export->addCutRow($rowNumber);
+                $rowNumber++;
+                $cajeroActual = $row['uidcajero'];
+            }
+
+            $excelData[] = $row;
+            $rowNumber++;
+        }
+
+       
+        $fileName = 'reporte_condonacion'.mt_rand(100,999).'.xlsx';
+        $path = 'storage/app/public/' . $fileName; // Ruta relativa a storage/app
+
+        // Guardar el archivo en storage/app/public/
+        Excel::store(new GenericExport($excelData, $headers, $keys), $path);
+
+        // Comprobar si se creó
+        $fullPath = storage_path('app/' . $path);
+        if (file_exists($fullPath)) {
+            return response()->json([
+                'status' => 200,
+                'message' => 'https://reportes.siaweb.com.mx/storage/' . $fileName
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte'
+            ]);
+        }
     }
     
 }

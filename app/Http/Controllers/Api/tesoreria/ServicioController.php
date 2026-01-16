@@ -68,7 +68,22 @@ private function obtenerPendientes($uid, $secuencia){
         'niv.descripcion as nivel',
         DB::raw("
             CONCAT(
-                s.descripcion,
+                s.descripcion,' ',
+                CASE CONVERT(SUBSTRING(cargos.referencia, 4), UNSIGNED)
+                                                    WHEN 1 THEN 'ENERO'
+                                                    WHEN 2 THEN 'FEBRERO'
+                                                    WHEN 3 THEN 'MARZO'
+                                                    WHEN 4 THEN 'ABRIL'
+                                                    WHEN 5 THEN 'MAYO'
+                                                    WHEN 6 THEN 'JUNIO'
+                                                    WHEN 7 THEN 'JULIO'
+                                                    WHEN 8 THEN 'AGOSTO'
+                                                    WHEN 9 THEN 'SEPTIEMBRE'
+                                                    WHEN 10 THEN 'OCTUBRE'
+                                                    WHEN 11 THEN 'NOVIEMBRE'
+                                                    WHEN 12 THEN 'DICIEMBRE'
+                                                    ELSE ''
+                                                END,
                 CASE 
                     WHEN IFNULL(cargos.importe - IFNULL(ctaR.importe, 0), 0) > 0 
                     THEN ' + ' ELSE '' 

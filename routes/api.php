@@ -87,6 +87,10 @@ Route::prefix('ciudades')->group(function () {
     require base_path('routes/general/ciudades.php');
 });
 
+Route::prefix('cierres')->group(function () {
+    require base_path('routes/tesoreria/cierres.php');
+});
+
 Route::prefix('codigospostales')->group(function () {  
     require base_path('routes/general/codigospostales.php');
 });

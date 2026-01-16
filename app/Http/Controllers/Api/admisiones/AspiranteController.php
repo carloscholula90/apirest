@@ -502,13 +502,11 @@ class AspiranteController extends Controller{
                 <td style="font-size: 10px;width: 314px; height: 15px; border: 1px solid black;">'.$generalesRow['escuelaProcedencia'].'</td>  
                 </tr>';
 
-                $enfermedad='NO';
-                $salud = Salud::select('enfermedad')
-                            ->where('uid',$generalesRow['uid'])
-                            ->get();      
-                if ($salud) 
-                    $enfermedad='SI';
+        $enfermedad = 'NO';
 
+        if (Salud::where('uid', $generalesRow['uid'])->exists()) {
+            $enfermedad = 'SI';
+        }
             $html2 .='<tr>
                 <td style="text-align: left;font-size: 10px;width: 200px; height: 15px; background-color: lightgray;border: 1px solid black;"> ¿Sufre alguna enfermedad crónica?</td>
                 <td style="text-align: center;font-size: 10px;width: 30px; height: 15px; border: 1px solid black;">'.$enfermedad.'</td>  
