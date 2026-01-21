@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\tesoreria;  
 use App\Http\Controllers\Controller;
 use App\Models\tesoreria\EstadoCuenta;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -59,13 +60,7 @@ class CondonacionController extends Controller
     public function index($idFchInicio, $idFechaFin, $idCajero = null){
     
      $resultsArray  = $this->data($idFchInicio, $idFechaFin, $idCajero);
-     $count = $resultsArray->count();
-            
-        if($count==0)
-            return response()->json([
-                'status' => 500,
-                'message' => 'No hay registros para mostrar'
-                ]);       
+           
             
         $headers = ['ID', 'NOMBRE', 'SERVICIO', 'DESCRIPCIÓN','FECHA MOV'];
         $columnWidths = [50, 200, 50, 100,100];
@@ -160,60 +155,85 @@ class CondonacionController extends Controller
     }
 
 
-   public function indexExcel($idFchInicio, $idFechaFin, $idCajero = null){
-     
-     $resultsArray  = $this->data($idFchInicio, $idFechaFin, $idCajero);
-         
-            
-        $headers = ['ID', 'NOMBRE', 'SERVICIO', 'DESCRIPCIÓN','FECHA MOV'];
-        $keys = ['uid', 'alumno', 'idServicio', 'servicio','fechaMovto'];
+   public function indexExcel($idFchInicio, $idFechaFin, $idCajero = null)
+{
+    // 1️⃣ Obtener datos
+    $results = collect(
+        $this->data($idFchInicio, $idFechaFin, $idCajero)
+    )->toArray();
 
-        $excelData = [];
-        $export = new GenericExport([], $headers, $keys);
-
-        $rowNumber = 2; // encabezados ocupan la fila 1
-        $cajeroActual = null;
-
-        foreach ($resultsArray as $row) {
-
-            if ($cajeroActual !== $row['uidcajero']) {
-                $excelData[] = [
-                    'uid' => 'CAJERO: ' . $row['uidcajero'] . ' - ' . $row['cajero'],
-                    'alumno' => '',
-                    'idServicio' => '',
-                    'servicio' => '',
-                    'fechaMovto' => '',
-                ];
-
-                $export->addCutRow($rowNumber);
-                $rowNumber++;
-                $cajeroActual = $row['uidcajero'];
-            }
-
-            $excelData[] = $row;
-            $rowNumber++;
-        }
-
-       
-        $fileName = 'reporte_condonacion'.mt_rand(100,999).'.xlsx';
-        $path = 'storage/app/public/' . $fileName; // Ruta relativa a storage/app
-
-        // Guardar el archivo en storage/app/public/
-        Excel::store(new GenericExport($excelData, $headers, $keys), $path);
-
-        // Comprobar si se creó
-        $fullPath = storage_path('app/' . $path);
-        if (file_exists($fullPath)) {
-            return response()->json([
-                'status' => 200,
-                'message' => 'https://reportes.siaweb.com.mx/storage/' . $fileName
-            ]);
-        } else {
-            return response()->json([
-                'status' => 500,
-                'message' => 'Error al generar el reporte'
-            ]);
-        }
+    if (empty($results)) {
+        return response()->json([
+            'status' => 404,
+            'message' => 'No hay datos para exportar'
+        ]);
     }
+
+    // 2️⃣ Configuración del Excel
+    $headers = ['ID', 'NOMBRE', 'SERVICIO', 'DESCRIPCIÓN', 'FECHA MOV'];
+    $keys    = ['uid', 'alumno', 'idServicio', 'servicio', 'fechaMovto'];
+
+    $excelData = [];
+
+    // Creamos el export (se volverá a instanciar al final con los datos)
+    $export = new GenericExport([], $headers, $keys);
+
+    $rowNumber = 2; // fila 1 = encabezados
+    $cajeroActual = null;
+
+    // 3️⃣ Construcción de filas + cortes
+    foreach ($results as $row) {
+
+        if ($cajeroActual !== $row['uidcajero']) {
+
+            // Fila de corte
+            $excelData[] = [
+                'uid'        => 'CAJERO: ' . $row['uidcajero'] . ' - ' . $row['cajero'],
+                'alumno'     => '',
+                'idServicio' => '',
+                'servicio'   => '',
+                'fechaMovto' => '',
+            ];
+
+            $export->addCutRow($rowNumber);
+            $rowNumber++;
+            $cajeroActual = $row['uidcajero'];
+        }
+
+        // Fila normal
+        $excelData[] = [
+            'uid'        => $row['uid'],
+            'alumno'     => $row['alumno'],
+            'idServicio' => $row['idServicio'],
+            'servicio'   => $row['servicio'],
+            'fechaMovto' => $row['fechaMovto'],
+        ];
+
+        $rowNumber++;
+    }
+
+    // 4️⃣ Export FINAL (con datos reales)
+    $export = new GenericExport($excelData, $headers, $keys);
+
+    $fileName = 'reporte_condonacion_' . mt_rand(100, 999) . '.xlsx';
+
+    Excel::store($export, $fileName, 'public');
+
+    // 5️⃣ Verificar archivo
+    $fullPath = storage_path('app/public/' . $fileName);
+
+    if (file_exists($fullPath)) {
+        return response()->json([
+            'status'  => 200,
+            'message' => asset('storage/' . $fileName)
+        ]);
+    }
+
+    return response()->json([
+        'status'  => 500,
+        'message' => 'Error al generar el reporte'
+    ]);
+}
+
     
 }

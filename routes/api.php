@@ -336,5 +336,8 @@ Route::prefix('usoscfdi')->group(function () {
     require base_path('routes/tesoreria/usoscfdi.php');
 });
    
-   
+Route::prefix('saldos')->group(function () {
+    require base_path('routes/tesoreria/saldos.php');
+});
+     
 #Este es un comentario para probar el fech y el pull..

@@ -9,4 +9,4 @@ Route::get('/{uid}', [AlumnoController::class, 'getAlumno']);
 Route::get('/alumnosInscritos/{idNivel}/{idPeriodo}', [AlumnoController::class, 'alumnosInscritosConcentrado']);
 Route::get('/alumnosInscritosExc/{idNivel}/{idPeriodo}', [AlumnoController::class, 'exportExcelCocentrado']);
 Route::get('/alumnosInscritosDtl/{idNivel}/{idPeriodo}', [AlumnoController::class, 'alumnosInscritosDetallado']);
-  
+Route::get('/alumnosInscritosDtlExc/{idNivel}/{idPeriodo}', [AlumnoController::class, 'alumnosInscritosDetalladoExc']);  

@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF; 
 use App\Http\Controllers\Api\escolar\ReporteConcentradoExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;  
 
 class AlumnoController extends Controller
 {
@@ -76,8 +77,8 @@ class AlumnoController extends Controller
                                         );
     }
 
-public function generateReportDtl($idNivel,$idPeriodo,$data, $headers,$columnWidths, $keys, $title, $orientation, $size, $nameReport)
-{
+
+    public function generateReportDtl($idNivel,$idPeriodo,$data, $headers,$columnWidths, $keys, $title, $orientation, $size, $nameReport){
     $imagePathEnc = public_path('images/encPag.png');
     $imagePathPie = public_path('images/piePag.png');
     $descripcionPeriodo = DB::table('periodo')
@@ -195,6 +196,67 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
     ]);
 }
 
+public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {  
+        // Ruta del archivo a almacenar en el disco público
+        $path = storage_path('app/public/detalleInscritos.xlsx');
+        $selectColumns = [ 'persona.uid',
+                            DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre'),
+                            'alumno.idCarrera',
+                            'carrera.descripcion'
+                 ]; // Seleccionar columnas específicas
+        $namesColumns = ['UID','NOMBRE','CVE CARRERA','NOMBRE CARRERA']; // Seleccionar columnas específicas
+        
+        $joins = [['table' => 'ciclos', 
+                   'type' => 'inner',
+                   'conditions' => [
+                        ['first' => 'ciclos.grupo', 'second' => 'grupos.grupo'],
+                        ['first' => 'ciclos.idNivel', 'second' => 'grupos.idNivel'],
+                        ['first' => 'ciclos.idPeriodo', 'second' => 'grupos.idPeriodo']
+                    ]
+                  ],
+                  ['table' => 'alumno', 
+                   'type' => 'inner',
+                   'conditions' => [
+                        ['first' => 'alumno.uid', 'second' => 'ciclos.uid'],
+                        ['first' => 'alumno.secuencia', 'second' => 'ciclos.secuencia']
+                    ]
+                   ],
+                    ['table' => 'persona', 
+                    'type' => 'inner',
+                    'conditions' => [
+                        ['first' => 'ciclos.uid','second' => 'persona.uid']]                     
+                    ],
+                    ['table' => 'carrera', 
+                     'type' => 'left' ,
+                     'conditions' => [
+                        ['first' => 'carrera.idCarrera', 'second' => 'alumno.idCarrera'],
+                        ['first' => 'carrera.idNivel', 'second' => 'alumno.idNivel']
+                     ]                    
+                    ]
+            ]; 
+
+        $filters = [ 'alumno.idNivel' => $idNivel,
+                    'ciclos.idPeriodo' => $idPeriodo];
+
+        $export = new GenericTableExportEsp('grupos', 'uid', $filters, ['alumno.idCarrera','persona.uid'], ['asc','asc'], $selectColumns, $joins,$namesColumns);
+
+        // Guardar el archivo en el disco público
+        Excel::store($export, 'detalleInscritos.xlsx', 'public');
+       
+        // Verifica si el archivo existe usando Storage de Laravel
+        if (file_exists($path))  {
+            return response()->json([
+                'status' => 200,  
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/detalleInscritos.xlsx' // URL pública para descargar el archivo
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar el reporte '
+            ]);
+        }  
+    }
+
 public function obtenerDatosConcentrado($idNivel,$idPeriodo){
 
     $resultado = DB::table('grupos as gpo')
@@ -239,18 +301,17 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     $dataArray = $this->obtenerDatosConcentrado($idNivel,$idPeriodo);
 
     $headers = ['escuela', 'total'];
-    $fileName = 'rptInscritosConcentradoEscuela_'.mt_rand(100,999).'.xlsx';
-    $path = 'public/' . $fileName; // Ruta relativa a storage/app
+    $fileName = 'rptInscritosConcEscuela_'.mt_rand(100,999).'.xlsx';
+    $path = storage_path('app/public/'.$fileName);
+ 
+    Excel::store(new ReporteConcentradoExport($dataArray, $headers, 'PERIODO '.$idPeriodo.' - '.$descripcionPeriodo), $fileName, 'public');
 
-    // Guardar el archivo en storage/app/public/
-    Excel::store(new ReporteConcentradoExport($dataArray, $headers, 'PERIODO '.$idPeriodo.' - '.$descripcionPeriodo), $path);
-
-    // Comprobar si se creó
-    $fullPath = storage_path('app/' . $path);
-    if (file_exists($fullPath)) {
+   
+    if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/' . $fileName
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
+            
         ]);
     } else {
         return response()->json([
@@ -260,56 +321,7 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     }
 }
 
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Alumno $alumno)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Alumno $alumno)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Alumno $alumno)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Alumno $alumno)
-    {
-        //
-    }
-
-    public function getAvance($uid,$secuencia){
+public function getAvance($uid,$secuencia){
         $avance = DB::select('SELECT PorcentajeAvance(?, ?) AS avance', [$uid, $secuencia]);
 
         if (!$avance) {

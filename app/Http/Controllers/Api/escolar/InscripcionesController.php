@@ -109,6 +109,8 @@ class InscripcionesController extends Controller
             ->distinct()
             ->get();
 
+            $idPeriodoC = $idPeriodo-1;
+
         // 🔹 SEGUNDA QUERY (alumnos con ciclos previos)
         $result2 = DB::table('ciclos as c')
             ->join('alumno as a', function ($join) {
@@ -149,16 +151,16 @@ class InscripcionesController extends Controller
                     ->where('bd.BloqueoActivo', '=', 1);
             })
             ->leftJoin('bloqueos as b4', 'b4.idBloqueo', '=', 'bd.idBloqueo')
-            ->leftJoin('grupos as gp', function ($join) use ($idPeriodo) {
+            ->leftJoin('grupos as gp', function ($join) use ($idPeriodoC) {
                 $join->on(DB::raw("gp.grupo"), '=', DB::raw("
                     CONCAT(SUBSTRING(c.grupo, 1, 3),
                     CAST(SUBSTRING(c.grupo, 4, 1) AS UNSIGNED) + 1,
                     SUBSTRING(c.grupo, 5, 1))
                 "))
-                ->where('gp.idPeriodo', '=', $idPeriodo);
+                ->where('gp.idPeriodo', '=', $idPeriodoC);
             })
             ->where('c.idNivel', $idNivel)
-            ->where('c.idPeriodo', $idPeriodo)
+            ->where('c.idPeriodo', $idPeriodoC)
             ->select([
                 'a.uid',
                 'a.idPlan',

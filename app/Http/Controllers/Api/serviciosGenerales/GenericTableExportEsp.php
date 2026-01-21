@@ -33,47 +33,46 @@ class GenericTableExportEsp implements FromQuery, WithHeadings
         $this->joins = $joins;
     }
 
-    public function query() {
-        $query = DB::table($this->tableName);
-    
-        // Uniones
-        foreach ($this->joins as $join) {
-            $type = $join['type'] ?? 'inner'; // Default es INNER JOIN
-            $query->join($join['table'], $join['first'], '=', $join['second'], $join['type'] ?? 'inner'); 
+    public function query(){
+
+    $query = DB::table($this->tableName);    
+    foreach ($this->joins as $join) {
+        if (!isset($join['table'], $join['conditions'])) {
+            throw new \Exception('Join mal definido');
         }
-    
-        // Aplicar filtros
-        foreach ($this->filters as $column => $value) {
-            $query->where($column, '=', $value);
-        }
-
-       
-        $query->select($this->selectColumns);
-
-        if (!empty($this->order) && !empty($this->direction)) {
-        // Asegurarse de que ambos arreglos tengan el mismo número de elementos
-            $orderCount = count($this->order);
-            $directionCount = count($this->direction);
-
-            if ($orderCount !== $directionCount) {
-                throw new \Exception('El número de columnas de ordenamiento no coincide con el número de direcciones.');
+        $type = $join['type'] ?? 'inner';
+        $query->join($join['table'], function ($joinTable) use ($join) {
+            foreach ($join['conditions'] as $cond) {
+                if (!isset($cond['first'], $cond['second'])) {
+                    throw new \Exception('Condición de JOIN mal definida');
+                }
+                $joinTable->on($cond['first'], '=', $cond['second']);
             }
-
-            // Recorrer ambos arreglos usando los mismos índices
-            for ($i = 0; $i < $orderCount; $i++) {
-                $orderColumn = $this->order[$i];
-                $orderDirection = $this->direction[$i];
-
-                // Aplicar el ordenamiento para cada par columna-dirección
-                $query->orderBy($orderColumn, $orderDirection);
-            }   
-        } else {
-            $query->orderBy($this->nameId, $this->direction);
-        }
+        }, null, null, $type);
+    }
     
-        return $query;
+    foreach ($this->filters as $column => $value) {
+        $query->where($column, '=', $value);
     }
 
+    $query->select($this->selectColumns);
+
+    if (!empty($this->order) && !empty($this->direction)) {
+        if (count($this->order) !== count($this->direction)) {
+            throw new \Exception(
+                'El número de columnas de ordenamiento no coincide con el número de direcciones.'
+            );
+        }
+
+        for ($i = 0; $i < count($this->order); $i++) {
+            $query->orderBy($this->order[$i], $this->direction[$i]);
+        }
+
+    } else {
+        $query->orderBy($this->nameId, $this->direction);
+    }
+    return $query;
+}
 
     public function headings(): array{
         return $this->namesColumns;
