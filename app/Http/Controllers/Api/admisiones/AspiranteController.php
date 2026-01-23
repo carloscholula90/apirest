@@ -504,6 +504,10 @@ class AspiranteController extends Controller{
 
         $enfermedad = 'NO';
 
+         $salud = Salud::select('enfermedad')
+                            ->where('uid',$generalesRow['uid'])
+                            ->get(); 
+
         if (Salud::where('uid', $generalesRow['uid'])->exists()) {
             $enfermedad = 'SI';
         }

@@ -168,6 +168,10 @@ Route::prefix('idiomas')->group(function () {
     require base_path('routes/escolar/idiomas.php');
 });
 
+Route::prefix('impresiones')->group(function () {
+    require base_path('routes/escolar/impresiones.php');
+});
+
 Route::prefix('ingresos')->group(function () {
     require base_path('routes/tesoreria/ingresos.php');
 });

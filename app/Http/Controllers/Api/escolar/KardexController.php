@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class KardexController extends Controller
 {
 
-   public function generaReporte($id,$idNivel,$idCarrera,$tipoKardex){
+   public function generaReporte($id,$idNivel,$idCarrera,$tipoKardex,$aquaMark=true){
 
        if($tipoKardex!='F')
        $results = DB::table('ciclos as cl')
@@ -49,7 +49,7 @@ class KardexController extends Controller
                                     'asig.semestre as semestre',
                                     'ca.cf as calificacion',
                                     'e.descripcion as tipo',
-                                    DB::raw('CONLETRA(ca.cf) as califConLetra')
+                                    DB::raw(" CASE WHEN ca.cf >0 THEN CONLETRA(ca.cf) ELSE '' END as califConLetra")
                         )
                         ->where('cl.uid', $id)
                         ->where('alumno.idNivel', $idNivel)
@@ -123,18 +123,20 @@ class KardexController extends Controller
         })->toArray();       
         if($tipoKardex == 'AP')
         return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX TIPO AP', $headers,'P','letter',
-                        'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex);
+                        'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex,$aquaMark);
         else if($tipoKardex == 'F')
          return $this->generateReport($resultsArray,$columnWidths,$keys , 'ASIGNATURAS PENDIENTES POR CURSAR',$headers,'P','letter',
-                        'rptPendientesCursar_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex);      
+                        'rptPendientesCursar_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex,$aquaMark);      
         else return $this->generateReport($resultsArray,$columnWidths,$keys , 'KARDEX TIPO C', $headers,'P','letter',
-                        'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex);
+                        'rptKardex_'.$id.'_'.mt_rand(100, 999).'.pdf',$tipoKardex,$aquaMark);
       
     }
 
-    public function generateReport(array $data, array $columnWidths = null, array $keys = null, string $title = 'Kardex simple', array $headers = null, string $orientation = 'L', string $size = 'letter',string $nameReport=null,string $tipoKardex)
+    public function generateReport($data, $columnWidths = null, $keys = null, $title = 'Kardex simple', 
+                                   $headers = null, $orientation = 'L', $size = 'letter',
+                                   $nameReport=null,$tipoKardex,$aquaMark)
     {
-        $aquaMark = false;//Validar si ya esta pagado
+        
 
         // Rutas de las imágenes para el encabezado y pie
         $imagePathEnc = public_path('images/encPag.png');
