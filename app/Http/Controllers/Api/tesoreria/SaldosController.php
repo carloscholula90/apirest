@@ -28,7 +28,7 @@ class SaldosController extends Controller{
                        ->where('idNivel', $idNivel)
                        ->first();
 
-                       Log::info('idPeriodo :'.$periodo->idPeriodo);
+                       //Log::info('idPeriodo :'.$periodo->idPeriodo);
         $select = ['alumno.uid','car.descripcion as carerra','ciclos.grupo',
             DB::raw("consultaSaldo(alumno.uid, alumno.matricula, ".$periodo->idPeriodo.") AS saldo")
         ];

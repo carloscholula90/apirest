@@ -81,7 +81,7 @@ class PersonaController extends Controller{
             ->take(50)
             ->get();   
 
-        Log::info('Número de personas encontradas: ' . $personas->count());
+        //Log::info('Número de personas encontradas: ' . $personas->count());
         
         if ($personas->isEmpty()) {
             return $this->returnEstatus('No se encontraron personas.', 200, null);
@@ -124,7 +124,7 @@ class PersonaController extends Controller{
             ->take(50)
             ->get();   
 
-        Log::info('Número de personas encontradas: ' . $personas->count());
+        //Log::info('Número de personas encontradas: ' . $personas->count());
         
         if ($personas->isEmpty()) {
             return $this->returnEstatus('No se encontraron personas.', 200, null);

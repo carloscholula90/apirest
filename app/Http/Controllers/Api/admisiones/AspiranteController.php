@@ -83,22 +83,22 @@ class AspiranteController extends Controller{
                         $secuencialPers = isset($maxSeq) ? $maxSeq + 1: 1;    
                         $integra = Integra::create(['uid' => $newId,'secuencia' =>$secuencialPers,'idRol'=> 3]);
                         
-                        /*Log::info('uid:'.$newId);  
-                        Log::info('secuencia:'.$maxSeq);
-                        Log::info('idPeriodo:'.$request->idPeriodo);
-                        Log::info('idCarrera:'.$request->idCarrera);
-                        Log::info('adeudoAsignaturas:'.$request->adeudoAsignaturas);
-                        Log::info('idNivel:'.$request->idNivel);
-                        Log::info('idMedio:'.$request->idMedio);
-                        Log::info('publica:'.$request->publica);
-                        Log::info('paisCursoGradoAnterior:'.$request->paisCursoGradoAnterior);
-                        Log::info('estadoCursoGradoAnterior:'.$request->estadoCursoGradoAnterior);
-                        Log::info('uidEmpleado:'.$request->uidEmpleado);
-                        Log::info('fechaSolicitud:'.$request->fechaSolicitud);
-                        Log::info('matReprobada:'.$request->matReprobada);        
-                        Log::info('mesReprobada:'.$request->mesReprobada);        
-                        Log::info('idNivelAnterior:'.$request->idNivelAnterior);        
-                        Log::info('escuelaProcedencia:'.$request->escuelaProcedencia); */       
+                        /*//Log::info('uid:'.$newId);  
+                        //Log::info('secuencia:'.$maxSeq);
+                        //Log::info('idPeriodo:'.$request->idPeriodo);
+                        //Log::info('idCarrera:'.$request->idCarrera);
+                        //Log::info('adeudoAsignaturas:'.$request->adeudoAsignaturas);
+                        //Log::info('idNivel:'.$request->idNivel);
+                        //Log::info('idMedio:'.$request->idMedio);
+                        //Log::info('publica:'.$request->publica);
+                        //Log::info('paisCursoGradoAnterior:'.$request->paisCursoGradoAnterior);
+                        //Log::info('estadoCursoGradoAnterior:'.$request->estadoCursoGradoAnterior);
+                        //Log::info('uidEmpleado:'.$request->uidEmpleado);
+                        //Log::info('fechaSolicitud:'.$request->fechaSolicitud);
+                        //Log::info('matReprobada:'.$request->matReprobada);        
+                        //Log::info('mesReprobada:'.$request->mesReprobada);        
+                        //Log::info('idNivelAnterior:'.$request->idNivelAnterior);        
+                        //Log::info('escuelaProcedencia:'.$request->escuelaProcedencia); */       
 
                         $aspirante = Aspirante::create([
                                                 'uid' => $newId,
@@ -171,7 +171,7 @@ class AspiranteController extends Controller{
                                                         ->max('consecutivo');
                                
                                 $nextSeq = ($maxSeq === null) ? 1 : $maxSeq + 1;
-                                Log::info('contacto:'.$contactosData['dato']);
+                                //Log::info('contacto:'.$contactosData['dato']);
                                 Contacto::create([  'uid' => $newId,
                                                     'consecutivo' => $nextSeq,
                                                     'idParentesco' => 0,
@@ -183,7 +183,7 @@ class AspiranteController extends Controller{
 
                             if(isset($request->familias))
                             foreach ($request->familias as $familiasData) {                                
-                                Log::info('familia:'.$familiasData['nombre']);
+                                //Log::info('familia:'.$familiasData['nombre']);
                                
                                 Familia::create([
                                                 'uid' => $newId,
@@ -616,7 +616,7 @@ class AspiranteController extends Controller{
                     '</td>  
                     </tr>   
                     </table>';   
-                    Log::info('Nivel :'.$generalesRow['idNivel']);  
+                    //Log::info('Nivel :'.$generalesRow['idNivel']);  
            // Escribir la tabla en el PDF
            $pdf->writeHTML($html2, true, false, true, false, '');
            $filePath = storage_path('app/public/solicitudInscripcion.pdf');  // Ruta donde se guardará el archivo
@@ -659,21 +659,14 @@ class AspiranteController extends Controller{
             ];
             return response()->json($data, 400);
         }
-                        Log::info('uid :'.$request->uid);   
-                        Log::info('idPeriodo :'.$request->idPeriodo);   
-                        Log::info('secuencia :'.$request->secuencia);   
-                        Log::info('idCarrera :'.$request->idCarrera);   
-                        Log::info('idTurno :'.$request->idTurno);   
-                        Log::info('semestre :'.$request->semestre);   
-                        Log::info('uidMatricula :'.$request->uidMatricula);   
-                        Log::info('idNivel :'.$request->idNivel); 
+                        
 
         $result = DB::select('CALL conviertealumno(?, ?, ?, ?, ?, ?, ?,?)', 
                                                         [$request->uid,$request->idPeriodo, 
                                                         $request->secuencia,$request->idCarrera,$request->idTurno,
                                                         $request->semestre,$request->uidMatricula,$request->idNivel
                                                         ]);
-                Log::info('resultado :',$result);   
+                 
 
        
         $data = ['msj' => 'Proceso exitoso','status' => 200];
@@ -694,7 +687,7 @@ class AspiranteController extends Controller{
 
         $result = DB::select('CALL borraaspirante(?, ?)', 
                             [$uid,$secuencia]);
-        Log::info('resultado :',$result);  
+        //Log::info('resultado :',$result);  
         $data = ['msj' => 'Proceso exitoso','status' => 200];
     
         return response()->json($data, 200);

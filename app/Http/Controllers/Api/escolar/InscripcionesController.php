@@ -73,7 +73,7 @@ class InscripcionesController extends Controller
             ->leftJoin('bloqueos as b4', 'b4.idBloqueo', '=', 'bd.idBloqueo')
             ->leftJoin('grupos as gp', function ($join) use ($idPeriodo) {
                 $join->on(DB::raw("gp.grupo"), '=', DB::raw("
-                    CONCAT(LPAD(asp.idCarrera, 2, '0'), turno.letra, 1, 'A')
+                    CONCAT(LPAD(asp.idCarrera, 2, '0'), turno.letra, asp.semestreIngreso, 'A')
                 "))
                 ->where('gp.idPeriodo', '=', $idPeriodo);
             })
@@ -157,7 +157,7 @@ class InscripcionesController extends Controller
                     CAST(SUBSTRING(c.grupo, 4, 1) AS UNSIGNED) + 1,
                     SUBSTRING(c.grupo, 5, 1))
                 "))
-                ->where('gp.idPeriodo', '=', $idPeriodoC);
+                ->where('gp.idPeriodo', '=', ($idPeriodoC + 1));
             })
             ->where('c.idNivel', $idNivel)
             ->where('c.idPeriodo', $idPeriodoC)
@@ -249,19 +249,19 @@ class InscripcionesController extends Controller
 
         $cantidad = count($uids); 
         for ($indx = 0; $indx <$cantidad; $indx++){
-                Log::info('indx :'.$indx);
-                Log::info('uids :'.$uids[$indx]);
-                Log::info('matriculas :'.$matriculas[$indx]);
-                Log::info('grupos :'.$grupos[$indx]);
-                Log::info('carreras :'.$carreras[$indx]); 
-                Log::info('planes :'.$planes[$indx]);
+                //Log::info('indx :'.$indx);
+                //Log::info('uids :'.$uids[$indx]);
+                //Log::info('matriculas :'.$matriculas[$indx]);
+                //Log::info('grupos :'.$grupos[$indx]);
+                //Log::info('carreras :'.$carreras[$indx]); 
+                //Log::info('planes :'.$planes[$indx]);
                   
                 $result = DB::select('CALL inscripcion(?, ?, ?, ?, ?, ?, ?, ?)', 
                                                         [$request->idNivel,$request->idPeriodo, 
                                                          $uids[$indx],$matriculas[$indx],
                                                          $semestres[$indx],
                                                          $carreras[$indx],$planes[$indx],$grupos[$indx]]);
-                Log::info('resultado :',$result);   
+                //Log::info('resultado :',$result);   
 
         }
         $data = ['msj' => 'Proceso exitoso','status' => 200];

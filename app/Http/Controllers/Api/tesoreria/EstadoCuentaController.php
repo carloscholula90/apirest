@@ -573,7 +573,7 @@ class EstadoCuentaController extends Controller{
             if ($registro->cargos > 0 && $importeRestante > 0) {
                 $pago = min($importeRestante, $registro->cargos);
                 $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$servicios->idServicioRecargo;
-                Log::info('$$idServicioNota:'.$idServicioNota); 
+                //Log::info('$$idServicioNota:'.$idServicioNota); 
                 $this->crearMovimiento(['uid' => $uid,
                                         'secuencia' => $secuencia,
                                         'idServicio' => $idServicioNota,
@@ -595,7 +595,7 @@ class EstadoCuentaController extends Controller{
             // 2️⃣ Pagar colegiatura
             if ($registro->monto > 0 && $importeRestante > 0) {
                 $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$registro->idServicioColegiatura;
-              //  Log::info('$importeRestante:'.$importeRestante); 
+              //  //Log::info('$importeRestante:'.$importeRestante); 
                 $pago = min($importeRestante, $registro->monto);
                 $this->crearMovimiento([
                                         'uid' => $uid,

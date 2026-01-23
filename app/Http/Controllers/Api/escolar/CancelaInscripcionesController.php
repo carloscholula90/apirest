@@ -79,14 +79,14 @@ class CancelaInscripcionesController extends Controller
         $cantidad = count($uids);
 
         for ($indx = 0; $indx <$cantidad; $indx++){
-                Log::info('indx :'.$indx);
-                Log::info('uids :'.$uids[$indx]);
-                Log::info('matriculas :'.$matriculas[$indx]);
+                //Log::info('indx :'.$indx);
+                //Log::info('uids :'.$uids[$indx]);
+                //Log::info('matriculas :'.$matriculas[$indx]);
                     
                 $result = DB::select('CALL cancelaInscripcion(?, ?, ?)', 
                                                         [$uids[$indx],$matriculas[$indx],
                                                          $request->idPeriodo]);
-                Log::info('resultado :',$result);   
+                //Log::info('resultado :',$result);   
 
         }
         $data = ['msj' => 'Proceso exitoso','status' => 200];

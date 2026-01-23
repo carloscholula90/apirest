@@ -145,12 +145,12 @@ class EstadoController extends Controller{
             ];
             return response()->json($data, 400);
         }
-        \Log::info('Datos de usuario procesados 1');
+        //Log::info('Datos de usuario procesados 1');
 
         $estados = Estado::where('idPais', $request->idPais)
                  ->where('idEstado', $request->idEstado)
                  ->first();
-                 \Log::info('Datos de usuario procesados 2');
+                 //Log::info('Datos de usuario procesados 2');
 
         if ($estados) {
             $estados->descripcion = $request->descripcion;
