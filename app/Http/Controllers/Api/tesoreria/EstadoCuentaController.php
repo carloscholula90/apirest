@@ -65,6 +65,7 @@ class EstadoCuentaController extends Controller{
                 'nivel.descripcion as nivel',
                 'carrera.descripcion as nombreCarrera',
                 'persona.nombre',
+                'traspaso.idServicioTraspasoSaldos1',
                 'inscripcion.idServicioInscripcion',
                 'reinscrip.idServicioReinscripcion',            
                 'colegiatura.idServicioColegiatura',
@@ -100,6 +101,7 @@ class EstadoCuentaController extends Controller{
                         DB::raw("DATE_FORMAT(edo.fechaMovto, '%d/%m/%Y') as fechaPago"),
                         'edo.consecutivo',
                         'edo.idServicio',  
+                        'traspaso.idServicioTraspasoSaldos1',
                         'inscripcion.idServicioInscripcion',
                         'colegiatura.idServicioColegiatura',
                         'bec.descripcion AS beca',
@@ -145,7 +147,11 @@ class EstadoCuentaController extends Controller{
                 ->leftJoin('configuracionTesoreria as recargo', function ($join) {
                     $join->on('recargo.idNivel', '=', 'al.idNivel')
                         ->on('recargo.idServicioRecargo', '=', 's.idServicio');
-                })                
+                }) 
+                ->leftJoin('configuracionTesoreria as traspaso', function ($join) {
+                    $join->on('traspaso.idNivel', '=', 'al.idNivel')
+                        ->on('traspaso.idServicioTraspasoSaldos1', '=', 's.idServicio');
+                })               
                 ->leftJoin('configuracionTesoreria as notacargo', function ($join) {
                     $join->on('notacargo.idNivel', '=', 'al.idNivel')
                         ->on('notacargo.idServicioNotaCargo', '=', 's.idServicio');
@@ -347,7 +353,8 @@ class EstadoCuentaController extends Controller{
                 'ct.idServicioColegiatura',
                 'ct.idServicioInscripcion',
                 'ct.idServicioRecargo',
-                'ct.idServicioNotaCredito'
+                'ct.idServicioNotaCredito',
+                'ct.traspaso.idServicioTraspasoSaldos1'
             )
             ->first(); // Retorna un solo registro
     }

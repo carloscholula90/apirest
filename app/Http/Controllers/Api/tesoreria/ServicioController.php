@@ -194,6 +194,65 @@ public function index($uid, $secuencia, $tipoEdoCta)
     // Consulta base para inscripción (tipoEdoCta = 1)
     if ($tipoEdoCta == 1) {
 
+         $saldoInicial = DB::table('configuracionTesoreria as ct')
+                                ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+                                            $join->on('ct.idNivel', '=', 'al.idNivel')
+                                                ->where('al.uid', '=', $uid)
+                                                ->where('al.matricula', '=', $secuencia);
+                                })
+                                ->join('periodo as per', function ($join) {
+                                    $join->on('per.idNivel', '=', 'al.idNivel')
+                                        ->where('per.activo', 1);
+                                })
+                                ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
+                                
+                                ->join('servicio as s', 's.idServicio', '=', 'ct.idServicioTraspasoSaldos1')
+                                ->join('edocta as cta', function ($join) use ($uid){
+                                    $join->on('cta.idServicio', '=', 's.idServicio')
+                                        ->where('cta.uid', $uid)
+                                        ->whereColumn('cta.secuencia', 'al.secuencia')
+                                        ->where('cta.tipomovto', 'C')
+                                        ->whereColumn('cta.idPeriodo', 'per.idPeriodo');
+                                })
+                                ->leftJoin('edocta as ctaA', function ($join) {
+                                    $join->on('ctaA.referencia', '=', 'cta.referencia')
+                                        ->on('ctaA.idPeriodo', '=', 'per.idPeriodo')
+                                        ->on('ctaA.uid', '=', 'cta.uid')
+                                        ->on('ctaA.secuencia', '=', 'al.secuencia')
+                                        ->where('ctaA.tipomovto', 'A');
+                                })
+                                ->groupBy(
+                                    'niv.idNivel',
+                                    'niv.descripcion',
+                                    's.descripcion',
+                                    's.efectivo',
+                                    's.tarjeta',
+                                    'per.idPeriodo',
+                                    's.idServicio',
+                                    's.tipoEdoCta',
+                                    'cta.importe',
+                                    's.cargoAutomatico'
+                                )
+                                ->havingRaw('monto > 0')
+                                ->select([
+                                    'niv.idNivel',
+                                    DB::raw('niv.descripcion AS nivel'),
+                                    DB::raw('s.descripcion AS servicio'),
+                                    's.efectivo',
+                                    's.tarjeta',
+                                    'per.idPeriodo',
+                                    's.idServicio',
+                                    's.tipoEdoCta',
+                                    DB::raw('cta.importe - SUM(IFNULL(ctaA.importe, 0)) AS monto'),
+                                    DB::raw('IFNULL(s.cargoAutomatico, 0) AS cargoAut'),
+                                ])
+                                ->get();
+
+        // Si hay datos de inscripción pendientes, devolverlos; si no, usar pendientes generales
+        if ($saldoInicial->isNotEmpty()) {
+            return $saldoInicial;
+        }
+
         $inscripcion = DB::table('configuracionTesoreria as ct')
                                 ->join('alumno as al', function ($join) use ($uid, $secuencia) {
                                             $join->on('ct.idNivel', '=', 'al.idNivel')
