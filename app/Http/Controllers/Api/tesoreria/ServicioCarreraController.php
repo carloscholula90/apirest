@@ -41,8 +41,8 @@ class ServicioCarreraController extends Controller
             INNER JOIN nivel n ON n.idNivel = sp.idNivel
             INNER JOIN periodo p ON p.idNivel = sp.idNivel AND p.idPeriodo = sp.idPeriodo
             INNER JOIN turno t ON t.idTurno = sp.idTurno
-            WHERE (p.activo = 1 OR p.inscripciones = 1)
-            ORDER BY n.idNivel, p.idPeriodo, s.descripcion");
+            WHERE (p.activo = 1 OR p.inscripciones = 1)  
+            ORDER BY n.idNivel, p.idPeriodo, c.idCarrera, s.idServicio, t.idTurno, sp.semestre");
 
     $estructura = [];
 
@@ -197,7 +197,7 @@ class ServicioCarreraController extends Controller
                             's.descripcion as servicio',
                             'sp.semestre',                                        
                             't.descripcion as turno',
-                            DB::raw("CASE WHEN servicio.cargoAutomatico =1 THEN 'SI' ELSE 'NO' END AS cargoAutomatico"),
+                            DB::raw("CASE WHEN s.cargoAutomatico =1 THEN 'SI' ELSE 'NO' END AS cargoAutomatico"),
                             'sp.monto'
                         )
                         ->join('servicioCarrera as sp', 'sp.idServicio', '=', 's.idServicio')
@@ -217,7 +217,10 @@ class ServicioCarreraController extends Controller
                         })
                         ->orderBy('p.idPeriodo')
                         ->orderBy('n.idNivel')
-                        ->orderBy('s.descripcion')
+                        ->orderBy('c.idCarrera')
+                        ->orderBy('s.idServicio')
+                        ->orderBy('t.idTurno')
+                        ->orderBy('sp.semestre')
                         ->get();
         return $query;
     }
@@ -236,29 +239,37 @@ class ServicioCarreraController extends Controller
         $namesColumns =['PERIODO','NIVEL','CARRERA','SERVICIO','SEM','TURNO','CARGO AUT.','MONTO'];
         
         $joins = [[ 'table' => 'servicio', // Tabla a unir
-                    'first' => 'servicio.idServicio', // Columna de la tabla principal
-                    'second' => 'servicioCarrera.idServicio', // Columna de la tabla unida
+                    'first' => '', // Columna de la tabla principal
+                    'conditions' => [
+                        ['first' => 'servicio.idServicio', 'second' => 'servicioCarrera.idServicio']
+                       ],                    
                     'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                 ],
                 [ 'table' => 'nivel', // Tabla a unir
-                  'first' => 'nivel.idNivel', // Columna de la tabla principal
-                  'second' => 'servicioCarrera.idNivel', // Columna de la tabla unida
-                  'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                'conditions' => [
+                        ['first' => 'nivel.idNivel', 'second' => 'servicioCarrera.idNivel']
+                     ] ,
+                   'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                 ],
                 [ 'table' => 'periodo', // Tabla a unir
-                  'first' => 'periodo.idNivel','periodo.idPeriodo' ,// Columna de la tabla principal
-                  'second' => 'servicioCarrera.idNivel','servicioCarrera.idPeriodo', // Columna de la tabla unida
-                  'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                    'conditions' => [
+                         ['first' => 'periodo.idNivel', 'second' => 'servicioCarrera.idNivel'],
+                         ['first' => 'periodo.idPeriodo', 'second' => 'servicioCarrera.idPeriodo']
+                    ],
+                    'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                 ] ,
                 [ 'table' => 'turno', // Tabla a unir
-                  'first' => 'turno.idTurno' ,// Columna de la tabla principal
-                  'second' => 'servicioCarrera.idTurno' ,// Columna de la tabla unida
-                  'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                   'conditions' => [
+                         ['first' => 'turno.idTurno', 'second' => 'servicioCarrera.idTurno']
+                   ],
+                     'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                 ],
                 [ 'table' => 'carrera', // Tabla a unir
-                  'first' => 'periodo.idNivel','periodo.idPeriodo' ,// Columna de la tabla principal
-                  'second' => 'servicioCarrera.idNivel','servicioCarrera.idPeriodo', // Columna de la tabla unida
-                  'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
+                'conditions' => [
+                         ['first' => 'periodo.idNivel', 'second' => 'servicioCarrera.idNivel'],
+                         ['first' => 'periodo.idPeriodo', 'second' => 'servicioCarrera.idPeriodo']
+                   ],
+                   'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                 ]
                 ];
 
@@ -271,7 +282,7 @@ class ServicioCarreraController extends Controller
         if (file_exists($path))  {  
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/serviciosCarrerasRpt.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/serviciosCarrerasRpt.xlsx' // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([

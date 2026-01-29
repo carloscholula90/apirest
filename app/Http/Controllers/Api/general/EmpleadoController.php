@@ -76,8 +76,8 @@ class EmpleadoController extends Controller{
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
       
          //Valido si la persona ya existe
-         $personas = Persona::select('persona.uid' )
-                                        ->where('uid', $uid)
+         $personas = Persona::select('persona.curp' )
+                                        ->where('persona.curp', $request->curp)
                                         ->get();   
 
         if ($personas->isEmpty()) {
@@ -131,8 +131,8 @@ class EmpleadoController extends Controller{
                                         'idEdoCivil' => 'required|numeric|max:255',
                                         'fechainicio'=> 'required|date_format:Y-m-d',
                                         'gradoEstudios'=> 'required|max:5',
-                                        'idPuesto'=> 'required|numeric|max:2',
-                                        'idTipoContrato'=> 'required|numeric|max:2'
+                                        'idPuesto'=> 'required|max:5',
+                                        'idTipoContrato'=> 'required|numeric|max:5'
         ]);
     }
 
@@ -233,18 +233,21 @@ class EmpleadoController extends Controller{
         $namesColumns = ['UID','NOMBRE','CURP','FCH NACIMIENTO','EDO CIVIL','PUESTO']; // Seleccionar columnas específicas
         
         $joins = [[ 'table' => 'empleado', // Tabla a unir   
-                    'first' => 'empleado.uid', // Columna de la tabla principal
-                    'second' => 'persona.uid', // Columna de la tabla unida
+                    'conditions' => [
+                                    ['first' => 'empleado.uid', 'second' => 'persona.uid']
+                    ],                    
                     'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                     ],
                     ['table' => 'edoCivil', // Tabla a unir
-                     'first' => 'persona.idEdoCivil', // Columna de la tabla principal
-                     'second' => 'edoCivil.idEdoCivil', // Columna de la tabla unida
+                    'conditions' => [
+                         ['first' => 'persona.idEdoCivil', 'second' => 'edoCivil.idEdoCivil']
+                    ],                     
                      'type' => 'left' // Tipo de JOIN (en este caso LEFT JOIN)
                     ],
                     ['table' => 'puestos as tc', // Tabla a unir
-                     'first' => 'tc.idPuesto', // Columna de la tabla principal
-                     'second'=> 'empleado.idPuesto', // Columna de la tabla unida
+                    'conditions' => [
+                         ['first' => 'tc.idPuesto', 'second' => 'empleado.idPuesto']
+                    ],
                      'type' => 'left' // Tipo de JOIN (en este caso LEFT JOIN)
                     ]
             ]; 
@@ -258,7 +261,7 @@ class EmpleadoController extends Controller{
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/empleados_rpt.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/empleados_rpt.xlsx' // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([

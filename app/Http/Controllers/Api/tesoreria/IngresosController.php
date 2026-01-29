@@ -136,7 +136,7 @@ class IngresosController extends Controller
 
                 return response()->json([
                     'status' => 200,
-                    'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptIngresosAnalitico.xlsx'
+                    'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptIngresosAnalitico.xlsx'
                 ]);
             }
         }
@@ -193,7 +193,7 @@ class IngresosController extends Controller
 
                 return response()->json([
                     'status' => 200,
-                    'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptIngresosCajero.xlsx'
+                    'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptIngresosCajero.xlsx'
                 ]);
             }
         }
@@ -255,7 +255,7 @@ class IngresosController extends Controller
 
             return response()->json([
                 'status' => 200,
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptIngresosCarrera.xlsx'
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptIngresosCarrera.xlsx'
             ]);
         }
     }
