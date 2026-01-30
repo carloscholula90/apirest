@@ -285,8 +285,11 @@ class AspiranteController extends Controller{
                          DB::raw('CASE WHEN aspirante.publica = 1 THEN "PUBLICA" ELSE "PRIVADA" END AS publica')
                     ])
                     ->join('aspirante', 'persona.uid', '=', 'aspirante.uid')
-                   
-                    ->join('carrera', 'carrera.idCarrera', '=', 'aspirante.idCarrera')
+                    ->join('carrera', function ($join) {
+                                        $join->on('carrera.idCarrera', '=', 'aspirante.idCarrera')
+                                            ->on('carrera.idNivel', '=', 'aspirante.idNivel');
+                                    })
+             
                     ->join('turno', 'turno.idTurno', '=', 'aspirante.idTurno')
                     ->join('persona AS asesor', 'asesor.uid', '=', 'aspirante.uidEmpleado')
                     ->leftJoin('estado as gradoAnt', function($join) {

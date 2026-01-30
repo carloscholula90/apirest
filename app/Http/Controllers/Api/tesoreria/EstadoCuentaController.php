@@ -164,7 +164,10 @@ class EstadoCuentaController extends Controller{
                     $join->on('reinscrip.idNivel', '=', 'al.idNivel')
                         ->on('reinscrip.idServicioReinscripcion', '=', 's.idServicio');
                 })
-                ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
+                ->join('carrera', function ($join) {
+                                        $join->on('carrera.idCarrera', '=', 'al.idCarrera')
+                                            ->on('carrera.idNivel', '=', 'al.idNivel');
+                                    })
                 ->join('persona', 'persona.uid', '=', 'al.uid')
                 ->where('edo.uid', $uid);
 
@@ -178,7 +181,8 @@ class EstadoCuentaController extends Controller{
             if (!is_null($tipoEdoCta))
             $query->where('s.tipoEdoCta', $tipoEdoCta);
             // Ordenar y obtener resultados
-            $edocuenta = $query->orderByDesc('inscripcion.idServicioInscripcion')
+            $edocuenta = $query->orderByDesc('traspaso.idServicioTraspasoSaldos1')
+                             ->orderByDesc('inscripcion.idServicioInscripcion')
                              ->orderByDesc('reinscrip.idServicioReinscripcion')            
                              ->orderByDesc('colegiatura.idServicioColegiatura')
                              ->orderByDesc('recargo.idServicioRecargo')
@@ -354,7 +358,7 @@ class EstadoCuentaController extends Controller{
                 'ct.idServicioInscripcion',
                 'ct.idServicioRecargo',
                 'ct.idServicioNotaCredito',
-                'ct.traspaso.idServicioTraspasoSaldos1'
+                'ct.idServicioTraspasoSaldos1'
             )
             ->first(); // Retorna un solo registro
     }
@@ -428,6 +432,30 @@ class EstadoCuentaController extends Controller{
         return $importe ?? 0;
     }
 
+    private function calcularImporteAdeudo($uid,$secuencia,$idServicio){
+    // Obtenemos el importe de pagos y notas de crédito
+        $importe = DB::table('edocta as edo')
+            ->selectRaw("IFNULL(SUM(CASE 
+                            WHEN edo.tipomovto = 'C' THEN edo.importe
+                            ELSE -1 * edo.importe
+                        END), 0)  AS importe")
+            ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioTraspasoSaldos1')
+            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+                $join->on('al.uid', '=', 'edo.uid')
+                    ->on('al.secuencia', '=', 'edo.secuencia')    
+                    ->where('al.uid', '=', $uid)
+                    ->where('al.secuencia', '=', $secuencia);
+            })
+            ->join('periodo as per', function ($join) {
+                $join->on('per.idNivel', '=', 'al.idNivel')
+                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
+                    ->where('per.activo', '=', 1);
+            })
+           
+            ->where('ct.idServicioTraspasoSaldos1', $idServicio)
+            ->value('importe'); // Devuelve solo el valor
+        return $importe ?? 0;
+    }
         private function obtieneReferenciaInscripcion($uid, $secuencia, $idServicioInscripcion){
         $referencia = DB::table('edocta as edo')
             ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioInscripcion')
@@ -449,7 +477,28 @@ class EstadoCuentaController extends Controller{
     }
 
     private function procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $idPeriodo, $uidcajero, $fecha, $folio){
-     
+     Log::info('saldos ---> :'.$servicios->idServicioTraspasoSaldos1);
+        if ($movimiento['idServicio'] == $servicios->idServicioTraspasoSaldos1) {
+            $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1);
+            Log::info('saldo ---> :'.$importeSaldo);
+    
+            $pago = min($movimiento['importe'], $importeSaldo);
+            $restante = $movimiento['importe'] - $importeSaldo;
+
+            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+                                                            'secuencia' => $secuencia,
+                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
+                                                            'importe' => $pago,
+                                                            'idPeriodo' => $idPeriodo,
+                                                            'fechaMovto' => $fecha,
+                                                            'folio' => $folio,
+                                                            'uidcajero' => $uidcajero
+            ]));
+            $movimiento['idServicio'] = $servicios->idServicioInscripcion;
+            $movimiento['importe'] = $restante;
+        } 
+
+        if($movimiento['importe'] >0){
         if ($movimiento['idServicio'] == $servicios->idServicioInscripcion) {
             $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion);
             $pagoInscripcion = min($movimiento['importe'], $importeInscripcion);
@@ -470,11 +519,12 @@ class EstadoCuentaController extends Controller{
                 $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,0);
    
         } 
-        else if($movimiento['idServicio'] == $servicios->idServicioColegiatura)
-            $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
-        else if($movimiento['idServicio'] == $servicios->idServicioNotaCredito) 
+            else if($movimiento['idServicio'] == $servicios->idServicioColegiatura)
+                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
+            else if($movimiento['idServicio'] == $servicios->idServicioNotaCredito) 
                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero, $servicios->idServicioNotaCredito);
-         else $this->procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios);
+            else $this->procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios);
+        }
     }
 
     private function obtenerPendientes( $uid,  $secuencia){

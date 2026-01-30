@@ -347,7 +347,10 @@ public function getAvance($uid,$secuencia){
 
         $alumnos = DB::table('alumno')
                     ->join('nivel', 'nivel.idNivel', '=', 'alumno.idNivel')
-                    ->join('carrera', 'carrera.idCarrera', '=', 'alumno.idCarrera')
+                    ->join('carrera', function($join) {
+                        $join->on('carrera.idCarrera', '=', 'alumno.idCarrera')
+                             ->on('carrera.idNivel', '=', 'alumno.idNivel');
+                        })
                     ->join('persona', 'persona.uid', '=', 'alumno.uid')
                     ->leftJoin('ciudad', function($join) {
                         $join->on('ciudad.idEstado', '=', 'persona.idEstado')
