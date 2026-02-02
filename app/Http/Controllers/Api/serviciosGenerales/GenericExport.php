@@ -34,9 +34,15 @@ class GenericExport implements FromCollection, WithHeadings, WithMapping, WithEv
     }
 
     public function map($row): array
-    {
-        return collect($this->keys)->map(fn($k) => $row[$k] ?? '')->toArray();
-    }
+{
+    return collect($this->keys)->map(function ($k) use ($row) {
+        if (is_array($row)) {
+            return $row[$k] ?? '';
+        }
+
+        return data_get($row, $k, '');
+    })->toArray();
+}
 
     public function registerEvents(): array
     {

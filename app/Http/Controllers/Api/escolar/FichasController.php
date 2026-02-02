@@ -59,7 +59,8 @@ class FichasController extends Controller{
                                 CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre) AS nombre,
                                 MAX(colegiatura.idServicioColegiatura) AS idServicioColegiatura,
                                 MAX(reinscripcion.idServicioReinscripcion) AS idServicioReinscripcion,
-                                MAX(inscripcion.idServicioInscripcion) AS idServicioInscripcion
+                                MAX(inscripcion.idServicioInscripcion) AS idServicioInscripcion,
+                                MAX(saldo.idServicioTraspasoSaldos1) AS idServicioTraspasoSaldos1
                             FROM edocta AS edo
                             INNER JOIN alumno AS al ON al.uid = edo.uid
                             INNER JOIN servicio AS s ON s.idServicio = edo.idServicio
@@ -73,15 +74,19 @@ class FichasController extends Controller{
                             LEFT JOIN configuracionTesoreria AS colegiatura
                                 ON colegiatura.idNivel = al.idNivel
                             AND colegiatura.idServicioColegiatura = s.idServicio
+                            LEFT JOIN configuracionTesoreria AS saldo
+                                ON saldo.idNivel = al.idNivel
+                            AND saldo.idServicioTraspasoSaldos1 = s.idServicio
                             WHERE
                                 edo.idPeriodo =".$idPeriodo.
                                " AND al.idCarrera = ".$idCarrera.
                                " AND al.idNivel =".$idNivel.
                                ($uid>0?" AND al.uid=".$uid:"").
                                " AND (
-                                colegiatura.idServicioColegiatura IS NOT NULL
-                                OR reinscripcion.idServicioReinscripcion IS NOT NULL
-                                OR inscripcion.idServicioInscripcion IS NOT NULL
+                                    colegiatura.idServicioColegiatura IS NOT NULL
+                                    OR reinscripcion.idServicioReinscripcion IS NOT NULL
+                                    OR inscripcion.idServicioInscripcion IS NOT NULL
+                                    OR saldo.idServicioTraspasoSaldos1 IS NOT NULL
                                 )
                             GROUP BY
                                 edo.parcialidad,
@@ -110,6 +115,9 @@ class FichasController extends Controller{
                             LEFT JOIN configuracionTesoreria AS colegiatura
                                 ON colegiatura.idNivel = al.idNivel
                             AND colegiatura.idServicioColegiatura = s.idServicio
+                            LEFT JOIN configuracionTesoreria AS saldo
+                                ON saldo.idNivel = al.idNivel
+                            AND saldo.idServicioTraspasoSaldos1 = s.idServicio
                             WHERE
                                 edo.idPeriodo = ".$idPeriodo.
                                " AND al.idCarrera = ".$idCarrera.
@@ -119,11 +127,12 @@ class FichasController extends Controller{
                                 colegiatura.idServicioColegiatura IS NOT NULL
                                 OR reinscripcion.idServicioReinscripcion IS NOT NULL
                                 OR inscripcion.idServicioInscripcion IS NOT NULL
+                                OR saldo.idServicioTraspasoSaldos1 IS NOT NULL
                                 )
                             GROUP BY
                                 edo.uid, edo.secuencia, edo.parcialidad, edo.fechaVencimiento,
                                 colegiatura.idServicioColegiatura, reinscripcion.idServicioReinscripcion,
-                                inscripcion.idServicioInscripcion
+                                inscripcion.idServicioInscripcion,saldo.idServicioTraspasoSaldos1
                             ) AS VENC
                             ON VENC.idAlumno = CONS.uid
                             AND VENC.parcialidaF = CONS.parcialidad
