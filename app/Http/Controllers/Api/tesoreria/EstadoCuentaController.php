@@ -477,11 +477,10 @@ class EstadoCuentaController extends Controller{
     }
 
     private function procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $idPeriodo, $uidcajero, $fecha, $folio){
-     Log::info('saldos ---> :'.$servicios->idServicioTraspasoSaldos1);
+      
         if ($movimiento['idServicio'] == $servicios->idServicioTraspasoSaldos1) {
             $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1);
-            Log::info('saldo ---> :'.$importeSaldo);
-    
+         
             $pago = min($movimiento['importe'], $importeSaldo);
             $restante = $movimiento['importe'] - $importeSaldo;
 
@@ -491,6 +490,7 @@ class EstadoCuentaController extends Controller{
                                                             'importe' => $pago,
                                                             'idPeriodo' => $idPeriodo,
                                                             'fechaMovto' => $fecha,
+                                                            'parcialidad' => 999,
                                                             'folio' => $folio,
                                                             'uidcajero' => $uidcajero
             ]));
@@ -605,7 +605,7 @@ class EstadoCuentaController extends Controller{
                             'importe'     => round($data['importe'], 2),
                             'tipomovto'   => $data['tipomovto'],
                             'referencia'  => $data['referencia'] ?? null,
-                            'parcialidad' => $data['parcialidad'] ?? 1,
+                            'parcialidad' => $data['parcialidad'] ?? 1,  
                             'fechaMovto'  => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
                             'FechaPago'   => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
                             'idformaPago' => $data['idformaPago'] ?? null,
@@ -623,14 +623,54 @@ class EstadoCuentaController extends Controller{
 
 
     private function prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $importeRestante, $fecha, $folio, $uidcajero,$idServicioNotaCredito){
-        $pendientes = $this->obtenerPendientes($uid, $secuencia, $idPeriodo, $servicios);
+       
+        //Tendriamos que validar primero el saldo anterior e incripcion
+        $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1);
+        
+        if($importeSaldo>0){
+            $pago = min($movimiento['importe'], $importeSaldo);
+            $restante = $movimiento['importe'] - $importeSaldo;
+            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+                                                            'secuencia' => $secuencia,
+                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
+                                                            'importe' => $pago,
+                                                            'idPeriodo' => $idPeriodo,
+                                                            'fechaMovto' => $fecha,
+                                                            'parcialidad' => 999,
+                                                            'folio' => $folio,
+                                                            'uidcajero' => $uidcajero
+            ]));
+            $movimiento['importe'] = $restante;
+        }          
+       
+        if($movimiento['importe'] >0){        
+            $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion);
+            if($importeInscripcion>0){
+            $pagoInscripcion = min($movimiento['importe'], $importeInscripcion);
+            $restante = $movimiento['importe'] - $pagoInscripcion;
+
+            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+                                                            'secuencia' => $secuencia,
+                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
+                                                            'importe' => $pagoInscripcion,
+                                                            'idPeriodo' => $idPeriodo,
+                                                            'referencia' =>  $this->obtieneReferenciaInscripcion($uid, $secuencia,$servicios->idServicioInscripcion),
+                                                            'fechaMovto' => $fecha,
+                                                            'folio' => $folio,
+                                                            'uidcajero' => $uidcajero
+            ]));
+            $movimiento['importe'] = $restante;
+        }
+          
+        }  
+        if($movimiento['importe']>0){
+            $pendientes = $this->obtenerPendientes($uid, $secuencia, $idPeriodo, $servicios);
 
         foreach ($pendientes as $registro) {
             // 1️⃣ Pagar recargos primero
             if ($registro->cargos > 0 && $importeRestante > 0) {
                 $pago = min($importeRestante, $registro->cargos);
                 $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$servicios->idServicioRecargo;
-                //Log::info('$$idServicioNota:'.$idServicioNota); 
                 $this->crearMovimiento(['uid' => $uid,
                                         'secuencia' => $secuencia,
                                         'idServicio' => $idServicioNota,
@@ -688,6 +728,7 @@ class EstadoCuentaController extends Controller{
                 'folio' => $folio,
                 'uidcajero' => $uidcajero
             ]));
+            }
         }
     }
 
