@@ -41,6 +41,7 @@ class FichasController extends Controller{
                                 CASE 
                                     WHEN FIND_IN_SET(idServicioColegiatura, CONS.serviciosClv) > 0 THEN idServicioColegiatura
                                     WHEN FIND_IN_SET(idServicioReinscripcion, CONS.serviciosClv) > 0 THEN idServicioReinscripcion
+                                    WHEN FIND_IN_SET(idServicioTraspasoSaldos1, CONS.serviciosClv) > 0 THEN idServicioTraspasoSaldos1
                                     ELSE idServicioInscripcion
                                 END,
                             3, '0')),
@@ -122,6 +123,7 @@ class FichasController extends Controller{
                                 edo.idPeriodo = ".$idPeriodo.
                                " AND al.idCarrera = ".$idCarrera.
                                 " AND al.idNivel =".$idNivel.
+                                ($uid>0?" AND al.uid=".$uid:"").
                                " AND edo.tipomovto = 'C'
                                 AND (
                                 colegiatura.idServicioColegiatura IS NOT NULL
@@ -170,12 +172,13 @@ class FichasController extends Controller{
     foreach ($resultados as $fila) {
         if($name==''||$name!=$fila->nombre){
             if($name!=''){
-                 $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edisòn en apoyo a la situacion
-                    economica, mantendra la beca de 50%, por lo que el costo de la colegiatura es de $1200.00
-                    con fecha limite de pago los dias 10 de cada mes. En caso contrario se aplicara un recargo del 20%
+                  $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edison en apoyo a la situación
+                    económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $1,200.00
+                    con fecha límite de pago los días 10 de cada mes. En caso contrario se aplicará un recargo del 20%
                 </td></tr><br><tr>
                 <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son instransferibles e indivuales.</td></tr>';
-             // Cierra la tabla actual y escribe en el PDF
+
+                // Cierra la tabla actual y escribe en el PDF
              $html .= '</table>';
              $pdf->writeHTML($html, true, false, true, false, '');
             
@@ -218,9 +221,9 @@ class FichasController extends Controller{
                 </tr><br>';
     }  
 
-    $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edisòn en apoyo a la situacion
-                    economica, mantendra la beca de 50%, por lo que el costo de la colegiatura es de $1200.00
-                    con fecha limite de pago los dias 10 de cada mes. En caso contrario se aplicara un recargo del 20%
+    $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edison en apoyo a la situación
+                    económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $1,200.00
+                    con fecha límite de pago los días 10 de cada mes. En caso contrario se aplicará un recargo del 20%
                 </td></tr><br><tr>
                 <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son instransferibles e indivuales.</td></tr>';
   

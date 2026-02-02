@@ -25,7 +25,7 @@ class NotaController extends Controller{
                                 ->select(
                                     's.idServicio',
                                     's.descripcion',
-                                    DB::raw("CASE WHEN s.descripcion LIKE '%ABONO%' THEN 'A' ELSE 'C' END as tipo")
+                                    DB::raw("CASE WHEN s.descripcion LIKE '%CREDITO%' THEN 'A' ELSE 'C' END as tipo")
                                 )
                                 ->distinct()
                                 ->get();
