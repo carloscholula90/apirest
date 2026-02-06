@@ -336,7 +336,7 @@ class EstadoCuentaController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -473,9 +473,10 @@ class EstadoCuentaController extends Controller{
       
         if ($movimiento['idServicio'] == $servicios->idServicioTraspasoSaldos1) {
             $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1);
-            $pago = min($movimiento['importe'], $importeSaldo);
-            $restante = $movimiento['importe'] - $importeSaldo;
-            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+            if($importeSaldo>0){
+                $pago = min($movimiento['importe'], $importeSaldo);
+                $restante = $movimiento['importe'] - $importeSaldo;
+                $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
                                                             'secuencia' => $secuencia,
                                                             'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
                                                             'importe' => $pago,
@@ -484,9 +485,10 @@ class EstadoCuentaController extends Controller{
                                                             'parcialidad' => 999,
                                                             'folio' => $folio,
                                                             'uidcajero' => $uidcajero
-            ]));
-            $movimiento['idServicio'] = $servicios->idServicioInscripcion;
-            $movimiento['importe'] = $restante;
+                ]));
+                $movimiento['idServicio'] = $servicios->idServicioInscripcion;
+                $movimiento['importe'] = $restante;
+            }
         } 
 
         if($movimiento['importe'] >0){
@@ -737,10 +739,6 @@ class EstadoCuentaController extends Controller{
 
 
     public function guardarMovtos(Request $request){
-    
-    DB::beginTransaction();
-    try {
-
         $movimientos = $request->all();
         $registrosMal = [];
 
@@ -749,21 +747,16 @@ class EstadoCuentaController extends Controller{
         }
 
         foreach ($movimientos as $index => $mov) {
-
             if (!isset($mov['dia'], $mov['concepto'], $mov['abono'], $mov['transaccion'])) {
                 return response()->json([
                     'error' => "Falta campo en elemento $index",
                 ], 400);
             }
-
-            $fecha = Carbon::now();
-           
+            
             $transaccion = $mov['transaccion'];
             $abono = floatval($mov['abono']);
-
             $matricula = (int) substr($mov['concepto'], 0, 7);
-            $servicio = (int) substr($mov['concepto'], 8, 3);
-        
+            
             $result = DB::table('periodo')
                             ->join('alumno', 'periodo.idNivel', '=', 'alumno.idNivel')
                             ->leftJoin('edocta', function ($join) use ($transaccion) {
@@ -772,7 +765,7 @@ class EstadoCuentaController extends Controller{
                             })
                             ->where('periodo.activo', 1)
                             ->where('alumno.matricula', $matricula)
-                            ->select('alumno.uid', 'periodo.idPeriodo','edocta.transaccion')
+                            ->select('alumno.uid','alumno.secuencia', 'periodo.idPeriodo','edocta.transaccion')
                             ->first();
 
             if (!$result) {
@@ -783,10 +776,7 @@ class EstadoCuentaController extends Controller{
                 ];
                 continue;
             }
-
-            $uid = $result->uid;
-            $idPeriodo = $result->idPeriodo;
-          
+ 
             if (isset($result->transExistente)) {
                      $registrosMal[] = [
                             'matricula' => $matricula,
@@ -796,113 +786,25 @@ class EstadoCuentaController extends Controller{
                 continue;
             }
 
-            while ($abono > 0) {
-                    $datosEdo = $result = DB::table('edocta as ec')
-                                ->select(
-                                    's.idServicio',
-                                    'ec.importe',
-                                    'ec.parcialidad',
-                                    'ec.idPeriodo',
-                                    'ec.secuencia',
-                                    'ec.uid',
-                                    DB::raw("CONCAT('000000', DATE_FORMAT(ec.FechaPago, '%m')) as referencia")
-                                )
-                                ->join('servicio as s', 's.idServicio', '=', 'ec.idServicio')
-                                ->join('configuracionTesoreria as ct', function ($join) {
-                                    $join->on('ct.idServicioColegiatura', '=', 'ec.idServicio')
-                                        ->orOn('ct.idServicioRecargo', '=', 'ec.idServicio')
-                                        ->orOn('ec.idServicio', '=', 'ct.idServicioInscripcion');
-                                })
-                                ->joinSub(
-                                    DB::table('edocta as ec2')
-                                        ->select(
-                                            'ec2.parcialidad as parc',
-                                            's2.idServicio',
-                                            DB::raw("SUM(CASE WHEN ec2.tipomovto = 'C' 
-                                                            THEN ec2.importe 
-                                                            ELSE -1 * ec2.importe END) AS total")
-                                        )
-                                        ->join('servicio as s2', 's2.idServicio', '=', 'ec2.idServicio')
-                                        ->join('configuracionTesoreria as ct2', function ($join) {
-                                            $join->on('ct2.idServicioColegiatura', '=', 'ec2.idServicio')
-                                                ->orOn('ct2.idServicioRecargo', '=', 'ec2.idServicio')
-                                                ->orOn('ec2.idServicio', '=', 'ct2.idServicioInscripcion');
-                                        })
-                                        ->where('ec2.uid', $uid)
-                                        ->where('ec2.idPeriodo', $idPeriodo)
-                                        ->groupBy('ec2.parcialidad', 's2.idServicio'),'p',
+           $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia);
+           $movimiento = ['importe'        => $abono,
+                          'idformaPago'    => $mov['idformaPago'],
+                          'idServicio'     => $servicios->idServicioTraspasoSaldos1,
+                          'cuatrodigitos'  => null,
+                          'tipomovto'      => 'A',
+                          'cargoAut'       => 0,
+                        ];
 
-                                    function ($join) {
-                                        $join->on('p.parc', '=', 'ec.parcialidad')
-                                            ->on('p.idServicio', '=', 's.idServicio')
-                                            ->where('p.total', '>', 0);
-                                    }
-
-                                )
-                                ->where('ec.uid', $uid)
-                                ->where('ec.idPeriodo', $idPeriodo)
-                                ->where('ec.tipomovto', 'C')
-                                ->where('p.total', '>', 0)
-                                ->orderBy('ec.parcialidad', 'ASC')
-                                ->orderBy('s.descripcion', 'DESC')
-                                ->first();   
-
-                // No quedan cargos por pagar
-                if (!$datosEdo) {
-                    break;
-                }
-
-                $importeAplicar = min($abono, $datosEdo->importe);
-
-                $maxConsecutivo = DB::table('edocta')
-                    ->where('uid', $uid)
-                    ->where('idPeriodo', $idPeriodo)
-                    ->max('consecutivo') ?? 0;
-
-               DB::table('edocta')->insert([
-                                    'uid' => $uid,
-                                    'secuencia' => $datosEdo->secuencia,
-                                    'idServicio' => $datosEdo->idServicio,
-                                    'consecutivo' => $maxConsecutivo + 1,
-                                    'importe' => $importeAplicar,
-                                    'idPeriodo' => $datosEdo->idPeriodo,
-                                    'fechaMovto' => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
-                                    'tipomovto' => 'A',
-                                    'parcialidad' => $datosEdo->parcialidad,
-                                    'referencia' => $datosEdo->referencia,
-                                    'transaccion' => $transaccion,
-                                    'FechaPago' => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
-                                    'idFormaPago' => $mov['idFormaPago']
-                                ]);
-                $abono -= $importeAplicar;
-
-            }
-            DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
-            $saldoResult = DB::select("SELECT @vencido AS vencido, @total AS total");
-            $vencido = $saldoResult[0]->vencido ?? 0;
-    
-            
-            if($vencido==0)
-                DB::table('bloqueoPersonas')
-                    ->where('uid', $uid)
-                    ->where('idBloqueo', 1)
-                    ->delete();
-        }
-        DB::commit();
+            $this->procesarMovimiento($movimiento, $servicios, $result->uid, $result->secuencia, 
+                                          $result->idPeriodo, $mov['uidcajero'], $mov['dia'], 0);
 
         return response()->json([
             'message' => 'Registros guardados',
             'error'   => $registrosMal,
             'status'  => 200
         ], 200);
-
-    } catch (\Exception $e) {
-
-        DB::rollBack();
-        return response()->json([
-            'error' => $e->getMessage()
-        ], 500);
-    }
+        }
+   
     }
 }
 

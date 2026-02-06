@@ -137,7 +137,7 @@ class IngresosController extends Controller
 
                 return response()->json([
                     'status' => 200,
-                    'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptIngresosAnalitico.xlsx'
+                    'message' => 'https://reportes.pruebas.com.mx/storage/app/public/rptIngresosAnalitico.xlsx'
                 ]);
             }
             else{
@@ -211,7 +211,7 @@ class IngresosController extends Controller
 
                 return response()->json([
                     'status' => 200,
-                    'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptIngresosCajero.xlsx'
+                    'message' => 'https://reportes.pruebas.com.mx/storage/app/public/rptIngresosCajero.xlsx'
                 ]);
             }
             else{
@@ -292,7 +292,7 @@ class IngresosController extends Controller
 
             return response()->json([
                 'status' => 200,
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptIngresosCarrera.xlsx'
+                'message' => 'https://reportes.pruebas.com.mx/storage/app/public/rptIngresosCarrera.xlsx'
             ]);
         }
         else{
@@ -403,7 +403,7 @@ class IngresosController extends Controller
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
