@@ -34,7 +34,7 @@ class AlumnoController extends Controller
     public function alumnosInscritosDetallado($idNivel,$idPeriodo){
        
 
-        $resultado = DB::table('grupos as gpo')
+        $resultado = DB::table('ciclos as cl')
                                     ->distinct()
                                     ->select(
                                         'p.uid',
@@ -42,11 +42,6 @@ class AlumnoController extends Controller
                                         'al.idCarrera',
                                         'c.descripcion'
                                     )
-                                    ->join('ciclos as cl', function ($join) {
-                                        $join->on('cl.grupo', '=', 'gpo.grupo')
-                                            ->on('cl.idNivel', '=', 'gpo.idNivel')
-                                            ->on('cl.idPeriodo', '=', 'gpo.idPeriodo');
-                                    })
                                     ->join('persona as p', 'cl.uid', '=', 'p.uid')
                                     ->join('alumno as al', function ($join) {
                                         $join->on('al.uid', '=', 'cl.uid')
@@ -125,7 +120,7 @@ class AlumnoController extends Controller
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.pruebas.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -192,13 +187,14 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.pruebas.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
 public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {  
         // Ruta del archivo a almacenar en el disco público
-        $path = storage_path('app/public/detalleInscritos.xlsx');
+        $name = 'detalleInscritos'.rand(1, 999).'.xlsx';
+        $path = storage_path('app/public/'.$name);
         $selectColumns = [ 'persona.uid',
                             DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre'),
                             'alumno.idCarrera',
@@ -206,14 +202,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
                  ]; // Seleccionar columnas específicas
         $namesColumns = ['UID','NOMBRE','CVE CARRERA','NOMBRE CARRERA']; // Seleccionar columnas específicas
         
-        $joins = [['table' => 'ciclos', 
-                   'type' => 'inner',
-                   'conditions' => [
-                        ['first' => 'ciclos.grupo', 'second' => 'grupos.grupo'],
-                        ['first' => 'ciclos.idNivel', 'second' => 'grupos.idNivel'],
-                        ['first' => 'ciclos.idPeriodo', 'second' => 'grupos.idPeriodo']
-                    ]
-                  ],
+        $joins = [
                   ['table' => 'alumno', 
                    'type' => 'inner',
                    'conditions' => [
@@ -238,16 +227,16 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         $filters = [ 'alumno.idNivel' => $idNivel,
                     'ciclos.idPeriodo' => $idPeriodo];
 
-        $export = new GenericTableExportEsp('grupos', 'uid', $filters, ['alumno.idCarrera','persona.uid'], ['asc','asc'], $selectColumns, $joins,$namesColumns);
+        $export = new GenericTableExportEsp('ciclos', 'uid', $filters, ['alumno.idCarrera','persona.uid'], ['asc','asc'], $selectColumns, $joins,$namesColumns);
 
         // Guardar el archivo en el disco público
-        Excel::store($export, 'detalleInscritos.xlsx', 'public');
+        Excel::store($export, $name, 'public');
        
         // Verifica si el archivo existe usando Storage de Laravel
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.com.mx/storage/app/public/detalleInscritos.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$name // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([
@@ -305,7 +294,7 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.pruebas.com.mx/storage/app/public/' . $fileName
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
             
         ]);
     } else {
