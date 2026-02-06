@@ -198,20 +198,21 @@ class BecasAlumnoController extends Controller{
          $columnWidths = [90,100,80,200,100,100,100];   
          $keys = ['nivel', 'periodo','uid','nombre','beca','importeCole','importeInsc'];
         
-        return $this->pdfController->generateReport($dataArray,$columnWidths,$keys , 'REPORTE DE BECAS', $headers,'L','Legal','rptBecas.pdf');
+        return $this->pdfController->generateReport($dataArray,$columnWidths,$keys , 'REPORTE DE BECAS', $headers,'L','Legal','rptBecas'. rand(1, 100).'.pdf');
        
      }  
 
      public function exportaExcel() {
         // Ruta del archivo a almacenar en el disco público
-        $path = storage_path('app/public/becasAlumnos_rpt.xlsx');
-        $selectColumns = ['niv.idNivel','niv.descripcion as nivel','bc.idPeriodo as idPeriodo',
-                          'p.descripcion as periodo','al.uid','ca.idCarrera as idCarrera',
-                          'ca.descripcion as carrera','bc.importeCole','bc.importeInsc', 
-                           DB::raw('CONCAT(pers.primerApellido, " ", pers.segundoApellido, " ", pers.nombre) AS nombre'),
-                          'b.descripcion AS beca','b.idBeca']; // Seleccionar columnas específicas
-        $namesColumns = ['NIVEL','PERIODO','UID','NOMBRE','BECA','COLEGIATURA','INSCRIPCION']; // Seleccionar columnas específicas
-       
+        $nombreRpt='becasAlumnos_rpt'.rand(1, 100).'.xlsx';
+        $path = storage_path('app/public/'.$nombreRpt);
+        $selectColumns = ['niv.descripcion as nivel',
+                          'p.descripcion as periodo','al.uid',
+                          DB::raw('CONCAT(pers.primerApellido, " ", pers.segundoApellido, " ", pers.nombre) AS nombre'),
+                          'b.descripcion AS beca',
+                          'bc.importeCole',
+                          'bc.importeInsc']; // Seleccionar columnas específicas
+        $namesColumns = ['NIVEL','PERIODO','UID','NOMBRE','BECA','COLEGIATURA','INSCRIPCION'];
         $joins = [
                  ['table' => 'alumno as al', // Tabla a unir
                    'type' => 'inner', // Tipo de JOIN (en este caso LEFT JOIN)
@@ -255,15 +256,14 @@ class BecasAlumnoController extends Controller{
             ];
                                  
         $export = new GenericTableExportEsp('becaAlumno as bc', '', [], ['p.idNivel','p.idPeriodo','ca.idCarrera','al.uid'], ['asc','asc','asc','asc'], $selectColumns, $joins,$namesColumns);
-
-        // Guardar el archivo en el disco público
-        Excel::store($export, 'becasAlumnos_rpt.xlsx', 'public');
+  
+        Excel::store($export, $nombreRpt, 'public');
        
         // Verifica si el archivo existe usando Storage de Laravel
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/becasAlumnos_rpt.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nombreRpt // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([

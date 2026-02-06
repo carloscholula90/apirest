@@ -29,118 +29,88 @@ class FichasController extends Controller{
     $nameReport = 'fichaPago_' . mt_rand(100, 999) . '.pdf';
     DB::statement("SET lc_time_names = 'es_ES'");
     
-    $datos = DB::select("SELECT
-                            CONS.nombre,
-                            CONS.matricula,
-                            CONS.servicios,
-                            VENC.fchVencimiento,
-                            CONS.total,
-                            DATE_FORMAT(VENC.fchVencimiento, '%Y-%m-%d') as fechaVencimiento,
-                            Algoritmo45Fun(CONCAT(LPAD(CONS.matricula, 7, '0'),
-                            LPAD(
-                                CASE 
-                                    WHEN FIND_IN_SET(idServicioColegiatura, CONS.serviciosClv) > 0 THEN idServicioColegiatura
-                                    WHEN FIND_IN_SET(idServicioReinscripcion, CONS.serviciosClv) > 0 THEN idServicioReinscripcion
-                                    WHEN FIND_IN_SET(idServicioTraspasoSaldos1, CONS.serviciosClv) > 0 THEN idServicioTraspasoSaldos1
-                                    ELSE idServicioInscripcion
-                                END,
-                            3, '0')),
-                            DATE_FORMAT(VENC.fchVencimiento, '%Y-%m-%d'), CONS.total) AS lineaPago
-                            FROM (
-                            SELECT
-                                edo.uid,
-                                al.matricula,
-                                edo.parcialidad,
-                                edo.secuencia,
-                                GROUP_CONCAT(DISTINCT s.descripcion ORDER BY s.descripcion SEPARATOR ' + ')
-                                 AS servicios,
-                                GROUP_CONCAT(DISTINCT s.idServicio ORDER BY s.idServicio SEPARATOR ' , ')
-                                 AS serviciosClv,
-                                SUM(CASE WHEN edo.tipomovto = 'C' THEN edo.importe ELSE -edo.importe END) AS total,
-                                CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre) AS nombre,
-                                MAX(colegiatura.idServicioColegiatura) AS idServicioColegiatura,
-                                MAX(reinscripcion.idServicioReinscripcion) AS idServicioReinscripcion,
-                                MAX(inscripcion.idServicioInscripcion) AS idServicioInscripcion,
-                                MAX(saldo.idServicioTraspasoSaldos1) AS idServicioTraspasoSaldos1
-                            FROM edocta AS edo
-                            INNER JOIN alumno AS al ON al.uid = edo.uid
-                            INNER JOIN servicio AS s ON s.idServicio = edo.idServicio
-                            INNER JOIN persona ON persona.uid = al.uid
-                            LEFT JOIN configuracionTesoreria AS inscripcion
-                                ON inscripcion.idNivel = al.idNivel
-                            AND inscripcion.idServicioInscripcion = s.idServicio
-                            LEFT JOIN configuracionTesoreria AS reinscripcion
-                                ON reinscripcion.idNivel = al.idNivel
-                            AND reinscripcion.idServicioReinscripcion = s.idServicio
-                            LEFT JOIN configuracionTesoreria AS colegiatura
-                                ON colegiatura.idNivel = al.idNivel
-                            AND colegiatura.idServicioColegiatura = s.idServicio
-                            LEFT JOIN configuracionTesoreria AS saldo
-                                ON saldo.idNivel = al.idNivel
-                            AND saldo.idServicioTraspasoSaldos1 = s.idServicio
-                            WHERE
-                                edo.idPeriodo =".$idPeriodo.
-                               " AND al.idCarrera = ".$idCarrera.
-                               " AND al.idNivel =".$idNivel.
-                               ($uid>0?" AND al.uid=".$uid:"").
-                               " AND (
-                                    colegiatura.idServicioColegiatura IS NOT NULL
-                                    OR reinscripcion.idServicioReinscripcion IS NOT NULL
-                                    OR inscripcion.idServicioInscripcion IS NOT NULL
-                                    OR saldo.idServicioTraspasoSaldos1 IS NOT NULL
-                                )
-                            GROUP BY
-                                edo.parcialidad,
-                                edo.uid,
-                                persona.primerApellido,
-                                persona.segundoApellido,
-                                persona.nombre,
-                                al.matricula,
-                                edo.secuencia
-                            ) AS CONS
-                            LEFT JOIN (
-                            SELECT
-                                edo.uid AS idAlumno,
-                                edo.secuencia AS seq,
-                                edo.parcialidad AS parcialidaF,
-                                edo.fechaVencimiento AS fchVencimiento
-                            FROM edocta AS edo
-                            INNER JOIN alumno AS al ON al.uid = edo.uid
-                            INNER JOIN servicio AS s ON s.idServicio = edo.idServicio
-                            LEFT JOIN configuracionTesoreria AS inscripcion
-                                ON inscripcion.idNivel = al.idNivel
-                            AND inscripcion.idServicioInscripcion = s.idServicio
-                            LEFT JOIN configuracionTesoreria AS reinscripcion
-                                ON reinscripcion.idNivel = al.idNivel
-                            AND reinscripcion.idServicioReinscripcion = s.idServicio
-                            LEFT JOIN configuracionTesoreria AS colegiatura
-                                ON colegiatura.idNivel = al.idNivel
-                            AND colegiatura.idServicioColegiatura = s.idServicio
-                            LEFT JOIN configuracionTesoreria AS saldo
-                                ON saldo.idNivel = al.idNivel
-                            AND saldo.idServicioTraspasoSaldos1 = s.idServicio
-                            WHERE
-                                edo.idPeriodo = ".$idPeriodo.
-                               " AND al.idCarrera = ".$idCarrera.
-                                " AND al.idNivel =".$idNivel.
-                                ($uid>0?" AND al.uid=".$uid:"").
-                               " AND edo.tipomovto = 'C'
-                                AND (
-                                colegiatura.idServicioColegiatura IS NOT NULL
-                                OR reinscripcion.idServicioReinscripcion IS NOT NULL
-                                OR inscripcion.idServicioInscripcion IS NOT NULL
-                                OR saldo.idServicioTraspasoSaldos1 IS NOT NULL
-                                )
-                            GROUP BY
-                                edo.uid, edo.secuencia, edo.parcialidad, edo.fechaVencimiento,
-                                colegiatura.idServicioColegiatura, reinscripcion.idServicioReinscripcion,
-                                inscripcion.idServicioInscripcion,saldo.idServicioTraspasoSaldos1
-                            ) AS VENC
-                            ON VENC.idAlumno = CONS.uid
-                            AND VENC.parcialidaF = CONS.parcialidad
-                            AND VENC.seq = CONS.secuencia
-                            ORDER BY CONS.matricula, VENC.parcialidaF
-                        ");
+    $datos = DB::table(DB::raw("(
+            SELECT 
+                cta.uid,
+                al.matricula,
+                cta.parcialidad,
+                cta.secuencia,
+                GROUP_CONCAT(DISTINCT CONCAT(
+                    s.descripcion, ' ',
+                    CASE WHEN s.descripcion LIKE '%INSCRIP%' THEN ''
+                        ELSE CASE CONVERT(SUBSTRING(cta.referencia, 4), UNSIGNED)
+                        WHEN 1 THEN 'ENERO'
+                        WHEN 2 THEN 'FEBRERO'
+                        WHEN 3 THEN 'MARZO'
+                        WHEN 4 THEN 'ABRIL'
+                        WHEN 5 THEN 'MAYO'
+                        WHEN 6 THEN 'JUNIO'
+                        WHEN 7 THEN 'JULIO'
+                        WHEN 8 THEN 'AGOSTO'
+                        WHEN 9 THEN 'SEPTIEMBRE'
+                        WHEN 10 THEN 'OCTUBRE'
+                        WHEN 11 THEN 'NOVIEMBRE'
+                        WHEN 12 THEN 'DICIEMBRE'
+                        ELSE ''
+                    END END
+                ) ORDER BY s.descripcion SEPARATOR ' + ') AS servicios,
+                GROUP_CONCAT(DISTINCT s.idServicio ORDER BY s.idServicio SEPARATOR ',') AS serviciosClv,
+                SUM(
+                    CASE 
+                        WHEN cta.tipomovto = 'C' THEN cta.importe
+                        WHEN cta.tipomovto = 'A' THEN -cta.importe
+                        ELSE 0
+                    END
+                ) AS total,
+                CONCAT(
+                    persona.primerApellido, ' ',
+                    persona.segundoApellido, ' ',
+                    persona.nombre
+                ) AS nombre,
+                MAX( CASE WHEN cta.tipomovto = 'C' THEN cta.fechaVencimiento END) AS fechaVencimiento
+            FROM configuracionTesoreria ct
+            INNER JOIN alumno al ON ct.idNivel = al.idNivel
+            INNER JOIN persona ON persona.uid = al.uid
+            INNER JOIN periodo per ON per.idNivel = al.idNivel AND per.activo = 1
+            INNER JOIN nivel niv ON niv.idNivel = al.idNivel
+            INNER JOIN servicio s ON s.tipoEdoCta = 1
+            INNER JOIN edocta cta ON cta.idServicio = s.idServicio
+                AND cta.uid = al.uid
+                AND cta.secuencia = al.secuencia
+                AND cta.idPeriodo = per.idPeriodo
+            WHERE cta.idPeriodo =".$idPeriodo.
+                 " AND al.idCarrera =".$idCarrera.
+                 " AND al.idNivel =".$idNivel.
+            ($uid>0?" AND al.uid=".$uid:"").
+            " GROUP BY
+                cta.uid,
+                al.matricula,
+                cta.parcialidad,
+                cta.secuencia,
+                persona.primerApellido,
+                persona.segundoApellido,
+                persona.nombre
+        ) AS CONS"))
+        ->selectRaw("
+            CONS.nombre,
+            CONS.matricula,
+            CONS.servicios,
+            CONS.total,
+            DATE_FORMAT(fechaVencimiento, '%Y-%m-%d') AS fechaVencimiento,
+            Algoritmo45Fun(
+                CONCAT(
+                    LPAD(CONS.matricula, 7, '0'),
+                    LPAD(CONS.serviciosClv, 3, '0')
+                ),
+                DATE_FORMAT(fechaVencimiento, '%Y-%m-%d'),
+                CONS.total
+            ) AS lineaPago
+        ")
+        ->having('total', '>', 0)
+        ->orderBy('matricula','asc')
+        ->orderBy('fechaVencimiento','asc')
+        ->get();
+
 
     $resultados = collect($datos);
 
@@ -151,13 +121,14 @@ class FichasController extends Controller{
     $imagePathEnc = public_path('images/encPag.png');
     $imagePathPie = public_path('images/piePag.png');
     // Crear una nueva instancia de CustomTCPDF (extendido de TCPDF)   
-    $pdf = new CustomTCPDF('------', PDF_UNIT, $size, true, 'UTF-8', false);
+    $pdf = new CustomTCPDF('P', PDF_UNIT, $size, true, 'UTF-8', false);   
         
     // Configurar los encabezados, las rutas de las imágenes y otros parámetros
-    $pdf->setImagePaths($imagePathEnc, $imagePathPie,'---',false);
+    $pdf->setImagePaths($imagePathEnc, $imagePathPie,'P',false);
     $pdf->SetFont('helvetica', '', 14);
+    $pdf->setPagoUnico(true);
     $pdf->SetCreator(PDF_CREATOR);
-    $pdf->SetAuthor('SIAWEB');
+    $pdf->SetAuthor('SIAWEB');  
     $pdf->SetMargins(15, 30, 15);  
     $pdf->SetAutoPageBreak(TRUE, 25);
     $pdf->AddPage();

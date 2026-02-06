@@ -14,6 +14,7 @@ class CustomTCPDF extends TCPDF
     private $titleB;
     private $aquaMark;  
     protected $extgstates = [];
+    protected $esPagoUnico = false;
 
     // Constructor para recibir las rutas de las imágenes
     public function __construct($orientation = 'L', $unit = 'mm', $size = 'A4', $unicode = true, $encoding = 'UTF-8', $diskcache = false)
@@ -28,6 +29,11 @@ class CustomTCPDF extends TCPDF
         $this->imagePathPie = $piePath;
         $this->orientation = $orientation;
         $this->aquaMark = $aquaMark;
+    }
+
+    public function setPagoUnico(bool $valor)
+    {
+        $this->esPagoUnico = $valor;
     }
 
     // Sobrecargar el método Header() para agregar la imagen de encabezado
@@ -64,7 +70,7 @@ class CustomTCPDF extends TCPDF
     {
         $this->SetFont('helvetica', '', 8);
         if(!$this->aquaMark){       
-            if ($this->imagePathPie && ($this->CurOrientation === "P" || $this->CurOrientation === "PU")) 
+            if ($this->imagePathPie && ($this->CurOrientation == "P" )) 
                 $this->Image($this->imagePathPie, 50, 287, 180, 0, '', '', '', false, 300);  // Imagen pie de página
             else 
                 $this->Image($this->imagePathPie, 120, 200, 180, 0, '', '', '', false, 300);  // Imagen en otra posición
@@ -78,10 +84,10 @@ class CustomTCPDF extends TCPDF
 
      
         
-        if ($this->imagePathPie && $this->CurOrientation === "PU")  
-            $this->Cell(0, 10, 'Página 1 de 1', 0, 0, 'R'); 
+        if ($this->imagePathPie && $this->esPagoUnico == true)  
+            $this->Cell(0, 10, 'Página 1 de 1', 0, 0, 'R');   
         else 
-             $this->Cell(0, 10, 'Página ' . $this->getAliasNumPage() . ' de ' . $this->getAliasNbPages(), 0, 0, 'R'); 
+             $this->Cell(0, 10, 'Página ' .$this->getAliasNumPage() . ' de ' . $this->getAliasNbPages(), 0, 0, 'R'); 
    
     }  
 

@@ -259,17 +259,12 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
 
 public function obtenerDatosConcentrado($idNivel,$idPeriodo){
 
-    $resultado = DB::table('grupos as gpo')
+    $resultado = DB::table('ciclos as cl')
                                     ->select(
                                         'c.idCarrera',
                                         'c.descripcion AS escuela',
                                         DB::raw('COUNT(DISTINCT p.uid, p.primerApellido, p.segundoApellido, p.nombre, al.idCarrera, c.descripcion) as total')
                                     )
-                                    ->join('ciclos as cl', function ($join) {
-                                        $join->on('cl.grupo', '=', 'gpo.grupo')
-                                            ->on('cl.idNivel', '=', 'gpo.idNivel')
-                                            ->on('cl.idPeriodo', '=', 'gpo.idPeriodo');
-                                    })
                                     ->join('persona as p', 'cl.uid', '=', 'p.uid')
                                     ->join('alumno as al', function ($join) {
                                         $join->on('al.uid', '=', 'cl.uid')
@@ -380,8 +375,7 @@ public function getAvance($uid,$secuencia){
                             ->orWhere('persona.segundoApellido', 'LIKE', '%'.$uid.'%')
                             ->orWhere('persona.uid', 'LIKE', '%'.$uid.'%');
                     })
-                    ->select(   'alumno.uid'
-                    ,
+                    ->select(   'alumno.uid',
                         'alumno.idNivel',
                         'alumno.secuencia',
                         'alumno.idCarrera',

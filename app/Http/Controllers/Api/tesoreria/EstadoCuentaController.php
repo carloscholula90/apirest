@@ -316,8 +316,8 @@ class EstadoCuentaController extends Controller{
         $html2 .= '<tr><td colspan="7"></td></tr>';
 
         if($tipoEdoCta==1){
-            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL:</b>$ '.number_format($generalesRow['total'], 2, '.', ',') .'</td></tr>';
-            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>TOTAL VENCIDO:$ </b>'.number_format($generalesRow['vencido'], 2, '.', ',') .'</td></tr>';
+            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>SALDO:</b>$ '.number_format($generalesRow['total'], 2, '.', ',') .'</td></tr>';
+            $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>SALDO VENCIDO:$ </b>'.number_format($generalesRow['vencido'], 2, '.', ',') .'</td></tr>';
         }
         else  $html2 .= '<tr><td colspan="7" style="font-size: 10px;"><b>SALDO:</b>$ '.number_format($generalesRow['total'], 2, '.', ',') .'</td></tr>';
       
@@ -394,55 +394,21 @@ class EstadoCuentaController extends Controller{
         }
     }
 
-    private function calcularImporteInscripcion(string $uid, string $secuencia, int $idServicioInscripcion){
-    // Obtenemos el importe de pagos y notas de crédito
-        $importe = DB::table('edocta as edo')
-            ->selectRaw("IFNULL(SUM(CASE 
-                            WHEN edo.tipomovto = 'C' THEN edo.importe
-                            ELSE -1 * edo.importe
-                        END), 0) - SUM(IFNULL(notaCred.importeCred, 0)) AS importe")
-            ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioInscripcion')
-            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
-                $join->on('al.uid', '=', 'edo.uid')
-                    ->on('al.secuencia', '=', 'edo.secuencia')
-                    ->where('al.uid', '=', $uid)
-                    ->where('al.secuencia', '=', $secuencia);
-            })
-            ->join('periodo as per', function ($join) {
-                $join->on('per.idNivel', '=', 'al.idNivel')
-                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                    ->where('per.activo', '=', 1);
-            })
-            ->leftJoin(DB::raw("(
-                SELECT edo.referencia AS referenciaNotaCred,
-                    IFNULL(SUM(edo.importe), 0) AS importeCred
-                FROM edocta AS edo
-                INNER JOIN configuracionTesoreria AS ct
-                    ON edo.idServicio = ct.idServicioNotaCredito
-                INNER JOIN alumno AS al 
-                    ON al.uid = edo.uid AND al.secuencia = edo.secuencia
-                INNER JOIN periodo AS per 
-                    ON per.idNivel = al.idNivel AND edo.idPeriodo = per.idPeriodo AND per.activo = 1
-                WHERE al.uid = {$uid}
-                AND al.secuencia = {$secuencia}
-                GROUP BY edo.referencia
-            ) AS notaCred"), 'edo.referencia', '=', 'notaCred.referenciaNotaCred')
-            ->where('ct.idServicioInscripcion', $idServicioInscripcion)
-            ->value('importe'); // Devuelve solo el valor
-        return $importe ?? 0;
-    }
-
-    private function calcularImporteAdeudo($uid,$secuencia,$idServicio){
+    private function calcularImporteInscripcion($uid, $secuencia, $idServicioInscripcion){
     // Obtenemos el importe de pagos y notas de crédito
         $importe = DB::table('edocta as edo')
             ->selectRaw("IFNULL(SUM(CASE 
                             WHEN edo.tipomovto = 'C' THEN edo.importe
                             ELSE -1 * edo.importe
                         END), 0)  AS importe")
-            ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioTraspasoSaldos1')
+            ->join('configuracionTesoreria as ct', function($join) {
+                    $join->on('edo.idServicio', '=', 'ct.idServicioInscripcion')
+                        ->orOn('edo.idServicio', '=', 'ct.idServicioNotaCredito');
+                })
             ->join('alumno as al', function ($join) use ($uid, $secuencia) {
                 $join->on('al.uid', '=', 'edo.uid')
-                    ->on('al.secuencia', '=', 'edo.secuencia')    
+                    ->on('al.secuencia', '=', 'edo.secuencia')
+                    ->on('al.idNivel', '=', 'ct.idNivel')
                     ->where('al.uid', '=', $uid)
                     ->where('al.secuencia', '=', $secuencia);
             })
@@ -451,8 +417,35 @@ class EstadoCuentaController extends Controller{
                     ->on('edo.idPeriodo', '=', 'per.idPeriodo')
                     ->where('per.activo', '=', 1);
             })
-           
-            ->where('ct.idServicioTraspasoSaldos1', $idServicio)
+            ->where('edo.parcialidad',0)
+            ->value('importe'); // Devuelve solo el valor
+        return $importe ?? 0;
+    }
+
+    private function calcularImporteAdeudo($uid,$secuencia,$idServicio){
+    // Obtenemos el importe de pagos y notas de crédito
+     $importe = DB::table('edocta as edo')
+            ->selectRaw("IFNULL(SUM(CASE 
+                            WHEN edo.tipomovto = 'C' THEN edo.importe
+                            ELSE -1 * edo.importe
+                        END), 0)  AS importe")
+            ->join('configuracionTesoreria as ct', function($join) {
+                    $join->on('edo.idServicio', '=', 'ct.idServicioNotaCredito')
+                        ->orOn('edo.idServicio', '=', 'ct.idServicioTraspasoSaldos1');
+                })
+            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+                $join->on('al.uid', '=', 'edo.uid')
+                    ->on('al.secuencia', '=', 'edo.secuencia')
+                    ->on('al.idNivel', '=', 'ct.idNivel')
+                    ->where('al.uid', '=', $uid)
+                    ->where('al.secuencia', '=', $secuencia);
+            })
+            ->join('periodo as per', function ($join) {
+                $join->on('per.idNivel', '=', 'al.idNivel')
+                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
+                    ->where('per.activo', '=', 1);
+            })
+            ->where('edo.parcialidad',999)
             ->value('importe'); // Devuelve solo el valor
         return $importe ?? 0;
     }
@@ -480,10 +473,8 @@ class EstadoCuentaController extends Controller{
       
         if ($movimiento['idServicio'] == $servicios->idServicioTraspasoSaldos1) {
             $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1);
-         
             $pago = min($movimiento['importe'], $importeSaldo);
             $restante = $movimiento['importe'] - $importeSaldo;
-
             $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
                                                             'secuencia' => $secuencia,
                                                             'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
@@ -511,11 +502,11 @@ class EstadoCuentaController extends Controller{
                                                             'idPeriodo' => $idPeriodo,
                                                             'referencia' =>  $this->obtieneReferenciaInscripcion($uid, $secuencia,$servicios->idServicioInscripcion),
                                                             'fechaMovto' => $fecha,
+                                                            'parcialidad' => 0,
                                                             'folio' => $folio,
                                                             'uidcajero' => $uidcajero
             ]));
-
-            if ($restante > 0) 
+           if ($restante > 0) 
                 $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,0);
    
         } 
@@ -527,67 +518,79 @@ class EstadoCuentaController extends Controller{
         }
     }
 
-    private function obtenerPendientes( $uid,  $secuencia){
+    private function obtenerPendientes( $uid,  $secuencia){                        
 
-    return DB::table('configuracionTesoreria as ct')
-        ->join('alumno as al', function ($join) use ($uid, $secuencia) {
-            $join->on('ct.idNivel', '=', 'al.idNivel')
-                 ->where('al.uid', '=', $uid)
-                 ->where('al.secuencia', '=', $secuencia);
-        })
-        ->join('periodo as per', function ($join) {
-            $join->on('per.idNivel', '=', 'al.idNivel')
-                 ->where('per.activo', '=', 1);
-        })
-        ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
-        ->join('servicioCarrera as sc', function ($join) {
-            $join->on('sc.idNivel', '=', 'ct.idNivel')
-                 ->on('sc.idPeriodo', '=', 'per.idPeriodo');
-        })
-        ->join('servicio as s', 's.idServicio', '=', 'sc.idServicio')
-        ->join('edocta as cta', function ($join) use ($uid, $secuencia) {
-            $join->on('cta.idServicio', '=', 's.idServicio')
-                 ->where('cta.uid', '=', $uid)
-                 ->where('cta.secuencia', '=', $secuencia)
-                 ->where('cta.tipomovto', '=', 'C')
-                 ->whereColumn('cta.idPeriodo', 'per.idPeriodo');
-        })
-        ->leftJoin('edocta as cargos', function ($join) use ($uid, $secuencia) {
-            $join->on('cargos.idServicio', '=', 'ct.idServicioRecargo')
-                 ->on('cargos.parcialidad', '=', 'cta.parcialidad')
-                 ->where('cargos.uid', '=', $uid)
-                 ->where('cargos.secuencia', '=', $secuencia)
-                 ->where('cargos.tipomovto', '=', 'C')
-                 ->whereColumn('cargos.idPeriodo', 'per.idPeriodo');
-        })
-        ->leftJoin('edocta as ctaA', function ($join) use ($uid) {
-            $join->on('ctaA.parcialidad', '=', 'cta.parcialidad')
-                 ->where('ctaA.uid', '=', $uid)
-                 ->where('ctaA.tipomovto', '=', 'A')
-                 ->whereColumn('ctaA.idPeriodo', 'per.idPeriodo')
-                 ->whereColumn('ctaA.referencia', 'cta.referencia');
-        })
-        ->leftJoin('edocta as ctaR', function ($join) use ($uid) {
-            $join->on('ctaR.parcialidad', '=', 'cta.parcialidad')
-                 ->where('ctaR.uid', '=', $uid)
-                 ->where('ctaR.tipomovto', '=', 'A')
-                 ->whereColumn('ctaR.idPeriodo', 'per.idPeriodo')
-                 ->whereColumn('ctaR.referencia', 'cargos.referencia');
-        })
-        ->leftJoin('servicio as r', 'r.idServicio', '=', 'cargos.idServicio')
-        ->whereColumn('ct.idServicioColegiatura', 'sc.idServicio')
-        ->whereRaw('(cta.importe - IFNULL(ctaA.importe, 0)) > 0')
-        ->orderBy('cta.parcialidad')
-        ->select([
-            'cta.parcialidad',
-            'cta.referencia as referenciaCole',
-            'cargos.referencia as referenciaCargos',
-            DB::raw('(cta.importe - IFNULL(ctaA.importe, 0)) AS monto'),
-            DB::raw('cargos.idServicio AS idServicioCargo'),
-            'ct.idServicioColegiatura',
-            DB::raw('(cargos.importe - IFNULL(ctaR.importe, 0)) AS cargos'),
-        ])
-        ->get();
+     $abonosCole = DB::table('edocta')
+                        ->select([
+                            'parcialidad',
+                            'referencia',
+                            'idPeriodo',
+                            DB::raw('SUM(importe) AS total'),
+                        ])
+                        ->where('tipomovto', 'A')
+                        ->where('uid', $uid)
+                        ->groupBy('parcialidad', 'referencia', 'idPeriodo');
+
+            $abonosCargo = DB::table('edocta')
+                            ->select([
+                                'parcialidad',
+                                'referencia',
+                                'idPeriodo',
+                                'idServicio',
+                                DB::raw('SUM(importe) AS total'),
+                            ])
+                            ->where('tipomovto', 'A')
+                            ->where('uid', $uid)
+                            ->groupBy('parcialidad', 'referencia', 'idPeriodo', 'idServicio');
+
+            return  DB::table('configuracionTesoreria as ct')
+                        ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+                            $join->on('ct.idNivel', '=', 'al.idNivel')
+                                ->where('al.uid', $uid)
+                                ->where('al.secuencia', $secuencia);
+                        })
+                        ->join('periodo as per', function ($join) {
+                            $join->on('per.idNivel', '=', 'al.idNivel')
+                                ->where('per.activo', 1);
+                        })
+                        ->join('edocta as cta', function ($join) use ($uid, $secuencia) {
+                            $join->on('cta.idServicio', '=', 'ct.idServicioColegiatura')
+                                ->where('cta.uid', $uid)
+                                ->where('cta.secuencia', $secuencia)
+                                ->where('cta.tipomovto', 'C')
+                                ->whereColumn('cta.idPeriodo', 'per.idPeriodo');
+                        })
+                        ->leftJoinSub($abonosCole, 'abonosCole', function ($join) {
+                            $join->on('abonosCole.parcialidad', '=', 'cta.parcialidad')
+                                ->on('abonosCole.referencia', '=', 'cta.referencia')
+                                ->on('abonosCole.idPeriodo', '=', 'per.idPeriodo');
+                        })
+                        ->leftJoin('edocta as cargos', function ($join) use ($uid, $secuencia) {
+                            $join->on('cargos.idServicio', '=', 'ct.idServicioRecargo')
+                                ->on('cargos.parcialidad', '=', 'cta.parcialidad')
+                                ->where('cargos.uid', $uid)
+                                ->where('cargos.secuencia', $secuencia)
+                                ->where('cargos.tipomovto', 'C')
+                                ->whereColumn('cargos.idPeriodo', 'per.idPeriodo');
+                        })
+                        ->leftJoinSub($abonosCargo, 'abonosCargo', function ($join) {
+                            $join->on('abonosCargo.parcialidad', '=', 'cta.parcialidad')
+                                ->on('abonosCargo.referencia', '=', 'cargos.referencia')
+                                ->on('abonosCargo.idPeriodo', '=', 'per.idPeriodo')
+                                ->on('abonosCargo.idServicio', '=', 'ct.idServicioRecargo');
+                        })
+                        ->whereRaw('(cta.importe - IFNULL(abonosCole.total, 0)) > 0')
+                        ->orderBy('cta.parcialidad')
+                        ->select([
+                            'cta.parcialidad', 'cta.referencia',
+                            'cta.referencia AS referenciaCole',
+                            'cargos.referencia AS referenciaCargos',
+                            DB::raw('(cta.importe - IFNULL(abonosCole.total, 0)) AS monto'),
+                            'cargos.idServicio AS idServicioCargo',
+                            'ct.idServicioColegiatura',
+                            DB::raw('(cargos.importe - IFNULL(abonosCargo.total, 0)) AS cargos'),
+                        ])
+                ->get();
     }
 
     private function siguienteConsecutivo($uid, $secuencia, $idServicio){
@@ -624,50 +627,11 @@ class EstadoCuentaController extends Controller{
 
     private function prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $importeRestante, $fecha, $folio, $uidcajero,$idServicioNotaCredito){
        
-        //Tendriamos que validar primero el saldo anterior e incripcion
-        $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1);
-        
-        if($importeSaldo>0){
-            $pago = min($movimiento['importe'], $importeSaldo);
-            $restante = $movimiento['importe'] - $importeSaldo;
-            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
-                                                            'secuencia' => $secuencia,
-                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
-                                                            'importe' => $pago,
-                                                            'idPeriodo' => $idPeriodo,
-                                                            'fechaMovto' => $fecha,
-                                                            'parcialidad' => 999,
-                                                            'folio' => $folio,
-                                                            'uidcajero' => $uidcajero
-            ]));
-            $movimiento['importe'] = $restante;
-        }          
-       
-        if($movimiento['importe'] >0){        
-            $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion);
-            if($importeInscripcion>0){
-            $pagoInscripcion = min($movimiento['importe'], $importeInscripcion);
-            $restante = $movimiento['importe'] - $pagoInscripcion;
-
-            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
-                                                            'secuencia' => $secuencia,
-                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
-                                                            'importe' => $pagoInscripcion,
-                                                            'idPeriodo' => $idPeriodo,
-                                                            'referencia' =>  $this->obtieneReferenciaInscripcion($uid, $secuencia,$servicios->idServicioInscripcion),
-                                                            'fechaMovto' => $fecha,
-                                                            'folio' => $folio,
-                                                            'uidcajero' => $uidcajero
-            ]));
-            $movimiento['importe'] = $restante;
-        }
-          
-        }  
         if($movimiento['importe']>0){
             $pendientes = $this->obtenerPendientes($uid, $secuencia, $idPeriodo, $servicios);
 
         foreach ($pendientes as $registro) {
-            // 1️⃣ Pagar recargos primero
+           
             if ($registro->cargos > 0 && $importeRestante > 0) {
                 $pago = min($importeRestante, $registro->cargos);
                 $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$servicios->idServicioRecargo;
