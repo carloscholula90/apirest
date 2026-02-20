@@ -54,7 +54,7 @@ class FichasController extends Controller{
                         ELSE ''
                     END END
                 ) ORDER BY s.descripcion SEPARATOR ' + ') AS servicios,
-                GROUP_CONCAT(DISTINCT s.idServicio ORDER BY s.idServicio SEPARATOR ',') AS serviciosClv,
+                GROUP_CONCAT(DISTINCT s.idServicio ORDER BY s.idServicio SEPARATOR '') AS serviciosClv,
                 SUM(
                     CASE 
                         WHEN cta.tipomovto = 'C' THEN cta.importe
@@ -200,8 +200,8 @@ class FichasController extends Controller{
   
     $html .= '</table>';     
     $pdf->writeHTML($html, true, false, true, false, '');
-    
-    $nameReport = 'rptFichas.pdf';
+    $numero = random_int(1, 100);
+    $nameReport = 'rptFichas'.$numero.'.pdf';
     $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo
        
     $pdf->Output($filePath, 'F');  // 'F' para guardar el archivo en el servidor
@@ -210,7 +210,7 @@ class FichasController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([

@@ -22,35 +22,63 @@ public function index($uid, $matricula, $tipoEdoCta)
     $data = $this->condonacion($uid,$matricula,$tipoEdoCta);
 
     if($tipoEdoCta == 2 && isset($data))
-          $data = DB::table('servicio as s')
-            ->join('alumno as al', function ($join) use ($uid, $matricula) {
-                $join->where('al.uid', '=', $uid)
-                    ->where('al.matricula', '=', $matricula);
-            })
-            ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
-            ->join('periodo as per', function ($join) {
-                $join->on('per.idNivel', '=', 'al.idNivel')
-                    ->where('per.activo', '=', 1);
-            })
-            ->leftJoin('servicioXPeriodo as sxp', function ($join) {
-                $join->on('sxp.idNivel', '=', 'al.idNivel')
-                    ->on('sxp.idPeriodo', '=', 'per.idPeriodo')
-                    ->on('sxp.idServicio', '=', 's.idServicio');
-            })
-            ->where('s.tipoEdoCta', '=', 2)
-            ->select([
-                'niv.idNivel',
-                'niv.descripcion as nivel',
-                's.descripcion as servicio',
-                's.efectivo',
-                's.tarjeta',
-                'per.idPeriodo',
-                's.idServicio',
-                's.tipoEdoCta',
-                DB::raw('IFNULL(sxp.monto, 0) AS monto'),
-                DB::raw('IFNULL(s.cargoAutomatico, 0) AS cargoAut'),
-            ])
-            ->get();
+         $data = DB::table('servicio as s')
+                       ->join('alumno as al', function ($join) use ($uid, $matricula) {
+                            $join->where('al.uid', '=', $uid)
+                                ->where('al.matricula', '=', $matricula);
+                        })
+                        ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
+                        ->join('periodo as per', function ($join) {
+                            $join->on('per.idNivel', '=', 'al.idNivel')
+                                ->where('per.activo', 1);
+                        })
+                        ->join('ciclos as cl', function ($join) {
+                            $join->on('cl.uid', '=', 'al.uid')
+                                ->on('cl.secuencia', '=', 'al.secuencia')
+                                ->on('cl.idPeriodo', '=', 'per.idPeriodo')
+                                ->whereRaw('cl.indexCiclo = (
+                                        SELECT MIN(c2.indexCiclo)
+                                        FROM ciclos c2
+                                        WHERE c2.uid = al.uid
+                                        AND c2.secuencia = al.secuencia
+                                        AND c2.idPeriodo = per.idPeriodo
+                                )');
+                        })
+                        ->join('servicioCarrera as sxp', function ($join) {
+                            $join->on('sxp.idNivel', '=', 'al.idNivel')
+                                ->on('sxp.idPeriodo', '=', 'per.idPeriodo')
+                                ->on('sxp.idServicio', '=', 's.idServicio');
+                        })
+                        ->join('turno as t', function ($join) {
+                            $join->on('t.letra', '=', DB::raw('SUBSTRING(cl.grupo, 3, 1)'));
+                        })
+                        ->where('s.tipoEdoCta', 2)
+                        // (sxp.idTurno = 0 OR sxp.idTurno = t.idTurno)
+                        ->where(function ($q) {
+                            $q->where('sxp.idTurno', 0)
+                            ->orWhereColumn('sxp.idTurno', 't.idTurno');
+                        })
+                        ->where(function ($q) {
+                            $q->whereColumn('sxp.semestre', 'cl.semestre')
+                            ->orWhere('sxp.semestre', 0);
+                        })
+                         ->where(function ($q) {
+                            $q->whereColumn('sxp.idCarrera', 'cl.idCarrera')
+                            ->orWhere('sxp.idCarrera', 0);
+                        })
+                        ->select([
+                                'niv.idNivel',
+                                'niv.descripcion as nivel',
+                                's.descripcion as servicio',
+                                's.efectivo',
+                                's.tarjeta',
+                                'per.idPeriodo',
+                                's.idServicio',
+                                's.tipoEdoCta',
+                                DB::raw('IFNULL(sxp.monto, 0) as monto'),
+                                DB::raw('IFNULL(s.cargoAutomatico, 0) as cargoAut')
+                        ])
+                        ->get();
     return $data->first();
 }
 
@@ -125,8 +153,9 @@ public function condonacion($uid, $matricula, $tipoEdoCta){
                     ) AS monto,
 
                     MAX(CASE WHEN cta.tipomovto = 'C' THEN cta.fechaVencimiento END) AS fechaVencimiento,
-                    s.cargoAutomatico AS cargoAut
-
+                    s.cargoAutomatico AS cargoAut,
+                    MAX(CASE WHEN cta.tipomovto = 'C' THEN cta.consecutivo END) AS consecutivo
+                  
                 FROM configuracionTesoreria ct
                 INNER JOIN alumno al ON ct.idNivel = al.idNivel
                 INNER JOIN periodo per ON per.idNivel = al.idNivel AND per.activo = 1
@@ -154,9 +183,34 @@ public function condonacion($uid, $matricula, $tipoEdoCta){
                     s.cargoAutomatico,
                     niv.descripcion
             ) AS t"))   // 👈 alias obligatorio
+            ->leftJoin('configuracionTesoreria as saldoant', function ($join) {
+                $join->on('saldoant.idServicioTraspasoSaldos1', '=', 't.idServicio')
+                    ->on('saldoant.idNivel', '=', 't.idNivel');
+            })
+
+            ->leftJoin('configuracionTesoreria as inscripcion', function ($join) {
+                $join->on('inscripcion.idServicioInscripcion', '=', 't.idServicio')
+                    ->on('inscripcion.idNivel', '=', 't.idNivel');
+            })
+
+            ->leftJoin('configuracionTesoreria as recargo', function ($join) {
+                $join->on('recargo.idServicioRecargo', '=', 't.idServicio')
+                    ->on('recargo.idNivel', '=', 't.idNivel');
+            })
+
+            ->leftJoin('configuracionTesoreria as colegiatura', function ($join) {
+                $join->on('colegiatura.idServicioColegiatura', '=', 't.idServicio')
+                    ->on('colegiatura.idNivel', '=', 't.idNivel');
+            })
+
             ->where('monto', '>', 0)
-            ->orderBy('matricula', 'asc')
-            ->orderBy('fechaVencimiento', 'asc')
+
+            ->orderBy('matricula')
+            ->orderByDesc('saldoant.idServicioTraspasoSaldos1')
+            ->orderByDesc('inscripcion.idServicioInscripcion')
+            ->orderByDesc('recargo.idServicioRecargo')
+            ->orderByDesc('colegiatura.idServicioColegiatura')
+            ->orderBy('fechaVencimiento')
             ->get();
         return $query;
 }
@@ -211,7 +265,7 @@ public function store(Request $request){
                 ->where('idServicio', $movimiento['idServicio'])
                 ->where('consecutivo', $movimiento['consecutivo'])
                 ->update([
-                    'importe' => DB::raw("importe - {$movimiento['monto']}"),
+                    'importe' => 0,
                     'fechaMovto' => $fecha,
                     'uidcajero' => $movimiento['uidcajero']
                 ]);

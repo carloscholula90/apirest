@@ -101,8 +101,10 @@ class BecasAlumnoController extends Controller{
         if (!$becas) 
             return $this->returnEstatus('Error al crear la Beca',500,null); 
 
-         DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?)", [$request->idNivel,$request->idPeriodo,
-                                                         $request->uid,$request->secuencia]);
+        $datos = $this->obtenerSemestre($uid,$secuencia);       
+        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?, ? ,?)", [$idNivel,$idPeriodo,
+                                                         $uid,$secuencia, $datos->semestre, $datos->idTurno]);
+      
         return $this->returnData('becas',$becas,200);   
     }
 
@@ -116,7 +118,7 @@ class BecasAlumnoController extends Controller{
     }
     
     public function destroy($idNivel,$idPeriodo,$uid,$secuencia){
-        $elininar = DB::table('becaAlumno')
+         $elininar = DB::table('becaAlumno')
                         ->where('idNivel', $idNivel)
                         ->where('idPeriodo', $idPeriodo)
                         ->where('uid', $uid)
@@ -125,10 +127,40 @@ class BecasAlumnoController extends Controller{
           if (!$elininar) 
             return $this->returnEstatus('Beca no encontrada',404,null);             
         $elininar->delete();
-         DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?)", [$idNivel,$idPeriodo,
-                                                         $uid,$secuencia]);
-       
+              
+        $datos = $this->obtenerSemestre($uid,$secuencia);       
+        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?, ? ,?)", [$idNivel,$idPeriodo,
+                                                         $uid,$secuencia, $datos->semestre, $datos->idTurno]);
+      
         return $this->returnEstatus('Beca eliminada',200,null); 
+    }
+
+    public function obtenerSemestre($uid,$secuencia){
+        return DB::table('alumno as al')
+                        ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
+                        ->join('periodo as per', function($join) {
+                            $join->on('per.idNivel', '=', 'al.idNivel')
+                                ->where('per.activo', 1);
+                        })
+                        ->join('ciclos as cl', function($join) {
+                            $join->on('cl.uid', '=', 'al.uid')
+                                ->on('cl.secuencia', '=', 'al.secuencia')
+                                ->on('cl.idPeriodo', '=', 'per.idPeriodo')
+                                ->whereRaw('cl.indexCiclo = (
+                                    SELECT MIN(c2.indexCiclo)
+                                    FROM ciclos c2
+                                    WHERE c2.uid = al.uid
+                                    AND c2.secuencia = al.secuencia
+                                    AND c2.idPeriodo = per.idPeriodo
+                                )');
+                        })
+                        ->join('turno as t', function($join) {
+                            $join->on('t.letra', '=', DB::raw('SUBSTRING(cl.grupo, 3, 1)'));
+                        })
+                        ->where('al.uid', $uid)
+                        ->where('al.secuencia', $secuencia)
+                        ->select('t.idTurno', 'cl.semestre')
+                        ->first();
     }
 
     public function update(Request $request){
@@ -144,9 +176,10 @@ class BecasAlumnoController extends Controller{
                             'fechaModificacion' => Carbon::now(),
                         ]);
 
-        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?)", [$request->idNivel,$request->idPeriodo,
-                                                        $request->uid,$request->secuencia]);
-                     
+        $datos = $this->obtenerSemestre($uid,$secuencia);       
+        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?, ? ,?)", [$idNivel,$idPeriodo,
+                                                         $uid,$secuencia, $datos->semestre, $datos->idTurno]);
+                    
         return $this->returnData('Beca',"Actualizado ",200);
     }
 
@@ -263,7 +296,7 @@ class BecasAlumnoController extends Controller{
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.com.mx/storage/app/public/'.$nombreRpt // URL pública para descargar el archivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nombreRpt // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([

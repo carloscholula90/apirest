@@ -10,7 +10,7 @@ use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;  
 use Illuminate\Support\Facades\Auth; 
-
+use Illuminate\Support\Str;
 
 class EstadoCuentaController extends Controller{
 
@@ -213,7 +213,7 @@ class EstadoCuentaController extends Controller{
         })->toArray();       
        
         return $this->generateReport($resultsArray,$columnWidths,$keys , 'ESTADO DE CUENTA', $headers,'P','letter',
-                        'rptEstadoCta_'.$uid.'.pdf',$tipoEdoCta);
+                        'rptEstadoCta_'.$uid.Str::random(8).'.pdf',$tipoEdoCta);
       
     }
 
@@ -336,7 +336,7 @@ class EstadoCuentaController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -353,13 +353,16 @@ class EstadoCuentaController extends Controller{
                     ->where('al.uid', '=', $uid)
                     ->where('al.secuencia', '=', $secuencia);
             })
+            ->join('periodo as p', 'p.idNivel', '=', 'al.idNivel')
             ->select(
+                'p.idPeriodo',
                 'ct.idServicioColegiatura',
                 'ct.idServicioInscripcion',
                 'ct.idServicioRecargo',
                 'ct.idServicioNotaCredito',
                 'ct.idServicioTraspasoSaldos1'
             )
+            ->where('p.activo', 1)
             ->first(); // Retorna un solo registro
     }
 
@@ -488,16 +491,20 @@ class EstadoCuentaController extends Controller{
                 ]));
                 $movimiento['idServicio'] = $servicios->idServicioInscripcion;
                 $movimiento['importe'] = $restante;
-            }
+            }else $movimiento['idServicio'] = $servicios->idServicioInscripcion;
         } 
+         
 
         if($movimiento['importe'] >0){
         if ($movimiento['idServicio'] == $servicios->idServicioInscripcion) {
             $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion);
-            $pagoInscripcion = min($movimiento['importe'], $importeInscripcion);
-            $restante = $movimiento['importe'] - $pagoInscripcion;
+            $restante = $movimiento['importe'];
 
-            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+            if($importeInscripcion>0){
+                $pagoInscripcion = min($movimiento['importe'], $importeInscripcion);
+                $restante = $movimiento['importe'] - $pagoInscripcion;
+
+                $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
                                                             'secuencia' => $secuencia,
                                                             'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
                                                             'importe' => $pagoInscripcion,
@@ -507,17 +514,63 @@ class EstadoCuentaController extends Controller{
                                                             'parcialidad' => 0,
                                                             'folio' => $folio,
                                                             'uidcajero' => $uidcajero
-            ]));
-           if ($restante > 0) 
+                    ]));
+                }
+                 if ($restante > 0) 
                 $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,0);
-   
-        } 
+           
+            } 
+            else if($movimiento['idServicio'] == $servicios->idServicioRecargo)
+                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
             else if($movimiento['idServicio'] == $servicios->idServicioColegiatura)
                 $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
             else if($movimiento['idServicio'] == $servicios->idServicioNotaCredito) 
                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero, $servicios->idServicioNotaCredito);
             else $this->procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios);
         }
+
+        //Validar si ya no tiene saldo entonces desbloquear 
+        $matricula = DB::table('alumno')
+                    ->where('uid', $uid)
+                    ->where('secuencia', $secuencia)
+                    ->value('matricula'); // devuelve directamente string o int
+
+        DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
+
+        $saldoResult = DB::select("SELECT @vencido AS vencido, @total AS total");
+  
+       if ($saldoResult[0]->vencido > 0) {
+                    // Verificamos si ya existe el registro
+                    $existe = DB::table('bloqueoPersonas')
+                        ->where('uid', $uid)
+                        ->where('secuencia', $secuencia)
+                        ->where('idBloqueo', 1)
+                        ->exists();
+
+                    // Si no existe, insertamos
+                    if (!$existe) {
+                        DB::table('bloqueoPersonas')->insert([
+                            'uid' => $uid,
+                            'secuencia' => $secuencia,
+                            'idBloqueo' => 1,
+                            'uidBloqueador' => $uidcajero,
+                            'secuenciaBloq' => 1,
+                            'BloqueoActivo' => '1', // S o N, dependiendo de tu convención
+                            'fechaBloqueo' => now(), // o date('Y-m-d')
+                            'descripcion' => 'Adeudo'
+                        ]);
+                    }
+        }
+        else{
+             DB::table('bloqueoPersonas')
+                    ->where('uid', $uid)
+                    ->where('secuencia', $secuencia)
+                    ->where('idBloqueo', 1)
+                    ->delete();
+
+        }
+
+
     }
 
     private function obtenerPendientes( $uid,  $secuencia){                        
@@ -611,12 +664,13 @@ class EstadoCuentaController extends Controller{
                             'tipomovto'   => $data['tipomovto'],
                             'referencia'  => $data['referencia'] ?? null,
                             'parcialidad' => $data['parcialidad'] ?? 1,  
-                            'fechaMovto'  => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
-                            'FechaPago'   => DB::raw("CONVERT_TZ(NOW(), '+00:00', '-06:00')"),
+                            'fechaMovto'  => $data['fechaMovto'],
+                            'FechaPago'   => $data['fechaMovto'],
                             'idformaPago' => $data['idformaPago'] ?? null,
                             'cuatrodigitos' => $data['cuatrodigitos'] ?? null,
                             'folio'       => $data['folio'] ?? null,
                             'uidcajero'   => $data['uidcajero'] ?? null,
+                            'transaccion' => $data['transaccion'] ?? null,
         ];
 
         // Consecutivo automático
@@ -631,28 +685,74 @@ class EstadoCuentaController extends Controller{
        
         if($movimiento['importe']>0){
             $pendientes = $this->obtenerPendientes($uid, $secuencia, $idPeriodo, $servicios);
+       
+        $fecha1 = Carbon::parse(str_replace('-', '/', $fecha));
 
         foreach ($pendientes as $registro) {
            
             if ($registro->cargos > 0 && $importeRestante > 0) {
                 $pago = min($importeRestante, $registro->cargos);
                 $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$servicios->idServicioRecargo;
-                $this->crearMovimiento(['uid' => $uid,
-                                        'secuencia' => $secuencia,
-                                        'idServicio' => $idServicioNota,
-                                        'importe' => $pago,
-                                        'idPeriodo' => $idPeriodo,
-                                        'fechaMovto' => $fecha,
-                                        'idformaPago' => $movimiento['idformaPago'],
-                                        'cuatrodigitos' => $movimiento['cuatrodigitos'],
-                                        'tipomovto' => $movimiento['tipomovto'],
-                                        'FechaPago' => $fecha,
-                                        'folio' => $folio,
-                                        'referencia' => $registro->referenciaCargos,
-                                        'parcialidad' => $registro->parcialidad,
-                                        'uidcajero' => $uidcajero
-                ]);
-                $importeRestante -= $pago;
+                //Validamos si ese recargo es mayor a la fecha con la que se pago para eliminarlo
+                //Validar primero si se cubre la colegiatura
+                if($importeRestante >= $registro->monto){
+                    //Si se cubre la colegiatura
+                    //Buscamos la fecha del recargo
+                   $fechaRecargo = DB::table('edocta as edo')
+                            ->join('alumno as al', function ($join) {
+                                $join->on('al.uid', '=', 'edo.uid')
+                                    ->on('al.secuencia', '=', 'edo.secuencia');
+                            })
+                            ->join('configuracionTesoreria as ct', function ($join) {
+                                $join->on('edo.idServicio', '=', 'ct.idServicioRecargo')
+                                     ->on('al.idNivel', '=', 'ct.idNivel');
+                            })                            
+                            ->join('periodo as per', function ($join) {
+                                $join->on('per.idNivel', '=', 'al.idNivel')
+                                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
+                                    ->where('per.activo', 1);
+                            })
+                            ->where('al.uid', $uid)
+                            ->where('al.secuencia', $secuencia)
+                            ->where('edo.parcialidad', $registro->parcialidad)
+                            ->value(DB::raw('DATE(edo.fechaMovto)'));
+                    
+                    $fecha2 = $fechaRecargo ? Carbon::parse($fechaRecargo) : null;  
+                    
+                    if ($fecha1->lt($fecha2)){
+                        //Eliminamos la parcialidad
+                          DB::statement("  DELETE edo 
+                                            FROM edocta AS edo
+                                            INNER JOIN configuracionTesoreria AS ct ON edo.idServicio = ct.idServicioRecargo
+                                            INNER JOIN alumno AS al ON al.uid = edo.uid AND al.secuencia = edo.secuencia AND al.idNivel = ct.idNivel
+                                            INNER JOIN periodo AS per ON per.idNivel = al.idNivel AND edo.idPeriodo = per.idPeriodo AND per.activo = 1
+                                            WHERE al.uid = ? AND al.secuencia = ? AND edo.parcialidad = ?
+                                        ", [$uid, $secuencia, $registro->parcialidad]);
+
+                         $pago =0;
+                    }
+                }
+
+                if($pago>0){
+               
+                    $this->crearMovimiento(['uid' => $uid,
+                                            'secuencia' => $secuencia,
+                                            'idServicio' => $idServicioNota,
+                                            'importe' => $pago,
+                                            'idPeriodo' => $idPeriodo,
+                                            'fechaMovto' => $fecha1,
+                                            'idformaPago' => $movimiento['idformaPago'],
+                                            'cuatrodigitos' => $movimiento['cuatrodigitos'],
+                                            'transaccion' => $movimiento['transaccion']?? null,
+                                            'tipomovto' => $movimiento['tipomovto'],
+                                            'FechaPago' => $fecha1,
+                                            'folio' => $folio,
+                                            'referencia' => $registro->referenciaCargos,
+                                            'parcialidad' => $registro->parcialidad,
+                                            'uidcajero' => $uidcajero
+                    ]);
+                    $importeRestante -= $pago;
+                }
             }
 
             // 2️⃣ Pagar colegiatura
@@ -666,12 +766,13 @@ class EstadoCuentaController extends Controller{
                                         'idServicio' => $idServicioNota,
                                          'importe' => $pago,
                                         'idPeriodo' => $idPeriodo,
-                                        'fechaMovto' => $fecha,
+                                        'fechaMovto' => $fecha1,
                                         'idformaPago' => $movimiento['idformaPago'],
                                         'cuatrodigitos' => $movimiento['cuatrodigitos'],
                                         'tipomovto' => $movimiento['tipomovto'],
-                                        'FechaPago' => $fecha,
+                                        'FechaPago' => $fecha1,
                                         'folio' => $folio,
+                                        'transaccion' => $movimiento['transaccion']?? null,
                                         'referencia' => $registro->referenciaCole,
                                         'parcialidad' => $registro->parcialidad,
                                         'uidcajero' => $uidcajero
@@ -690,8 +791,9 @@ class EstadoCuentaController extends Controller{
                 'secuencia' => $secuencia,
                  'importe' => $importeRestante,
                 'idPeriodo' => $idPeriodo,
-                'fechaMovto' => $fecha,
+                'fechaMovto' => $fecha1,
                 'folio' => $folio,
+                'transaccion' => $movimiento['transaccion']?? null,
                 'uidcajero' => $uidcajero
             ]));
             }
@@ -777,7 +879,8 @@ class EstadoCuentaController extends Controller{
                 continue;
             }
  
-            if (isset($result->transExistente)) {
+         
+            if (isset($result->transaccion)) {
                      $registrosMal[] = [
                             'matricula' => $matricula,
                             'mensaje'   => 'La transaccion ya se encuentra dada de alta en el periodo',
@@ -788,23 +891,82 @@ class EstadoCuentaController extends Controller{
 
            $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia);
            $movimiento = ['importe'        => $abono,
-                          'idformaPago'    => $mov['idformaPago'],
+                          'idformaPago'    => $mov['idFormaPago'],
                           'idServicio'     => $servicios->idServicioTraspasoSaldos1,
                           'cuatrodigitos'  => null,
                           'tipomovto'      => 'A',
                           'cargoAut'       => 0,
+                          'transaccion' => $transaccion,
                         ];
-
+            //Validamos si se generò un recargo previo a la carga se elimina
+            $fecha = Carbon::createFromFormat('d/m/Y', str_replace('-', '/', $mov['dia']));
+            $folio = (EstadoCuenta::max('folio') ?? 0) + 1;
+           
             $this->procesarMovimiento($movimiento, $servicios, $result->uid, $result->secuencia, 
-                                          $result->idPeriodo, $mov['uidcajero'], $mov['dia'], 0);
+                                          $result->idPeriodo, $mov['uidcajero'],$fecha, $folio);  
+        
+        }
 
         return response()->json([
             'message' => 'Registros guardados',
             'error'   => $registrosMal,
             'status'  => 200
         ], 200);
-        }
    
+    }
+
+
+    public function actualizaColegiatura(Request $request){
+
+          
+        $servicios = $this->obtenerServiciosTesoreria($request->uid, $request->secuencia);
+       Log::info('idPeriodo:'.$servicios->idPeriodo);  
+       Log::info('idServicioColegiatura:'.$servicios->idServicioColegiatura);  
+        //Validamos que no existan colegiaturas pagadas
+        $colegiaturasPagadas = DB::table('edocta')
+            ->where('uid', $request->uid)
+                        ->where('idPeriodo',$servicios->idPeriodo)
+                        ->where('secuencia', $request->secuencia)
+                        ->where('idServicio', $servicios->idServicioColegiatura)
+                        ->where('tipomovto','A')
+            ->exists();
+
+        if ($colegiaturasPagadas) {
+            $data = [
+                        'message' => 'No se puede realizar la actualizaciòn ya existen colegiaturas pagadas',                
+                        'status' => 400
+                    ];
+            return response()->json($data, 400);
+        } 
+
+        $recargos = DB::table('edocta')
+            ->where('uid', $request->uid)
+                        ->where('idPeriodo',$servicios->idPeriodo)
+                        ->where('secuencia', $request->secuencia)
+                        ->where('idServicio', $servicios->idServicioRecargo)
+                        ->where('tipomovto','A')
+            ->exists();
+
+        if ($recargos) {
+            $data = [
+                        'message' => 'No se puede realizar la actualizaciòn ya existen recargos programados',                
+                        'status' => 400
+                    ];
+            return response()->json($data, 400);
+        }
+
+        $fecha = Carbon::now('America/Mexico_City')->format('Y-m-d');
+        DB::table('edocta')
+                        ->where('uid', $request->uid)
+                        ->where('idPeriodo',$servicios->idPeriodo)
+                        ->where('secuencia', $request->secuencia)
+                        ->where('idServicio', $servicios->idServicioColegiatura)
+                        ->update([
+                            'importe' => $request->monto,
+                            'fechaMovto' => $fecha,
+                            'uidcajero' => $request->uidcajero
+                        ]);
+        return $this->returnData('Registros actualizados',null,200);
     }
 }
 

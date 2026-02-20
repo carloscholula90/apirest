@@ -120,7 +120,7 @@ class AlumnoController extends Controller
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -187,7 +187,7 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -236,7 +236,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$name // URL pública para descargar el archivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$name // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([
@@ -294,7 +294,7 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $fileName
             
         ]);
     } else {
@@ -324,67 +324,64 @@ public function getAvance($uid,$secuencia){
     }
 
     public function getAlumno($uid){
-
         $subCiclos = DB::table('ciclos')
-                    ->select('uid', 'secuencia', DB::raw('MAX(idPeriodo) as idPeriodo'))
-                    ->groupBy('uid', 'secuencia');
+            ->select('uid', 'secuencia', DB::raw('MAX(idPeriodo) as idPeriodo'))
+            ->groupBy('uid', 'secuencia');
 
-        $alumnos = DB::table('alumno')
-                    ->join('nivel', 'nivel.idNivel', '=', 'alumno.idNivel')
-                    ->join('carrera', function($join) {
-                        $join->on('carrera.idCarrera', '=', 'alumno.idCarrera')
-                             ->on('carrera.idNivel', '=', 'alumno.idNivel');
-                        })
-                    ->join('persona', 'persona.uid', '=', 'alumno.uid')
-                    ->leftJoin('ciudad', function($join) {
-                        $join->on('ciudad.idEstado', '=', 'persona.idEstado')
-                             ->on('ciudad.idPais', '=', 'persona.idPais')
-                             ->on('ciudad.idCiudad', '=', 'persona.idCiudad');
-                        })
-                    ->leftJoin('estado', function($join) {
-                    $join->on('estado.idEstado', '=', 'persona.idEstado')->on('estado.idPais', '=', 'persona.idPais');
+        $alumnos = DB::table('alumno as a')
+            ->join('nivel as n', 'n.idNivel', '=', 'a.idNivel')
+            ->join('carrera as c', function($join) {
+                $join->on('c.idCarrera', '=', 'a.idCarrera')
+                    ->on('c.idNivel', '=', 'a.idNivel');
             })
-            ->leftJoin('pais', 'pais.idPais', '=', 'persona.idPais')
-            ->leftJoin('edoCivil', 'edoCivil.idEdoCivil', '=', 'persona.idEdoCivil')
-        ->leftJoinSub($subCiclos, 'c', function ($join) {
-                $join->on('c.uid', '=', 'alumno.uid')
-                    ->on('c.secuencia', '=', 'alumno.secuencia');
+            ->join('persona as p', 'p.uid', '=', 'a.uid')
+            ->leftJoin('ciudad as ci', function($join) {
+                $join->on('ci.idEstado', '=', 'p.idEstado')
+                    ->on('ci.idPais', '=', 'p.idPais')
+                    ->on('ci.idCiudad', '=', 'p.idCiudad');
             })
-            ->leftJoin('periodo as p', function ($join) {
-                $join->on('p.idPeriodo', '=', 'c.idPeriodo')
-                    ->on('p.idNivel', '=', 'alumno.idNivel');
+            ->leftJoin('estado as e', function($join) {
+                $join->on('e.idEstado', '=', 'p.idEstado')
+                    ->on('e.idPais', '=', 'p.idPais');
             })
+            ->leftJoin('pais as pa', 'pa.idPais', '=', 'p.idPais')
+            ->leftJoin('edoCivil as ec', 'ec.idEdoCivil', '=', 'p.idEdoCivil')
+            ->leftJoinSub($subCiclos, 'sc', function ($join) {
+                $join->on('sc.uid', '=', 'a.uid')
+                    ->on('sc.secuencia', '=', 'a.secuencia');
+            })
+            ->leftJoin('periodo as per', function ($join) {
+                $join->on('per.idPeriodo', '=', 'sc.idPeriodo')
+                    ->on('per.idNivel', '=', 'a.idNivel');
+            })
+            // Búsqueda optimizada: varias columnas con OR
             ->where(function($query) use ($uid) {
-                $query->where(
-                    DB::raw("CONCAT(persona.nombre, ' ', persona.primerApellido, ' ', persona.segundoApellido)"), 'LIKE', '%'.$uid.'%')
-                    ->orWhere(
-                        DB::raw("CONCAT(persona.primerApellido, ' ', persona.segundoApellido, ' ', persona.nombre)"), 'LIKE', '%'.$uid.'%')
-                            ->orWhere('persona.nombre', 'LIKE', '%'.$uid.'%')
-                            ->orWhere('persona.primerApellido', 'LIKE', '%'.$uid.'%')
-                            ->orWhere('persona.segundoApellido', 'LIKE', '%'.$uid.'%')
-                            ->orWhere('persona.uid', 'LIKE', '%'.$uid.'%');
-                    })
-                    ->select(   'alumno.uid',
-                        'alumno.idNivel',
-                        'alumno.secuencia',
-                        'alumno.idCarrera',
-                        'alumno.matricula',
-                        'nivel.descripcion as nivel',
-                        'carrera.descripcion as nombreCarrera',
-                        'persona.curp',
-                        'persona.nombre',
-                        'persona.primerapellido',
-                        'persona.segundoapellido',
-                        'persona.sexo',
-                        'persona.rfc',
-                        'persona.fechaNacimiento',
-                        'ciudad.descripcion as ciudad',
-                        'estado.descripcion as estado',
-                        'pais.descripcion as pais',
-                        'edoCivil.descripcion as edocivil',
-                        'c.idPeriodo',
-                        'p.descripcion as periodo'
-            )
+               $query->where(DB::raw("CONCAT(p.nombre, ' ', p.primerApellido, ' ', p.segundoApellido)"),
+                                 'LIKE', "%{$uid}%")
+                    ->orWhere('p.uid', 'LIKE', "%{$uid}%");
+            })
+            ->select([
+                'a.uid',
+                'a.idNivel',
+                'a.secuencia',
+                'a.idCarrera',
+                'a.matricula',
+                'n.descripcion as nivel',
+                'c.descripcion as nombreCarrera',
+                'p.curp',
+                'p.nombre',
+                'p.primerapellido',
+                'p.segundoapellido',
+                'p.sexo',
+                'p.rfc',
+                'p.fechaNacimiento',
+                'ci.descripcion as ciudad',
+                'e.descripcion as estado',
+                'pa.descripcion as pais',
+                'ec.descripcion as edocivil',
+                'sc.idPeriodo',
+                'per.descripcion as periodo'
+            ])
             ->get();
 
             if (!$alumnos) {

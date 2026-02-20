@@ -121,7 +121,7 @@ abstract class Controller
         if (file_exists($path)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.com.mx/storage/app/public/'. $tableName . '_rpt.xlsx' // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'. $tableName . '_rpt.xlsx' // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([

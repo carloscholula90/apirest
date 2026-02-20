@@ -158,7 +158,7 @@ class PermisoPersonaController extends Controller
        if (file_exists($path))  {
            return response()->json([
                'status' => 200,  
-               'message' => 'https://reportes.pruebas.com.mx/storage/app/public/rptPermisosPersona.xlsx' // URL pública para descargar el archivo
+               'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptPermisosPersona.xlsx' // URL pública para descargar el archivo
            ]);
        } else {
            return response()->json([
