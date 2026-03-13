@@ -45,7 +45,7 @@ class IngresosController extends Controller
 
             $query = DB::table('edocta as cta')
                 ->select(
-                    'cta.FechaPago',
+                    DB::raw("DATE_FORMAT(cta.FechaPago, '%d-%m-%Y') as FechaPago"),
                     'cta.uidcajero',
                     'ca.descripcion as carrera',
                     'p.descripcion as periodo',
@@ -137,7 +137,7 @@ class IngresosController extends Controller
 
                 return response()->json([
                     'status' => 200,
-                    'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptIngresosAnalitico.xlsx'
+                    'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptIngresosAnalitico.xlsx'
                 ]);
             }
             else{
@@ -211,7 +211,7 @@ class IngresosController extends Controller
 
                 return response()->json([
                     'status' => 200,
-                    'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptIngresosCajero.xlsx'
+                    'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptIngresosCajero.xlsx'
                 ]);
             }
             else{
@@ -292,7 +292,7 @@ class IngresosController extends Controller
 
             return response()->json([
                 'status' => 200,
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptIngresosCarrera.xlsx'
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptIngresosCarrera.xlsx'
             ]);
         }
         else{
@@ -355,7 +355,7 @@ class IngresosController extends Controller
 
              if($tipoPago!="" && $tipoPago!=$row['formadep']){   //corte por forma de pago
                         $html2 .= '<tr><td colspan="10"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
-                        $html2 .= '<p style="font-weight: bold; font-size: 12px;"> TOTAL $ '.$tipoPago.' '.number_format($total, 2, '.', ',').'</p><br><br>';
+                        $html2 .= '<p style="font-weight: bold; font-size: 12px;"> TOTAL '.$tipoPago.' $ '.number_format($total, 2, '.', ',').'</p><br><br>';
                         $total=0;
                     }           
               $html2 .= '<tr>';   
@@ -382,7 +382,7 @@ class IngresosController extends Controller
         $html2 .= '<tr><td colspan="10"><hr style="border: 1px dotted black; background-size: 20px 10px;"></td></tr>';
         $html2 .= '</table>';
           if($total>0)
-           $html2 .= '<br><p style="font-weight: bold; font-size: 12px;"> TOTAL $ '.$tipoPago.' '.number_format($total, 2, '.', ',').'</p><br><br>';
+           $html2 .= '<br><p style="font-weight: bold; font-size: 12px;"> TOTAL  '.$tipoPago.' $ '.number_format($total, 2, '.', ',').'</p><br><br>';
 
         if($totalEfectivo>0)
            $html2 .= '<br><p style="font-weight: bold; font-size: 12px;"> TOTAL EFECTIVO $ '.number_format($totalEfectivo, 2, '.', ',').'</p>';
@@ -403,7 +403,7 @@ class IngresosController extends Controller
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([

@@ -63,7 +63,7 @@ public function index($uid, $matricula, $tipoEdoCta)
                             ->orWhere('sxp.semestre', 0);
                         })
                          ->where(function ($q) {
-                            $q->whereColumn('sxp.idCarrera', 'cl.idCarrera')
+                            $q->whereColumn('sxp.idCarrera', 'al.idCarrera')
                             ->orWhere('sxp.idCarrera', 0);
                         })
                         ->select([
@@ -89,7 +89,7 @@ public function condonacion($uid, $matricula, $tipoEdoCta){
     
     $query = DB::table(DB::raw("(
                 SELECT 
-                    al.idNivel,
+                    niv.idNivel,
                     niv.descripcion as nivel,
                     s.efectivo,
                     s.tarjeta,
@@ -170,7 +170,7 @@ public function condonacion($uid, $matricula, $tipoEdoCta){
                 " AND al.matricula = ".$matricula.
                 " AND s.tipoEdoCta=".$tipoEdoCta.
                 " GROUP BY
-                    al.idNivel,
+                    niv.idNivel,
                     s.efectivo,
                     s.tarjeta,
                     per.idPeriodo,
@@ -204,7 +204,7 @@ public function condonacion($uid, $matricula, $tipoEdoCta){
             })
 
             ->where('monto', '>', 0)
-
+            ->select('t.*')
             ->orderBy('matricula')
             ->orderByDesc('saldoant.idServicioTraspasoSaldos1')
             ->orderByDesc('inscripcion.idServicioInscripcion')

@@ -145,7 +145,7 @@ class ReciboController extends Controller
             <td style="width: 20cm; font-size: 9pt;">Puebla, Pue. a ' . $fecha . '</td>
         </tr>   
         <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>Recibo de:</b> ' . $datosRecibos->nombre . '</td>
+            <td style="width: 20cm; font-size: 9pt;"><b>Recibo de:</b> ' . $datosRecibos->uid .' - '.$datosRecibos->nombre . '</td>
         </tr>
          <tr>
             <td style="width: 20cm; font-size: 9pt;"><b>Carrera: </b>' . $datosRecibos->nombreCarrera . '</td>
@@ -165,7 +165,7 @@ class ReciboController extends Controller
     } 
    
     $html .= '
-    <br><br><br><br><br><br><br><br><br>
+    <br><br><br><br><br>
     <div style="text-align: right; color: red; font-weight: bold;">' . $folioFormateado . '</div>';
    
    
@@ -175,7 +175,7 @@ class ReciboController extends Controller
             <td style="width: 20cm; font-size: 9pt;">Puebla, Pue. a ' . $fecha . '</td>
         </tr>
         <tr>
-            <td style="width: 20cm; font-size: 9pt;"><b>Recibo de:</b> ' . $datosRecibos->nombre . '</td>
+            <td style="width: 20cm; font-size: 9pt;"><b>Recibo de:</b> '  . $datosRecibos->uid .' - '. $datosRecibos->nombre . '</td>
         </tr>
         <tr>
             <td style="width: 20cm; font-size: 9pt;"><b>Carrera: </b>' . $datosRecibos->nombreCarrera . '</td>
@@ -203,7 +203,7 @@ class ReciboController extends Controller
     if (file_exists($filePath)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
         ]);
     } else {
         return response()->json([

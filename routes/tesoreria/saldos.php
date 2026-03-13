@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
 
-Route::get('/generaReporte/{idNivel}', [SaldosController::class, 'generaReporte']);   
-Route::get('/imprimeXls/{idNivel}', [SaldosController::class, 'exportaExcel']);
+Route::get('/generaReporte/{idNivel}/{idPeriodo}/{fechaLimite}', [SaldosController::class, 'generaReporte']);   
+Route::get('/imprimeXls/{idNivel}/{idPeriodo}/{fechaLimite}', [SaldosController::class, 'exportaExcel']);
 
+  

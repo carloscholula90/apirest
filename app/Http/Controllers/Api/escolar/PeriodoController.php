@@ -27,6 +27,7 @@ class PeriodoController extends Controller{
                             'periodo.logoGob',
                             DB::raw('nivel.descripcion as nivel')
                         )
+                        ->orderBy('periodo.idPeriodo', 'desc')
                         ->get();
         return $this->returnData('periodos',$datos,200);
     }
@@ -246,7 +247,7 @@ public function generaReporte(){
            if (file_exists($path))  {
                return response()->json([
                    'status' => 200,  
-                   'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/periodos_rpt.xlsx' // URL pública para descargar el archivo
+                   'message' => 'https://reportes.siaweb.com.mx/storage/app/public/periodos_rpt.xlsx' // URL pública para descargar el archivo
                ]);
            } else {
                return response()->json([

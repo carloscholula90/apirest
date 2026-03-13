@@ -22,14 +22,16 @@ class SaldosController extends Controller{
         $this->pdfController = $pdfController;
     }
 
-    public function consulta($idNivel,$activo){
+    public function consulta($idNivel,$activo,$idPeriodo,$fechaLimite){
 
+        if($idPeriodo=0)
         $periodo = DB::table('periodo')
                        ->select('idPeriodo')
                        ->where('activo', 1)
                        ->where('idNivel', $idNivel)
                        ->first();
-
+       
+        $periodoB = $periodo->idPeriodo ?? $idPeriodo;
         $query = DB::table('alumno')
                         ->join('persona', 'persona.uid', '=', 'alumno.uid')
                         ->join('carrera as car', function ($join) {
@@ -37,26 +39,22 @@ class SaldosController extends Controller{
                                 ->on('car.idCarrera', '=', 'alumno.idCarrera');
                         })
                         ->join('configuracionTesoreria as ct', 'ct.idNivel', '=', 'alumno.idNivel')
-
-                        ->leftJoin('ciclos', function ($join) use ($periodo) {
+                        ->leftJoin('ciclos', function ($join) use ($periodoB) {
                             $join->on('ciclos.uid', '=', 'alumno.uid')
                                 ->on('ciclos.secuencia', '=', 'alumno.secuencia')
-                                ->where('ciclos.idPeriodo', '=', $periodo->idPeriodo);
+                                ->where('ciclos.idPeriodo', '=', $periodoB);
                         })
-
-                        ->leftJoin('edocta as e', function ($join) use ($periodo) {
+                        ->leftJoin('edocta as e', function ($join) use ($periodoB, $fechaLimite) {
                             $join->on('e.uid', '=', 'alumno.uid')
                                 ->on('e.secuencia', '=', 'alumno.secuencia')
-                                ->where('e.idPeriodo', '=', $periodo->idPeriodo);
+                                ->where('e.idPeriodo', '=', $periodoB)
+                                ->whereDate('e.FechaPago', '<=', $fechaLimite);
                         })
-
                         ->leftJoin('servicio as s', function ($join) {
                             $join->on('s.idServicio', '=', 'e.idServicio')
                                 ->where('s.tipoEdoCta', 1);
                         })
-
-                        ->where('alumno.idNivel', $idNivel)
-
+                       ->where('alumno.idNivel', $idNivel)
                         ->groupBy(
                             'alumno.uid',
                             'persona.primerApellido',
@@ -65,7 +63,6 @@ class SaldosController extends Controller{
                             'car.descripcion',
                             'ciclos.grupo'
                         )
-
                         ->select([
                             'persona.uid',
                             'car.descripcion as carrera',
@@ -75,8 +72,6 @@ class SaldosController extends Controller{
                                 persona.segundoApellido,' ',
                                 persona.nombre
                             ) AS nombre"),
-
-                            // 🔹 SALDO
                             DB::raw("
                                 IFNULL(SUM(
                                     CASE WHEN e.tipomovto = 'C'
@@ -118,41 +113,32 @@ class SaldosController extends Controller{
                             ),0) AS servicios
                         "));
                     }
-
-                    /* 🔹 FILTROS FINALES */
                     $query->havingRaw(
                         $activo == 0
-                            ? '(saldo > 0 OR servicios = 0)'
+                            ? '(saldo > 0 OR servicios > 0)'
                             : 'saldo > 0'
                     );
-Log::info('SQL', [
-    'query' => $query->toSql(),
-    'bindings' => $query->getBindings()
-]);
                     $dataArray = $query->get()->map(fn($i) => (array)$i)->toArray();
-
                     return $dataArray;
-
      }
 
-
      // Función para generar el reporte de personas
-    public function generaReporte($idNivel){
-
+    public function generaReporte($idNivel,$idPeriodo,$fechaLimite){
+                      
        $config = DB::table('configuracion')
                     ->where('id_campo', 1)
                     ->first();
 
        $activo = $config->valor ?? 0;
 
-       $dataArray= $this->consulta($idNivel,$activo);
+       $dataArray= $this->consulta($idNivel,$activo,$idPeriodo,$fechaLimite);
          
        $headers = ['UID', 'NOMBRE', 'CARRERA', 'GRUPO','ADEUDO'];
        $columnWidths = [80, 300, 200,100,100];
        $keys = ['uid', 'nombre', 'carrera', 'grupo','saldo'];
 
         if ($activo == 0) {
-            $headers[] = 'ADEUDO SERVICIOS';
+            $headers[] = 'ADEUDO SERVICIOS A LA FECHA '.$fechaLimite;
             $columnWidths[] = 100;
             $keys[] = 'servicios';
         }  
@@ -163,7 +149,7 @@ Log::info('SQL', [
             $dataArray,
             $columnWidths,
             $keys,
-            'REPORTE DE ADEUDOS',
+            'REPORTE DE ADEUDOS A LA FECHA '.$fechaLimite,
             $headers,
             'L',
             'letter',
@@ -171,7 +157,7 @@ Log::info('SQL', [
         );
     }  
 
-     public function exportaExcel($idNivel) {
+     public function exportaExcel($idNivel,$idPeriodo,$fechaLimite) {
         $config = DB::table('configuracion')
                     ->where('id_campo', 1)
                     ->first();
@@ -254,7 +240,7 @@ Log::info('SQL', [
         $keys = ['uid', 'nombre', 'carerra', 'grupo','saldo'];
 
         if ($activo == 0) {
-            $headers[] = 'ADEUDO SERVICIOS';            
+            $headers[] = 'ADEUDO SERVICIOS '.$fechaLimite;            
             $keys[] = 'servicios';
         }  
         // Guardar el archivo en el disco público
@@ -266,7 +252,7 @@ Log::info('SQL', [
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptAdeudos'.$aleatorio.'.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptAdeudos'.$aleatorio.'.xlsx' // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([
@@ -399,7 +385,7 @@ Log::info('SQL', [
 
     return response()->json([
         'status'  => 200,
-        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 }
