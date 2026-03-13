@@ -355,7 +355,7 @@ class EstadoCuentaController extends Controller{
             })
             ->join('periodo as p', 'p.idNivel', '=', 'al.idNivel')
             ->select(
-                'p.idPeriodo',
+                'p.idPeriodo','p.idNivel',
                 'ct.idServicioColegiatura',
                 'ct.idServicioInscripcion',
                 'ct.idServicioRecargo',
@@ -674,6 +674,7 @@ class EstadoCuentaController extends Controller{
         ];
 
         // Consecutivo automático
+        DB::statement("SET @origen = 'LARAVEL'");
         $movimiento['consecutivo'] =
             $this->siguienteConsecutivo($data['uid'], $data['secuencia'], $data['idPeriodo']);
 
@@ -687,10 +688,10 @@ class EstadoCuentaController extends Controller{
             $pendientes = $this->obtenerPendientes($uid, $secuencia, $idPeriodo, $servicios);
        
         $fecha1 = Carbon::parse(str_replace('-', '/', $fecha));
-
-        foreach ($pendientes as $registro) {
-           
+       foreach ($pendientes as $registro) {
+           Log::info('entra aqui '.$registro->cargos.' $importeRestante '.$importeRestante); 
             if ($registro->cargos > 0 && $importeRestante > 0) {
+                 
                 $pago = min($importeRestante, $registro->cargos);
                 $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$servicios->idServicioRecargo;
                 //Validamos si ese recargo es mayor a la fecha con la que se pago para eliminarlo
@@ -718,7 +719,6 @@ class EstadoCuentaController extends Controller{
                             ->value(DB::raw('DATE(edo.fechaMovto)'));
                     
                     $fecha2 = $fechaRecargo ? Carbon::parse($fechaRecargo) : null;  
-                    
                     if ($fecha1->lt($fecha2)){
                         //Eliminamos la parcialidad
                           DB::statement("  DELETE edo 
@@ -917,56 +917,95 @@ class EstadoCuentaController extends Controller{
 
 
     public function actualizaColegiatura(Request $request){
-
           
-        $servicios = $this->obtenerServiciosTesoreria($request->uid, $request->secuencia);
-       Log::info('idPeriodo:'.$servicios->idPeriodo);  
-       Log::info('idServicioColegiatura:'.$servicios->idServicioColegiatura);  
+       $servicios = $this->obtenerServiciosTesoreria($request->uid, $request->secuencia);
+       $fecha = Carbon::now('America/Mexico_City')->format('Y-m-d');
+
+       if($request->montoInsc >0){
         //Validamos que no existan colegiaturas pagadas
-        $colegiaturasPagadas = DB::table('edocta')
-            ->where('uid', $request->uid)
-                        ->where('idPeriodo',$servicios->idPeriodo)
-                        ->where('secuencia', $request->secuencia)
-                        ->where('idServicio', $servicios->idServicioColegiatura)
-                        ->where('tipomovto','A')
-            ->exists();
+            $inscripcionPagada = DB::table('edocta')
+                ->where('uid', $request->uid)
+                            ->where('idPeriodo',$servicios->idPeriodo)
+                            ->where('secuencia', $request->secuencia)
+                            ->where('idServicio', $servicios->idServicioInscripcion)
+                            ->where('tipomovto','A')
+                ->exists();
 
-        if ($colegiaturasPagadas) {
-            $data = [
-                        'message' => 'No se puede realizar la actualizaciòn ya existen colegiaturas pagadas',                
-                        'status' => 400
-                    ];
+            if ($inscripcionPagada) {
+                $data = [
+                            'message' => 'No se puede realizar la actualizaciòn la inscripcion ya esta pagada, favor de eliminar el pago ',                
+                            'status' => 400
+                        ];
             return response()->json($data, 400);
-        } 
+            } 
+        
+        }  
 
-        $recargos = DB::table('edocta')
-            ->where('uid', $request->uid)
-                        ->where('idPeriodo',$servicios->idPeriodo)
-                        ->where('secuencia', $request->secuencia)
-                        ->where('idServicio', $servicios->idServicioRecargo)
-                        ->where('tipomovto','A')
-            ->exists();
-
-        if ($recargos) {
-            $data = [
-                        'message' => 'No se puede realizar la actualizaciòn ya existen recargos programados',                
-                        'status' => 400
-                    ];
-            return response()->json($data, 400);
-        }
-
-        $fecha = Carbon::now('America/Mexico_City')->format('Y-m-d');
-        DB::table('edocta')
+        if($request->monto >0){
+            $colegiaturasPagadas = DB::table('edocta')
                         ->where('uid', $request->uid)
                         ->where('idPeriodo',$servicios->idPeriodo)
                         ->where('secuencia', $request->secuencia)
                         ->where('idServicio', $servicios->idServicioColegiatura)
-                        ->update([
-                            'importe' => $request->monto,
-                            'fechaMovto' => $fecha,
-                            'uidcajero' => $request->uidcajero
-                        ]);
-        return $this->returnData('Registros actualizados',null,200);
+                        ->where('tipomovto','A')
+                        ->exists();
+
+            if ($colegiaturasPagadas) {
+                $data = [
+                            'message' => 'No se puede realizar la actualizaciòn ya existen colegiaturas pagadas',                
+                            'status' => 400
+                        ];
+                return response()->json($data, 400);
+            } 
+        }
+
+        DB::statement("SET @origen = 'LARAVEL'");
+        if($request->monto >0){
+            //Borramos los recargos
+            
+            DB::table('edocta')
+                    ->where('uid', $request->uid)
+                    ->where('idPeriodo', $servicios->idPeriodo)
+                    ->where('secuencia', $request->secuencia)
+                    ->where('idServicio', $servicios->idServicioRecargo)
+                    ->where('tipomovto', 'A')
+                    ->delete();
+
+                    DB::table('edocta')
+                            ->where('uid', $request->uid)
+                            ->where('idPeriodo',$servicios->idPeriodo)
+                            ->where('secuencia', $request->secuencia)
+                            ->where('idServicio', $servicios->idServicioColegiatura)
+                            ->update([
+                                    'importe' => $request->monto,
+                                    'fechaMovto' => $fecha,
+                                    'uidcajero' => $request->uidcajero
+                            ]);
+
+         $result = DB::select('CALL GeneraRecargosIndividual(?, ?, ?, ?)', [   
+                                                        $servicios->idNivel,
+                                                        $servicios->idPeriodo,
+                                                        $request->uid,
+                                                        $request->secuencia
+                                                        ]);
+       
+        }
+
+        if($request->montoInsc >0){
+          DB::table('edocta')
+                            ->where('uid', $request->uid)
+                            ->where('idPeriodo',$servicios->idPeriodo)
+                            ->where('secuencia', $request->secuencia)
+                            ->where('idServicio', $servicios->idServicioInscripcion)
+                            ->update([
+                                    'importe' => $request->montoInsc,
+                                    'fechaMovto' => $fecha,
+                                    'uidcajero' => $request->uidcajero
+                            ]);
+        }
+
+       
+        return $this->returnData('Registros actualizados',null,200);          
     }
 }
 

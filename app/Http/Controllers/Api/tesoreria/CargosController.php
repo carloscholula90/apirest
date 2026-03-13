@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF;
 use App\Http\Controllers\Api\serviciosGenerales\GenericExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;  
 
 class CargosController extends Controller
 {
@@ -220,6 +221,7 @@ class CargosController extends Controller
 
                         $dataConCortes[] = $totalRow;
                     }
+                    Log::info('termino pivote 3:');
                  $dataFinal = $dataConCortes;
                  $path = storage_path('app/public/rptCargosAnalitico.xlsx');
                     Excel::store(new GenericExport($dataFinal, $headers, $keys),'rptCargosAnalitico.xlsx',  'public');
@@ -418,6 +420,7 @@ public function generateReport(
     $nameReport
 ) {
 
+    set_time_limit(300);
     $imagePathEnc = public_path('images/encPag.png');
     $imagePathPie = public_path('images/piePag.png');
 
@@ -513,7 +516,7 @@ public function generateReport(
 
     // ================= TOTAL GENERAL =================
     $html2 .= '<tr><td colspan="' . count($keys) . '"><br><br></td></tr>';
-    $html2 .= '<tr style="font-weight:bold;font-size:10px;">
+    $html2 .= '<tr style="font-weight:bold;font-size:8px;">
                 <td colspan="2">TOTAL GENERAL</td>';
 
     foreach (array_slice($keys, 3) as $key) {
@@ -524,7 +527,7 @@ public function generateReport(
     $html2 .= '</tr></table>';
 
     $pdf->writeHTML($html2);
-
+Log::info('termino pivote 4ett45:');
     $filePath = storage_path('app/public/' . $nameReport);
     $pdf->Output($filePath, 'F');
 

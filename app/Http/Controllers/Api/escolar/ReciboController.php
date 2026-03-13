@@ -25,6 +25,30 @@ class ReciboController extends Controller
     $size = 'letter';
     $nameReport = 'recibos_' . mt_rand(100, 999) . '.pdf';
 
+    $importe = DB::table('edocta as edo')
+                            ->distinct()
+                            ->select('edo.importe')
+                            ->join('alumno as al', 'al.uid', '=', 'edo.uid')
+                            ->join('configuracionTesoreria as colegiatura', function ($join) {
+                                $join->on('colegiatura.idNivel', '=', 'al.idNivel')
+                                    ->on('colegiatura.idServicioColegiatura', '=', 'edo.idServicio');
+                            })
+                            ->join('periodo as p', function ($join) {
+                                $join->on('p.idNivel', '=', 'al.idNivel')
+                                    ->where('p.activo', 1);
+                            })
+                            ->where('edo.tipomovto', 'C')
+                            ->whereColumn('edo.idPeriodo', 'p.idPeriodo')
+                            ->where('edo.uid', $uid)
+                            ->whereIn('edo.secuencia', function ($q) use ($folio){
+                                $q->select('secuencia')
+                                ->from('edocta')
+                                ->where('folio', $folio);
+                            })
+                            ->first();
+
+    $importeValor = $importe->importe ?? 0;
+
     $datos = DB::table('edocta as edo')
                     ->select([
                         'carrera.descripcion as nombreCarrera',
@@ -41,18 +65,102 @@ class ReciboController extends Controller
                                             OR recargo.idServicioRecargo = s.idServicio
                                         THEN
                                             CASE CONVERT(SUBSTRING(edo.referencia, 4), UNSIGNED)
-                                                WHEN 1 THEN 'ENE'
-                                                WHEN 2 THEN 'FEB'
-                                                WHEN 3 THEN 'MAR'
-                                                WHEN 4 THEN 'ABR'
-                                                WHEN 5 THEN 'MAY'
-                                                WHEN 6 THEN 'JUN'
-                                                WHEN 7 THEN 'JUL'
-                                                WHEN 8 THEN 'AGO'
-                                                WHEN 9 THEN 'SEP'
-                                                WHEN 10 THEN 'OCT'
-                                                WHEN 11 THEN 'NOV'
-                                                WHEN 12 THEN 'DIC'
+                                                WHEN 1 THEN CONCAT(
+                                                                'ENE',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 2 THEN CONCAT(
+                                                                'FEB',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 3 THEN CONCAT(
+                                                                'MAR',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 4 THEN CONCAT(
+                                                                'ABR',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 5 THEN CONCAT(
+                                                                'MAY',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 6 THEN CONCAT(
+                                                                'JUN',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 7 THEN CONCAT(
+                                                                'JUL',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 8 THEN CONCAT(
+                                                                'AGO',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 9 THEN CONCAT(
+                                                                'SEP',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 10 THEN CONCAT(
+                                                                'OCT',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 11 THEN CONCAT(
+                                                                'NOV',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
+                                                WHEN 12 THEN CONCAT(
+                                                                'DIC',
+                                                                CASE 
+                                                                    WHEN $importeValor > edo.importe 
+                                                                    THEN ' PARCIAL' 
+                                                                    ELSE '' 
+                                                                END
+                                                            )
                                                 ELSE ''
                                             END
                                         ELSE ''
@@ -70,7 +178,11 @@ class ReciboController extends Controller
                         $join->on('recargo.idNivel', '=', 'al.idNivel')
                             ->on('recargo.idServicioRecargo', '=', 's.idServicio');
                     })
-                    ->join('carrera', 'carrera.idCarrera', '=', 'al.idCarrera')
+                     ->join('carrera', function ($join) {
+                                        $join->on('carrera.idCarrera', '=', 'al.idCarrera')
+                                            ->on('carrera.idNivel', '=', 'al.idNivel');
+                                    })
+           
                     ->join('persona', 'persona.uid', '=', 'al.uid')
                     ->leftJoin('configuracionTesoreria as inscripcion', function ($join) {
                         $join->on('inscripcion.idNivel', '=', 'al.idNivel')
@@ -130,7 +242,7 @@ class ReciboController extends Controller
     $pdf->SetMargins(30, 10, 20);
     $pdf->SetAutoPageBreak(false, 0);
     $pdf->AddPage();
-     $imageUrl = 'https://siaweb.com.mx/images/Recibo.jpg';
+     $imageUrl = public_path('images/Recibo.jpg'); 
         $pdf->Image($imageUrl, 0, 0, $pdf->getPageWidth(), $pdf->getPageHeight());
 
 
@@ -165,6 +277,7 @@ class ReciboController extends Controller
     } 
    
     $html .= '
+    <br><br><br><br><br>
     <br><br><br><br><br>
     <div style="text-align: right; color: red; font-weight: bold;">' . $folioFormateado . '</div>';
    

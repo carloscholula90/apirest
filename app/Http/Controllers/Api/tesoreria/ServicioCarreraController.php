@@ -87,36 +87,92 @@ class ServicioCarreraController extends Controller
     return $final;
 }
 
- public function store(Request $request) {
-        
-        $validator = Validator::make($request->all(), [
-                                    'idServicio' => 'required|numeric',
-                                    'idNivel' => 'required|numeric',
-                                    'idPeriodo' => 'required|numeric',
-                                    'monto' => 'required|numeric',
-                                    'idCarrera' => 'required|numeric',
-                                    'idTurno' => 'required|numeric',
-                                    'semestre' => 'required|numeric',
-                                    'aplicaIns' => 'required|numeric'
-        ]);   
-       
-        if ($validator->fails()) 
-            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
-       
-        $servicioC = ServicioCarrera::create([
-                                'idNivel'=> $request->idNivel,
-                                'idPeriodo'=> $request->idPeriodo,
-                                'idServicio' => $request->idServicio,
-                                'idCarrera'=> $request->idCarrera,
-                                'idTurno'=> $request->idTurno,
-                                'semestre'=> $request->semestre,
-                                'monto'=> $request->monto,
-                                'aplicaIns'=> $request->aplicaIns,
-                                'fechaAlta'=> Carbon::now(),
-                                'fechaModificacion'=>Carbon::now()
-                    ]);       
-        return $this->returnData('servicios',null,200);
+ public function store(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'idServicio' => 'required|integer',
+        'idNivel'    => 'required|integer',
+        'idPeriodo'  => 'required|integer',
+        'monto'      => 'required|numeric',
+        'idCarrera'  => 'required|integer',
+        'idTurno'    => 'required|integer',
+        'semestre'   => 'required|integer',
+        'aplicaIns'  => 'required|integer'
+    ]);
+
+    if ($validator->fails()) {
+        return $this->returnEstatus(
+            'Error en la validación de los datos',
+            400,
+            $validator->errors()
+        );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDACIÓN PERSONALIZADA CON QUERY
+    |--------------------------------------------------------------------------
+    */
+
+    $existe = ServicioCarrera::where('idNivel', $request->idNivel)
+        ->where('idPeriodo', $request->idPeriodo)
+        ->where('idServicio', $request->idServicio)
+        ->where('idCarrera', $request->idCarrera)
+        ->where(function ($query) use ($request) {
+
+            $query->where(function ($q) use ($request) {
+                // Caso exacto
+                $q->where('idTurno', $request->idTurno)
+                  ->where('semestre', $request->semestre);
+            })
+            ->orWhere(function ($q) use ($request) {
+                // Ya existe uno con todos los turnos
+                $q->where('idTurno', 0)
+                  ->where('semestre', $request->semestre);
+            })
+            ->orWhere(function ($q) use ($request) {
+                // Ya existe uno con todos los semestres
+                $q->where('idTurno', $request->idTurno)
+                  ->where('semestre', 0);
+            })
+            ->orWhere(function ($q) {
+                // Registro completamente global
+                $q->where('idTurno', 0)
+                  ->where('semestre', 0);
+            });
+
+        })
+        ->exists();
+
+    if ($existe) {
+        return $this->returnEstatus(
+            'Ya existe un registro con esa combinación o una configuración global que la cubre.',
+            400,
+            null
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CREAR REGISTRO
+    |--------------------------------------------------------------------------
+    */
+
+    ServicioCarrera::create([
+        'idNivel'=> $request->idNivel,
+        'idPeriodo'=> $request->idPeriodo,
+        'idServicio' => $request->idServicio,
+        'idCarrera'=> $request->idCarrera,
+        'idTurno'=> $request->idTurno,
+        'semestre'=> $request->semestre,
+        'monto'=> $request->monto,
+        'aplicaIns'=> $request->aplicaIns,
+        'fechaAlta'=> Carbon::now(),
+        'fechaModificacion'=> Carbon::now()
+    ]);
+
+    return $this->returnData('servicios', null, 200);
+}
 
     public function destroy($idNivel,$idPeriodo,$idServicio,$idCarrera,$idTurno)
     {
@@ -291,5 +347,37 @@ class ServicioCarreraController extends Controller
             ]);
         }  
     }
+
+    public function copiarServicios(Request $request){
+        try {
+        // Ejecutar procedimiento
+         // Validar datos
+            $request->validate([
+                'periodo_origen'  => 'required|integer',
+                'periodo_destino' => 'required|integer',
+                'id_carrera'      => 'required|integer',
+            ]);
+
+            DB::statement("CALL PCDCOPIASERVICIOS(?, ?, ?, @total, @mensaje)", [
+                $request->periodo_origen,
+                $request->periodo_destino,
+                $request->id_carrera
+            ]);
+
+        // Obtener valores OUT
+        $resultado = DB::select("SELECT @total AS registros_copiados, @mensaje AS resultado");
+
+        return response()->json([
+                'status' => 200,
+                'message' => 'Se generaron los registros '
+                    ]);
+        
+        } catch (\Exception $e) {
+                return response()->json([
+                'status' => 500,
+                'message' => 'Error al generar los registros '
+                    ]);
+    }
+}
 
 }

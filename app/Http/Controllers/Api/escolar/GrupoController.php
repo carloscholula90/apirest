@@ -32,4 +32,31 @@ class GrupoController extends Controller
                                 ->get();
        return $this->returnData('grupos',$grupos,200);
     }
+
+    public function cambioGrupo(Request $request){
+      $periodo = DB::table('periodo')
+                           ->select('idPeriodo')
+                           ->join('turno as t', function($join) {
+                                $join->on('t.letra', '=', DB::raw(
+                                'SUBSTRING(cl.grupo, CASE WHEN LENGTH('.$request->grupo.') = 4 THEN 2 WHEN LENGTH('.$request->grupo.') = 5 THEN 3 ELSE 3 END, 1)'
+                                 ));
+                            })
+                           ->where('activo', 1)
+                           ->where('idNivel', $request->idNivel)
+                           ->first();
+      //Validar el turno de para ver si cambia de costos
+      
+      foreach ($request->grupos as $grupos){
+                  DB::table('ciclos')
+                        ->where('idPeriodo', $periodo)
+                        ->where('grupo',$grupos->idPeriodo)
+                        ->where('secuencia', $grupos->secuencia)
+                        ->update(['grupo' => $grupos->newGrupo]);
+
+
+      }
+               
+        return $this->returnData('Registros actualizados',null,200);
+
+    }
 }

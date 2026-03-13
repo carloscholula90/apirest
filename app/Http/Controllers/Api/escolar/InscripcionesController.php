@@ -36,7 +36,7 @@ class InscripcionesController extends Controller
                 $join->on('asp.uid', '=', 'a.uid')
                     ->on('asp.secuencia', '=', 'a.secuencia');
             })
-            ->join('turno', 'turno.idTurno', '=', 'asp.idTurno')
+            ->join('turno', 'turno.idTurno', '=', 'asp. ')
             ->join('carrera as car', function ($join) {
                 $join->on('car.idNivel', '=', 'a.idNivel')
                     ->on('car.idCarrera', '=', 'a.idCarrera');

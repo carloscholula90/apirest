@@ -49,8 +49,10 @@ public function index($uid, $matricula, $tipoEdoCta)
                                 ->on('sxp.idPeriodo', '=', 'per.idPeriodo')
                                 ->on('sxp.idServicio', '=', 's.idServicio');
                         })
-                        ->join('turno as t', function ($join) {
-                            $join->on('t.letra', '=', DB::raw('SUBSTRING(cl.grupo, 3, 1)'));
+                        ->join('turno as t', function($join) {
+                            $join->on('t.letra', '=', DB::raw(
+                                'SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 2 WHEN LENGTH(cl.grupo) = 5 THEN 3 ELSE 3 END, 1)'
+                            ));
                         })
                         ->where('s.tipoEdoCta', 2)
                         // (sxp.idTurno = 0 OR sxp.idTurno = t.idTurno)
@@ -79,6 +81,8 @@ public function index($uid, $matricula, $tipoEdoCta)
                                 DB::raw('IFNULL(s.cargoAutomatico, 0) as cargoAut')
                         ])
                         ->get();
+        if($tipoEdoCta == 2)
+            return $data;
     return $data->first();
 }
 

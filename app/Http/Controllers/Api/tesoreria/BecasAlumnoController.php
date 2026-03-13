@@ -77,6 +77,16 @@ class BecasAlumnoController extends Controller{
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
 
+        $existe = BecaAlumno::where('idNivel', $request->idNivel)
+                    ->where('idPeriodo', $request->idPeriodo)
+                    ->where('uid', $request->uid)
+                    ->where('secuencia', $request->secuencia)
+                    ->exists();
+
+        if ($existe) {
+            return $this->returnEstatus('La Beca ya se encuentra dado de alta', 400, null);
+        }
+
         try {
             $becas = BecaAlumno::create([
                             'idNivel' => $request->idNivel,                           
@@ -101,9 +111,14 @@ class BecasAlumnoController extends Controller{
         if (!$becas) 
             return $this->returnEstatus('Error al crear la Beca',500,null); 
 
-        $datos = $this->obtenerSemestre($uid,$secuencia);       
-        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?, ? ,?)", [$idNivel,$idPeriodo,
-                                                         $uid,$secuencia, $datos->semestre, $datos->idTurno]);
+        $datos = $this->obtenerSemestre($request->uid,$request->secuencia);   
+        
+        if (!$datos) {
+            return $this->returnEstatus('No se encontró información de semestre y turno para el alumno', 400, null);
+        }    
+        
+        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?, ? ,?)", [$request->idNivel,$request->idPeriodo,
+                                                         $request->uid,$request->secuencia, $datos->semestre, $datos->idTurno]);
       
         return $this->returnData('becas',$becas,200);   
     }
@@ -155,7 +170,9 @@ class BecasAlumnoController extends Controller{
                                 )');
                         })
                         ->join('turno as t', function($join) {
-                            $join->on('t.letra', '=', DB::raw('SUBSTRING(cl.grupo, 3, 1)'));
+                            $join->on('t.letra', '=', DB::raw(
+                                'SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 2 WHEN LENGTH(cl.grupo) = 5 THEN 3 ELSE 3 END, 1)'
+                            ));
                         })
                         ->where('al.uid', $uid)
                         ->where('al.secuencia', $secuencia)
