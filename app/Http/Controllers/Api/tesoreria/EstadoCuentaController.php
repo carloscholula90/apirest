@@ -841,12 +841,15 @@ class EstadoCuentaController extends Controller{
 
 
     public function guardarMovtos(Request $request){
+
         $movimientos = $request->all();
         $registrosMal = [];
-
-        if (!is_array($movimientos)) {
+        $importe = 0;
+        $importeTotal = 0;
+        $noRegistros =0;
+        if (!is_array($movimientos)) 
             return response()->json(['error' => 'Datos inválidos, se espera un arreglo'], 400);
-        }
+        
 
         foreach ($movimientos as $index => $mov) {
             if (!isset($mov['dia'], $mov['concepto'], $mov['abono'], $mov['transaccion'])) {
@@ -858,8 +861,8 @@ class EstadoCuentaController extends Controller{
             $transaccion = $mov['transaccion'];
             $abono = floatval($mov['abono']);
             $matricula = (int) substr($mov['concepto'], 0, 7);
-            
-            $result = DB::table('periodo')
+            $importeTotal = $importeTotal + $abono;
+            $result = DB::table('periodo')  
                             ->join('alumno', 'periodo.idNivel', '=', 'alumno.idNivel')
                             ->leftJoin('edocta', function ($join) use ($transaccion) {
                                 $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
@@ -874,21 +877,24 @@ class EstadoCuentaController extends Controller{
                 $registrosMal[] = [
                     'matricula' => $matricula,
                     'mensaje'   => 'No existe la matricula en el sistema',
+                    'uid'   => null,
                     'importe'   => $abono
                 ];
                 continue;
-            }
- 
+            } 
          
             if (isset($result->transaccion)) {
                      $registrosMal[] = [
                             'matricula' => $matricula,
                             'mensaje'   => 'La transaccion ya se encuentra dada de alta en el periodo',
-                            'importe'   => $abono
+                            'importe'   => $abono,
+                            'uid'   => $result->uid,
                             ];
                 continue;
             }
 
+           $importe = $importe + $abono;
+           $noRegistros = $noRegistros + 1;
            $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia);
            $movimiento = ['importe'        => $abono,
                           'idformaPago'    => $mov['idFormaPago'],
@@ -904,14 +910,53 @@ class EstadoCuentaController extends Controller{
            
             $this->procesarMovimiento($movimiento, $servicios, $result->uid, $result->secuencia, 
                                           $result->idPeriodo, $mov['uidcajero'],$fecha, $folio);  
-        
         }
 
-        return response()->json([
-            'message' => 'Registros guardados',
-            'error'   => $registrosMal,
-            'status'  => 200
-        ], 200);
+        if(isset($registrosMal)){        
+            $imagePathEnc = public_path('images/encPag.png');
+            $imagePathPie = public_path('images/piePag.png');  
+            $columnWidths = [50, 50,50,50,300];
+            $pdf = new CustomTCPDF('P', PDF_UNIT, 'letter', true, 'UTF-8', false);
+            $pdf->setHeaders(null, $columnWidths, 'MOVIMIENTOS NO PROCESADOS');
+            $pdf->setImagePaths($imagePathEnc, $imagePathPie,'P');
+            $pdf->SetFont('helvetica', '', 14);
+            $pdf->SetCreator(PDF_CREATOR);
+            $pdf->SetAuthor('SIAWEB');
+            $pdf->SetMargins(15, 30, 15);
+            $pdf->SetAutoPageBreak(TRUE, 25);
+            $pdf->AddPage();
+            $pdf->SetFont('helvetica', '', 8);
+
+            $html2 = '<br><br><br><table border="0" cellpadding="1">';
+            $html2 .= '<tr><td style="font-size: 9px;" width="80"><b>MATRICULA</b></td><td style="font-size: 9px;" width="80"><b>UID</b></td><td style="font-size: 9px;" width="80"><b>IMPORTE</b></td><td style="font-size: 9px;" width="400"><b>MENSAJE DE ERROR</b></td></tr>';
+        
+            foreach ($registrosMal as $registro) 
+                $html2 .='<tr><td width="80">'.$registro['matricula'].'</td><td width="80">'.$registro['uid'].'</td><td width="80">'.number_format($registro['importe'], 2, '.', ',').'</td><td width=400>'.$registro['mensaje'].'</td></tr>';
+                
+            $html2 .= '</table>';
+            
+            // Escribir la tabla en el PDF
+            $pdf->writeHTML($html2, true, false, true, false, '');
+
+            $nameReport= 'validacion'.rand(1, 100).'.pdf';
+            $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo       
+            $pdf->Output($filePath, 'F');  
+
+            if (file_exists($filePath)) 
+                        return response()->json([
+                            'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
+                            'error'   => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport ,
+                            'status'  => 200
+                        ], 200);
+
+        } else{    
+            return response()->json([
+                            'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
+                            'error'   => null ,
+                            'status'  => 200
+                        ], 200);
+
+        }
    
     }
 
@@ -1003,9 +1048,95 @@ class EstadoCuentaController extends Controller{
                                     'uidcajero' => $request->uidcajero
                             ]);
         }
-
        
         return $this->returnData('Registros actualizados',null,200);          
+    }
+
+
+    public function destroy($uid, $secuencia, $consecutivo, $uidcajero){
+
+        DB::transaction(function () use ($uid, $secuencia, $consecutivo, $uidcajero) {
+
+        $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia);
+
+        DB::statement("SET @origen = 'LARAVEL'");
+        DB::statement("SET @uidcajero = ?", [$uidcajero]);
+
+        EstadoCuenta::where('uid', $uid)
+            ->where('secuencia', $secuencia)
+            ->whereIn('idServicio', [
+                                $servicios->idServicioInscripcion,
+                                $servicios->idServicioColegiatura,
+                                $servicios->idServicioRecargo,
+                                $servicios->idServicioTraspasoSaldos1
+                            ])
+            ->where('tipomovto', "A")
+            ->where('idPeriodo', $servicios->idPeriodo)
+            ->where('consecutivo', '>=', $consecutivo)
+            ->delete();
+        });
+         return $this->returnData('Registros eliminados',null,200);  
+    }
+
+    public function getAbonos($uid, $secuencia){
+
+     $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia);
+
+     $resultados = DB::table('edocta as edo')
+                            ->select(
+                                'edo.importe',
+                                'edo.consecutivo',
+                                'edo.uid',
+                                 DB::raw("CONCAT(s.descripcion, ' ',
+                                    CASE WHEN colegiatura.idServicioColegiatura = s.idServicio
+                                            OR recargo.idServicioRecargo = s.idServicio
+                                    THEN CASE CONVERT(SUBSTRING(edo.referencia, 4), UNSIGNED)
+                                                    WHEN 1 THEN 'ENERO'
+                                                    WHEN 2 THEN 'FEBRERO'
+                                                    WHEN 3 THEN 'MARZO'
+                                                    WHEN 4 THEN 'ABRIL'
+                                                    WHEN 5 THEN 'MAYO'
+                                                    WHEN 6 THEN 'JUNIO'
+                                                    WHEN 7 THEN 'JULIO'
+                                                    WHEN 8 THEN 'AGOSTO'
+                                                    WHEN 9 THEN 'SEPTIEMBRE'
+                                                    WHEN 10 THEN 'OCTUBRE'
+                                                    WHEN 11 THEN 'NOVIEMBRE'
+                                                    WHEN 12 THEN 'DICIEMBRE'
+                                                    ELSE ''
+                                                END
+                                            ELSE ''
+                                        END
+                                    ) AS servicio
+                                ")
+                            )
+                            ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
+                            ->join('alumno as al', function ($join) {
+                                $join->on('al.uid', '=', 'edo.uid')
+                                    ->on('al.secuencia', '=', 'edo.secuencia');
+                            })
+                            ->leftJoin('configuracionTesoreria as colegiatura', function ($join) {
+                                $join->on('colegiatura.idNivel', '=', 'al.idNivel')
+                                    ->on('colegiatura.idServicioColegiatura', '=', 's.idServicio');
+                            })
+                            ->leftJoin('configuracionTesoreria as recargo', function ($join) {
+                                $join->on('recargo.idNivel', '=', 'al.idNivel')
+                                    ->on('recargo.idServicioRecargo', '=', 's.idServicio');
+                            })    
+                            ->where('edo.uid', $uid)
+                            ->where('edo.secuencia', $secuencia)
+                            ->where('edo.idPeriodo', $servicios->idPeriodo)
+                            ->where('edo.tipomovto', 'A')
+                            ->whereIn('edo.idServicio', [
+                                $servicios->idServicioInscripcion,
+                                $servicios->idServicioColegiatura,
+                                $servicios->idServicioRecargo,
+                                $servicios->idServicioTraspasoSaldos1
+                            ])
+                            ->orderBy('edo.consecutivo', 'asc')
+                            ->get();
+
+            return $this->returnData('abonos',$resultados,200);
     }
 }
 
