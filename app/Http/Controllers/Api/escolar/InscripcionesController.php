@@ -269,4 +269,84 @@ class InscripcionesController extends Controller
         return response()->json($data, 200);
 
     }
+
+
+    public function createBecados(Request $request){
+
+        $validator = Validator::make($request->all(), [
+                            'uid' => 'required|max:255',                            
+                            'secuencia' => 'required|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            $data = [
+                'message' => 'Error en la validación de los datos',
+                'errors' => $validator->errors(),
+                'status' => 400
+            ];
+            return response()->json($data, 400);
+        }
+
+        $alumno   = DB::table('alumno as a')
+                        ->distinct()
+                        ->select([
+                            'a.uid',
+                            'a.secuencia',
+                            DB::raw('(per.idPeriodo + 1) AS idPeriodo'),
+                            'a.idNivel',
+                            DB::raw("
+                                CONCAT(
+                                    LEFT(c.grupo, LENGTH(c.grupo)-2),
+                                    CAST(SUBSTRING(c.grupo, LENGTH(c.grupo)-1, 1) AS UNSIGNED) + 1,
+                                    RIGHT(c.grupo, 1)
+                                ) AS grupo
+                            ")
+                        ])
+                        ->join('periodo as per', function ($join) {
+                            $join->on('per.idNivel', '=', 'a.idNivel')
+                                ->where('per.activo', '=', 1);
+                        })
+                        ->join('ciclos as c', function ($join) {
+                            $join->on('c.uid', '=', 'a.uid')
+                                ->on('c.secuencia', '=', 'a.secuencia')
+                                ->on('c.idPeriodo', '=', 'per.idPeriodo');
+                        })
+                        ->where('a.uid', $request->uid)
+                        ->where('a.secuencia', $request->secuencia)
+                        ->whereNotExists(function ($query) {
+                            $query->select(DB::raw(1))
+                                ->from('ciclos as c2')
+                                ->whereColumn('c2.uid', 'a.uid')
+                                ->whereColumn('c2.secuencia', 'a.secuencia')
+                                ->whereRaw('c2.idPeriodo = per.idPeriodo + 1');
+                        })
+                        ->first();
+
+            if (!$alumno) {
+            return response()->json([
+                'message' => 'Alumno no encontrado',
+                'status' => 404
+            ], 404);
+        }
+
+        DB::statement(
+            'CALL InscripcionBecados(?, ?, ?, ?, ?)',
+            [
+                $alumno->idNivel,
+                $alumno->idPeriodo,
+                $alumno->uid,
+                $alumno->secuencia,
+                $alumno->grupo
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Inscripción generada correctamente',
+            'data' => $alumno,
+            'status' => 200
+        ]);
+
+            return response()->json($finalResult, 200);       
+        }
+
 }

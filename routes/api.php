@@ -164,6 +164,10 @@ Route::prefix('grupos')->group(function () {
     require base_path('routes/escolar/grupos.php');
 });
 
+Route::prefix('horarios')->group(function () {
+    require base_path('routes/escolar/horarios.php');
+});
+
 Route::prefix('idiomas')->group(function () {
     require base_path('routes/escolar/idiomas.php');
 });
@@ -179,6 +183,11 @@ Route::prefix('ingresos')->group(function () {
 Route::prefix('kardex')->group(function () {
     require base_path('routes/escolar/kardex.php');
 });
+
+Route::prefix('kpis')->group(function () {
+    require base_path('routes/general/kpis.php');
+});
+
 Route::prefix('impuestos')->group(function () {
     require base_path('routes/tesoreria/impuestos.php');
 });
@@ -262,6 +271,10 @@ Route::prefix('puestos')->group(function () {
 
 Route::prefix('productoserviciosat')->group(function () {
     require base_path('routes/tesoreria/productoserviciosat.php');
+});
+
+Route::prefix('profesores')->group(function () {
+    require base_path('routes/general/profesores.php');
 });
 
 Route::prefix('recibos')->group(function () {

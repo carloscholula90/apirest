@@ -23,8 +23,10 @@ class SaldosController extends Controller{
     }
 
     public function consulta($idNivel,$activo,$idPeriodo,$fechaLimite){
+ 
+     $periodo = null; 
 
-        if($idPeriodo=0)
+        if($idPeriodo==0)
         $periodo = DB::table('periodo')
                        ->select('idPeriodo')
                        ->where('activo', 1)
@@ -32,6 +34,7 @@ class SaldosController extends Controller{
                        ->first();
        
         $periodoB = $periodo->idPeriodo ?? $idPeriodo;
+  
         $query = DB::table('alumno')
                         ->join('persona', 'persona.uid', '=', 'alumno.uid')
                         ->join('carrera as car', function ($join) {
@@ -117,8 +120,10 @@ class SaldosController extends Controller{
                         $activo == 0
                             ? '(saldo > 0 OR servicios > 0)'
                             : 'saldo > 0'
-                    );
+                    ); 
+                       
                     $dataArray = $query->get()->map(fn($i) => (array)$i)->toArray();
+                    $total = $query->count();
                     return $dataArray;
      }
 
@@ -130,7 +135,8 @@ class SaldosController extends Controller{
                     ->first();
 
        $activo = $config->valor ?? 0;
-
+ Log::info('SQL: $idPeriodo ' . $idPeriodo);
+                   
        $dataArray= $this->consulta($idNivel,$activo,$idPeriodo,$fechaLimite);
          
        $headers = ['UID', 'NOMBRE', 'CARRERA', 'GRUPO','ADEUDO'];
@@ -164,7 +170,7 @@ class SaldosController extends Controller{
 
         $activo = $config->valor ?? 0;
 
-        $dataArray= $this->consulta($idNivel,$activo);
+        $dataArray= $this->consulta($idNivel,$activo,$idPeriodo,$fechaLimite);;
 
         $dataFinal = [];
         $cutRows   = [];
@@ -252,7 +258,7 @@ class SaldosController extends Controller{
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptAdeudos'.$aleatorio.'.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptAdeudos'.$aleatorio.'.xlsx' // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([
@@ -385,7 +391,7 @@ class SaldosController extends Controller{
 
     return response()->json([
         'status'  => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 }

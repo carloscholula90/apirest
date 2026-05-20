@@ -19,7 +19,7 @@ class ReciboController extends Controller
 {
 
   
-    public function generarYGuardarPDF($uid, $folio){
+    public function generarYGuardarPDF($uid, $matricula, $folio){
 
     $orientation = 'P';
     $size = 'letter';
@@ -28,7 +28,10 @@ class ReciboController extends Controller
     $importe = DB::table('edocta as edo')
                             ->distinct()
                             ->select('edo.importe')
-                            ->join('alumno as al', 'al.uid', '=', 'edo.uid')
+                            ->join('alumno as al', function($join) {
+                                    $join->on('al.uid', '=', 'edo.uid')
+                                        ->on('al.secuencia', '=', 'edo.secuencia');
+                                })
                             ->join('configuracionTesoreria as colegiatura', function ($join) {
                                 $join->on('colegiatura.idNivel', '=', 'al.idNivel')
                                     ->on('colegiatura.idServicioColegiatura', '=', 'edo.idServicio');
@@ -40,6 +43,7 @@ class ReciboController extends Controller
                             ->where('edo.tipomovto', 'C')
                             ->whereColumn('edo.idPeriodo', 'p.idPeriodo')
                             ->where('edo.uid', $uid)
+                            ->where('al.matricula', $matricula)
                             ->whereIn('edo.secuencia', function ($q) use ($folio){
                                 $q->select('secuencia')
                                 ->from('edocta')
@@ -172,7 +176,10 @@ class ReciboController extends Controller
                         DB::raw('SUM(importe) as total'),
                         DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre')
                     ])
-                    ->join('alumno as al', 'al.uid', '=', 'edo.uid')
+                    ->join('alumno as al', function($join) {
+                                    $join->on('al.uid', '=', 'edo.uid')
+                                        ->on('al.secuencia', '=', 'edo.secuencia');
+                                })
                     ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
                     ->leftJoin('configuracionTesoreria as recargo', function ($join) {
                         $join->on('recargo.idNivel', '=', 'al.idNivel')
@@ -267,7 +274,7 @@ class ReciboController extends Controller
         </tr>
          <tr>
         <td style="width: 20cm; font-size: 9pt; word-wrap: break-word; word-break: break-word;">
-            <b>Por concepto de: </b>' . $datosRecibos->servicios . '
+        <b>Por concepto de: </b>' . $datosRecibos->servicios . '
         </td>
     </tr>
              
@@ -316,7 +323,7 @@ class ReciboController extends Controller
     if (file_exists($filePath)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
         ]);
     } else {
         return response()->json([

@@ -375,7 +375,7 @@ class ServicioCarreraController extends Controller
         } catch (\Exception $e) {
                 return response()->json([
                 'status' => 500,
-                'message' => 'Error al generar los registros '
+                'message' => 'Error al generar los registros '.$e
                     ]);
     }
 }

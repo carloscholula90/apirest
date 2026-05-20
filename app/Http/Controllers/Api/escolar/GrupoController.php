@@ -34,17 +34,22 @@ class GrupoController extends Controller
     }
 
     public function cambioGrupo(Request $request){
-      $periodo = DB::table('periodo')
-                           ->select('idPeriodo','idTurno',
-                           'SUBSTRING(cl.grupo, CASE WHEN LENGTH('.$request->newGrupo.') = 4 THEN 3 WHEN LENGTH('.$request->newGrupo.') = 5 THEN 4 ELSE 4 END, 1)'
-                           )
-                           ->join('turno as t', function($join) {
-                                $join->on('t.letra', '=', DB::raw(
-                                'SUBSTRING(cl.grupo, CASE WHEN LENGTH('.$request->newGrupo.') = 4 THEN 2 WHEN LENGTH('.$request->newGrupo.') = 5 THEN 3 ELSE 3 END, 1)'
-                                 ));})
-                           ->where('activo', 1)
-                           ->where('idNivel', $request->idNivel)
-                           ->first();
+
+      $grupo = $request->newGrupo;
+      $len = strlen($grupo);
+      $posSemestre = ($len == 4) ? 3 : 4;
+      $posTurno    = ($len == 4) ? 2 : 3;
+      $semestre = substr($grupo, $posSemestre - 1, 1);
+      $turno    = substr($grupo, $posTurno - 1, 1);
+
+
+      $periodo = DB::table('periodo as p')
+                 ->select('p.idPeriodo', 'p.idTurno', DB::raw("$semestre as semestre"))
+                 ->join('turno as t', 't.letra', '=', DB::raw("'$turno'"))
+                 ->where('p.activo', 1)
+                 ->where('p.idNivel', $request->idNivel)
+                 ->first();
+
       //Validar el turno de para ver si cambia de costos
       DB::statement("SET @origen = 'LARAVEL'");
       DB::statement("SET @uidMvto = ?", [$request->uidMvto]);
@@ -114,11 +119,113 @@ class GrupoController extends Controller
                                                          $grupos->semestre,$request->idCarrera,
                                                          $grupos->plan,$request->grupo
                                                         ]);
-
                
                }
 
       }
       return $this->returnData('Registros actualizados',null,200);
     }
+
+public function obtenerAsignaturas($grupo){
+    $datos = DB::table('detasignatura as det')
+                           ->select(
+                                 'asig.descripcion',
+                                 'gpo.inscritos',
+                                 'asig.idAsignatura',
+                                 'gpo.capacidad'
+                           )
+                           ->join('grupos as gpo', function($join) use ($grupo) {
+                                 $join->on('det.idAsignatura', '=', 'gpo.idAsignatura')
+                                    ->on('gpo.idNivel', '=', 'det.idNivel')
+                                    ->whereRaw("
+                                       SUBSTRING(gpo.grupo, 1,
+                                             CASE 
+                                                WHEN LENGTH(gpo.grupo) = 4 THEN 1
+                                                WHEN LENGTH(gpo.grupo) = 5 THEN 2
+                                                ELSE 2
+                                             END
+                                       ) = det.idCarrera
+                                    ")
+                                    ->where('gpo.grupo', $grupo);
+                           })
+                           ->join('asignatura as asig', 'asig.idAsignatura', '=', 'gpo.idAsignatura')
+                           ->join('periodo as p', function($join) {
+                                 $join->on('p.idNivel', '=', 'gpo.idNivel')
+                                    ->on('gpo.idPeriodo', '=', 'p.idPeriodo')
+                                    ->where('p.activo', 1);
+                           })
+                           ->orderBy('gpo.idAsignatura')
+                           ->get();
+
+         return $this->returnData('grupos',$datos,200);
+   }
+
+  public function actualizarActas(Request $request, $gruposec){
+            $request->validate([
+                           'uidSecretario' => 'required',
+                           'uidPresidente' => 'required',
+                           'uidVocal' => 'required',
+                           'logoSep' => 'required',
+                           'logoEscudo' => 'required',
+                           'fechaIni' => 'required',
+                           'horaIni' => 'required',
+                           'idFormato' => 'required'
+            ]);
+
+            $grupo = Grupo::where('gruposec', $gruposec)
+                           ->first();
+
+            if (!$grupo) {
+               return response()->json([
+                     'message' => 'Grupo no encontrado'
+               ], 404);
+            }
+
+            $grupo->update([
+                     'uidSecretario' => $request->uidSecretario,
+                     'uidPresidente' => $request->uidPresidente,
+                     'uidPresidente' => $request->uidVocal,
+                     'logoSep' => $request->logoSep,
+                     'logoEscudo'=> $request->logoEscudo,
+                     'idFormato' => $request->idFormato,
+                     'fechaIni' => $request->fechaIni,
+                     'horaIni' => $request->horaIni,
+                     'horaFin' => $request->horaFin
+            ]);
+
+            $grupo->refresh();
+
+            return response()->json([
+               'message' => 'Profesor actualizado correctamente',
+               'data'    => $grupo
+            ], 200);
+         }
+
+         public function actualizarProfesor(Request $request, $gruposec){
+            $request->validate([
+               'uidProfesor' => 'required',
+               'secuencia'   => 'required'
+            ]);
+
+            $grupo = Grupo::where('gruposec', $gruposec)
+                           ->first();
+
+            if (!$grupo) {
+               return response()->json([
+                     'message' => 'Grupo no encontrado'
+               ], 404);
+            }
+
+            $grupo->update([
+               'uidProfesor' => $request->uidProfesor,
+               'secuenciaProfesor' => $request->secuencia
+            ]);
+
+            $grupo->refresh();
+
+            return response()->json([
+               'message' => 'Profesor actualizado correctamente',
+               'data'    => $grupo
+            ], 200);
+         }
 }

@@ -5,4 +5,5 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/alumno/{idPeriodo}/{idNivel}/{idCarrera}/{idAlumno}', [FichasController::class, 'generarYGuardarPDF']);
 Route::get('/{idPeriodo}/{idNivel}/{idCarrera}', [FichasController::class, 'generarYGuardarPDF']);
+Route::get('/fichaEsp/{matricula}/{importe}/{fechaVencimiento}', [FichasController::class, 'generarFichaEspecial']);
   

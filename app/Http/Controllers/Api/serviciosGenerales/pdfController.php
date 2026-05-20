@@ -78,7 +78,7 @@ class PdfController extends Controller
     if (file_exists($filePath)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . basename($filePath)
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . basename($filePath)
         ]);
     } else {
         return response()->json([

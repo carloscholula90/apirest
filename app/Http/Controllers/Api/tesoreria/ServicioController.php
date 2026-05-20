@@ -12,25 +12,25 @@ class ServicioController extends Controller
 {
 
 
-public function index($uid, $matricula, $tipoEdoCta)
+public function index($uid, $matricula, $tipoEdoCta,$idPeriodo)
 {
     // Validación básica de parámetros
     if (!is_numeric($uid) || !is_numeric($matricula) || !is_numeric($tipoEdoCta)) {
         abort(400, 'Parámetros inválidos');
     }
 
-    $data = $this->condonacion($uid,$matricula,$tipoEdoCta);
+    $data = $this->condonacion($uid,$matricula,$tipoEdoCta,$idPeriodo);
 
     if($tipoEdoCta == 2 && isset($data))
          $data = DB::table('servicio as s')
-                       ->join('alumno as al', function ($join) use ($uid, $matricula) {
+                       ->join('alumno as al', function ($join) use ($uid, $matricula, $idPeriodo) {
                             $join->where('al.uid', '=', $uid)
                                 ->where('al.matricula', '=', $matricula);
                         })
                         ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
-                        ->join('periodo as per', function ($join) {
+                        ->join('periodo as per', function ($join) use ($idPeriodo) {
                             $join->on('per.idNivel', '=', 'al.idNivel')
-                                ->where('per.activo', 1);
+                                ->where('per.idPeriodo', $idPeriodo);                                
                         })
                         ->join('ciclos as cl', function ($join) {
                             $join->on('cl.uid', '=', 'al.uid')
@@ -86,7 +86,7 @@ public function index($uid, $matricula, $tipoEdoCta)
     return $data->first();
 }
 
-public function condonacion($uid, $matricula, $tipoEdoCta){
+public function condonacion($uid, $matricula, $tipoEdoCta, $idPeriodo) {
     // Validación básica de parámetros
     if (!is_numeric($uid) || !is_numeric($matricula)|| !is_numeric($tipoEdoCta)) 
         abort(400, 'Parámetros inválidos');
@@ -162,7 +162,7 @@ public function condonacion($uid, $matricula, $tipoEdoCta){
                   
                 FROM configuracionTesoreria ct
                 INNER JOIN alumno al ON ct.idNivel = al.idNivel
-                INNER JOIN periodo per ON per.idNivel = al.idNivel AND per.activo = 1
+                INNER JOIN periodo per ON per.idNivel = al.idNivel AND per.idPeriodo=".$idPeriodo."
                 INNER JOIN nivel niv ON niv.idNivel = al.idNivel
                 INNER JOIN servicio s ON s.tipoEdoCta = 1
                 INNER JOIN edocta cta 
@@ -268,6 +268,7 @@ public function store(Request $request){
                 ->where('secuencia', $movimiento['secuencia'])
                 ->where('idServicio', $movimiento['idServicio'])
                 ->where('consecutivo', $movimiento['consecutivo'])
+                ->where('idPeriodo', $movimiento['idPeriodo'])
                 ->update([
                     'importe' => 0,
                     'fechaMovto' => $fecha,

@@ -120,7 +120,7 @@ class AlumnoController extends Controller
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -187,7 +187,7 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -236,7 +236,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$name // URL pública para descargar el archivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$name // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([
@@ -294,7 +294,7 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $fileName
             
         ]);
     } else {
@@ -363,10 +363,11 @@ public function getAvance($uid,$secuencia){
                     ->where(function($query) use ($uid) {
                     $query->where(DB::raw("CONCAT(p.nombre, ' ', p.primerApellido, ' ', p.segundoApellido)"),
                                         'LIKE', "%{$uid}%")
-                            ->orWhere('p.uid', 'LIKE', "%{$uid}%");
+                            ->orWhere('p.uid', 'LIKE', "%{$uid}%")
+                            ->orWhere('a.matricula', 'LIKE', "%{$uid}%");      
                     })
                     ->select([
-                        'a.uid',
+                        'a.uid',     
                         'a.idNivel',
                         'a.secuencia',
                         'a.idCarrera',

@@ -26,7 +26,7 @@ class EstadoCuentaController extends Controller{
         return $this->returnData('EstadoCuenta',$resultados,200);
     }
 
-    public function obtenerFolios($uid,$tipoEdoCta){
+    public function obtenerFolios($uid,$matricula,$tipoEdoCta){
             $datos = DB::table('edocta as edo')
                             ->select(
                                 DB::raw('SUM(importe) as importe'),
@@ -34,8 +34,13 @@ class EstadoCuentaController extends Controller{
                                 'edo.fechaMovto'
                             )
                             ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
+                            ->join('alumno as a', function($join) {
+                                $join->on('a.uid', '=', 'edo.uid')
+                                    ->on('a.secuencia', '=', 'edo.secuencia');
+                            })                          
                             ->where('edo.uid', $uid)       
                             ->where('s.tipoEdoCta', $tipoEdoCta)
+                            ->where('a.matricula', $matricula)
                             ->whereNotNull('edo.folio')       
                             ->groupBy('edo.folio', 'edo.fechaMovto')
                             ->get();
@@ -336,7 +341,7 @@ class EstadoCuentaController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -346,24 +351,23 @@ class EstadoCuentaController extends Controller{
         }    
     }
 
-    private function obtenerServiciosTesoreria($uid,$secuencia){
-        return DB::table('configuracionTesoreria as ct')
-            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
-                $join->on('ct.idNivel', '=', 'al.idNivel')
-                    ->where('al.uid', '=', $uid)
-                    ->where('al.secuencia', '=', $secuencia);
-            })
-            ->join('periodo as p', 'p.idNivel', '=', 'al.idNivel')
-            ->select(
-                'p.idPeriodo','p.idNivel',
-                'ct.idServicioColegiatura',
-                'ct.idServicioInscripcion',
-                'ct.idServicioRecargo',
-                'ct.idServicioNotaCredito',
-                'ct.idServicioTraspasoSaldos1'
-            )
-            ->where('p.activo', 1)
-            ->first(); // Retorna un solo registro
+    private function obtenerServiciosTesoreria($uid,$secuencia,$idPeriodo){
+    return DB::table('configuracionTesoreria as ct')
+        ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+            $join->on('ct.idNivel', '=', 'al.idNivel')
+                ->where('al.uid', '=', $uid)
+                ->where('al.secuencia', '=', $secuencia);
+        })
+        ->selectRaw("? as idPeriodo", [$idPeriodo])
+        ->addSelect(
+            'al.idNivel',
+            'ct.idServicioColegiatura',
+            'ct.idServicioInscripcion',
+            'ct.idServicioRecargo',
+            'ct.idServicioNotaCredito',
+            'ct.idServicioTraspasoSaldos1'
+        )
+        ->first();
     }
 
 
@@ -373,18 +377,19 @@ class EstadoCuentaController extends Controller{
                                     'secuencia'   => 'required',
                                     'idPeriodo'   => 'required',
                                     'uidcajero'   => 'required',
-                                    'movimientos' => 'required|array'
+                                    'movimientos' => 'required|array',
+                                    'idPeriodo'   => 'required'
         ]);
 
         $uid = $data['uid'];
         $secuencia = $data['secuencia'];
         $fecha = Carbon::now();
 
-        DB::beginTransaction();
+        DB::beginTransaction();   
         try {
 
             $folio = (EstadoCuenta::max('folio') ?? 0) + 1;
-            $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia);
+            $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia, $data['idPeriodo']);
 
             foreach ($data['movimientos'] as $movimiento) 
                 $this->procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $data['idPeriodo'], $data['uidcajero'], $fecha, $folio);
@@ -397,7 +402,7 @@ class EstadoCuentaController extends Controller{
         }
     }
 
-    private function calcularImporteInscripcion($uid, $secuencia, $idServicioInscripcion){
+    private function calcularImporteInscripcion($uid, $secuencia, $idServicioInscripcion, $idPeriodo){
     // Obtenemos el importe de pagos y notas de crédito
         $importe = DB::table('edocta as edo')
             ->selectRaw("IFNULL(SUM(CASE 
@@ -415,17 +420,17 @@ class EstadoCuentaController extends Controller{
                     ->where('al.uid', '=', $uid)
                     ->where('al.secuencia', '=', $secuencia);
             })
-            ->join('periodo as per', function ($join) {
+            ->join('periodo as per', function ($join)  use ($idPeriodo) {
                 $join->on('per.idNivel', '=', 'al.idNivel')
                     ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                    ->where('per.activo', '=', 1);
+                    ->where('per.idPeriodo', $idPeriodo);
             })
             ->where('edo.parcialidad',0)
             ->value('importe'); // Devuelve solo el valor
         return $importe ?? 0;
     }
 
-    private function calcularImporteAdeudo($uid,$secuencia,$idServicio){
+    private function calcularImporteAdeudo($uid,$secuencia,$idServicio,$idPeriodo){
     // Obtenemos el importe de pagos y notas de crédito
      $importe = DB::table('edocta as edo')
             ->selectRaw("IFNULL(SUM(CASE 
@@ -443,16 +448,16 @@ class EstadoCuentaController extends Controller{
                     ->where('al.uid', '=', $uid)
                     ->where('al.secuencia', '=', $secuencia);
             })
-            ->join('periodo as per', function ($join) {
+            ->join('periodo as per', function ($join) use ($idPeriodo) {
                 $join->on('per.idNivel', '=', 'al.idNivel')
                     ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                    ->where('per.activo', '=', 1);
+                    ->where('per.idPeriodo', '=', $idPeriodo);
             })
             ->where('edo.parcialidad',999)
             ->value('importe'); // Devuelve solo el valor
         return $importe ?? 0;
     }
-        private function obtieneReferenciaInscripcion($uid, $secuencia, $idServicioInscripcion){
+        private function obtieneReferenciaInscripcion($uid, $secuencia, $idServicioInscripcion,$idPeriodo){
         $referencia = DB::table('edocta as edo')
             ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioInscripcion')
             ->join('alumno as al', function ($join) use ($uid, $secuencia) {
@@ -461,10 +466,10 @@ class EstadoCuentaController extends Controller{
                     ->where('al.uid', $uid)
                     ->where('al.secuencia', $secuencia);
             })
-            ->join('periodo as per', function ($join) {
+            ->join('periodo as per', function ($join) use ($idPeriodo) {
                 $join->on('per.idNivel', '=', 'al.idNivel')
                     ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                    ->where('per.activo', 1);
+                    ->where('per.idPeriodo', '=', $idPeriodo);
             })
             ->where('ct.idServicioInscripcion', $idServicioInscripcion) 
             ->value('edo.referencia');
@@ -475,7 +480,7 @@ class EstadoCuentaController extends Controller{
     private function procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $idPeriodo, $uidcajero, $fecha, $folio){
       
         if ($movimiento['idServicio'] == $servicios->idServicioTraspasoSaldos1) {
-            $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1);
+            $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1, $idPeriodo);
             if($importeSaldo>0){
                 $pago = min($movimiento['importe'], $importeSaldo);
                 $restante = $movimiento['importe'] - $importeSaldo;
@@ -497,7 +502,7 @@ class EstadoCuentaController extends Controller{
 
         if($movimiento['importe'] >0){
         if ($movimiento['idServicio'] == $servicios->idServicioInscripcion) {
-            $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion);
+            $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion,$idPeriodo);
             $restante = $movimiento['importe'];
 
             if($importeInscripcion>0){
@@ -509,7 +514,7 @@ class EstadoCuentaController extends Controller{
                                                             'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
                                                             'importe' => $pagoInscripcion,
                                                             'idPeriodo' => $idPeriodo,
-                                                            'referencia' =>  $this->obtieneReferenciaInscripcion($uid, $secuencia,$servicios->idServicioInscripcion),
+                                                            'referencia' =>  $this->obtieneReferenciaInscripcion($uid, $secuencia,$servicios->idServicioInscripcion,$idPeriodo),
                                                             'fechaMovto' => $fecha,
                                                             'parcialidad' => 0,
                                                             'folio' => $folio,
@@ -573,7 +578,7 @@ class EstadoCuentaController extends Controller{
 
     }
 
-    private function obtenerPendientes( $uid,  $secuencia){                        
+    private function obtenerPendientes( $uid,  $secuencia, $idPeriodo){                        
 
      $abonosCole = DB::table('edocta')
                         ->select([
@@ -604,9 +609,9 @@ class EstadoCuentaController extends Controller{
                                 ->where('al.uid', $uid)
                                 ->where('al.secuencia', $secuencia);
                         })
-                        ->join('periodo as per', function ($join) {
+                        ->join('periodo as per', function ($join)use ($idPeriodo) {
                             $join->on('per.idNivel', '=', 'al.idNivel')
-                                ->where('per.activo', 1);
+                                ->where('per.idPeriodo', '=', $idPeriodo);
                         })
                         ->join('edocta as cta', function ($join) use ($uid, $secuencia) {
                             $join->on('cta.idServicio', '=', 'ct.idServicioColegiatura')
@@ -648,10 +653,11 @@ class EstadoCuentaController extends Controller{
                 ->get();
     }
 
-    private function siguienteConsecutivo($uid, $secuencia, $idServicio){
+    private function siguienteConsecutivo($uid, $secuencia, $idPeriodo){
         return (int) DB::table('edocta')
             ->where('uid', $uid)
             ->where('secuencia', $secuencia)
+            ->where('idPeriodo', $idPeriodo)
             ->max('consecutivo') + 1;
     }
 
@@ -708,10 +714,10 @@ class EstadoCuentaController extends Controller{
                                 $join->on('edo.idServicio', '=', 'ct.idServicioRecargo')
                                      ->on('al.idNivel', '=', 'ct.idNivel');
                             })                            
-                            ->join('periodo as per', function ($join) {
+                            ->join('periodo as per', function ($join) use ($idPeriodo) {
                                 $join->on('per.idNivel', '=', 'al.idNivel')
                                     ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                                    ->where('per.activo', 1);
+                                    ->where('per.idPeriodo', '=', $idPeriodo);
                             })
                             ->where('al.uid', $uid)
                             ->where('al.secuencia', $secuencia)
@@ -725,9 +731,9 @@ class EstadoCuentaController extends Controller{
                                             FROM edocta AS edo
                                             INNER JOIN configuracionTesoreria AS ct ON edo.idServicio = ct.idServicioRecargo
                                             INNER JOIN alumno AS al ON al.uid = edo.uid AND al.secuencia = edo.secuencia AND al.idNivel = ct.idNivel
-                                            INNER JOIN periodo AS per ON per.idNivel = al.idNivel AND edo.idPeriodo = per.idPeriodo AND per.activo = 1
+                                            INNER JOIN periodo AS per ON per.idNivel = al.idNivel AND edo.idPeriodo = per.idPeriodo AND per.idPeriodo = ?
                                             WHERE al.uid = ? AND al.secuencia = ? AND edo.parcialidad = ?
-                                        ", [$uid, $secuencia, $registro->parcialidad]);
+                                        ", [$idPeriodo, $uid, $secuencia, $registro->parcialidad]);
 
                          $pago =0;
                     }
@@ -868,7 +874,7 @@ class EstadoCuentaController extends Controller{
                                 $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
                                     ->where('edocta.transaccion', '=',$transaccion);
                             })
-                            ->where('periodo.activo', 1)
+                            ->where('periodo.idPeriodo', $mov['idPeriodo'])
                             ->where('alumno.matricula', $matricula)
                             ->select('alumno.uid','alumno.secuencia', 'periodo.idPeriodo','edocta.transaccion')
                             ->first();
@@ -895,7 +901,7 @@ class EstadoCuentaController extends Controller{
 
            $importe = $importe + $abono;
            $noRegistros = $noRegistros + 1;
-           $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia);
+           $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia,$mov['idPeriodo']);
            $movimiento = ['importe'        => $abono,
                           'idformaPago'    => $mov['idFormaPago'],
                           'idServicio'     => $servicios->idServicioTraspasoSaldos1,
@@ -945,7 +951,7 @@ class EstadoCuentaController extends Controller{
             if (file_exists($filePath)) 
                         return response()->json([
                             'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
-                            'error'   => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport ,
+                            'error'   => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport ,
                             'status'  => 200
                         ], 200);
 
@@ -963,7 +969,7 @@ class EstadoCuentaController extends Controller{
 
     public function actualizaColegiatura(Request $request){
           
-       $servicios = $this->obtenerServiciosTesoreria($request->uid, $request->secuencia);
+       $servicios = $this->obtenerServiciosTesoreria($request->uid, $request->secuencia,$request->idPeriodo);
        $fecha = Carbon::now('America/Mexico_City')->format('Y-m-d');
 
        if($request->montoInsc >0){
@@ -1053,11 +1059,11 @@ class EstadoCuentaController extends Controller{
     }
 
 
-    public function destroy($uid, $secuencia, $consecutivo, $uidcajero){
+    public function destroy($uid, $secuencia, $consecutivo, $uidcajero, $idPeriodo){
 
-        DB::transaction(function () use ($uid, $secuencia, $consecutivo, $uidcajero) {
+        DB::transaction(function () use ($uid, $secuencia, $consecutivo, $uidcajero, $idPeriodo) {
 
-        $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia);
+        $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia, $idPeriodo);
 
         DB::statement("SET @origen = 'LARAVEL'");
         DB::statement("SET @uidcajero = ?", [$uidcajero]);
@@ -1078,9 +1084,9 @@ class EstadoCuentaController extends Controller{
          return $this->returnData('Registros eliminados',null,200);  
     }
 
-    public function getAbonos($uid, $secuencia){
+    public function getAbonos($uid, $secuencia,$idPeriodo){
 
-     $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia);
+     $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia, $idPeriodo);
 
      $resultados = DB::table('edocta as edo')
                             ->select(

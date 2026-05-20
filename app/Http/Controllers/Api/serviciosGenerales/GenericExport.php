@@ -44,38 +44,50 @@ class GenericExport implements FromCollection, WithHeadings, WithMapping, WithEv
     })->toArray();
 }
 
-    public function registerEvents(): array
-    {
-        return [
-            AfterSheet::class => function (AfterSheet $event) {
+   public function registerEvents(): array
+{
+    return [
+        AfterSheet::class => function (AfterSheet $event) {
 
-                $sheet = $event->sheet->getDelegate();
-                $columnCount = count($this->headers);
-                $lastColumn = chr(64 + $columnCount); // A,B,C...
+            $sheet = $event->sheet->getDelegate();
+            $columnCount = count($this->headers);
 
-                foreach ($this->cutRows as $row) {
-                    // Combinar celdas
-                    $sheet->mergeCells("A{$row}:{$lastColumn}{$row}");
+            // Última columna (importe normalmente)
+            $lastColumn = chr(64 + $columnCount);
 
-                    // Estilo del corte
-                    $sheet->getStyle("A{$row}")->applyFromArray([
-                        'font' => [
-                            'bold' => true,
-                            'size' => 11,
-                        ],
-                        'fill' => [
-                            'fillType' => Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => 'EDEDED'],
-                        ],
-                        'alignment' => [
-                            'horizontal' => Alignment::HORIZONTAL_LEFT,
-                        ],
-                    ]);
-                }
-            }
-        ];
+            // Columna antes de la última (para combinar sin tocar importe)
+            $beforeLastColumn = chr(63 + $columnCount);
+
+            foreach ($this->cutRows as $row) {
+
+                // 🔥 Combinar TODAS menos la última columna (importe)
+                $sheet->mergeCells("A{$row}:{$beforeLastColumn}{$row}");
+
+                // 🎨 Estilo general de toda la fila
+                $sheet->getStyle("A{$row}:{$lastColumn}{$row}")->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'size' => 11,
+                    ],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => 'EDEDED'],
+                    ],
+                ]);
+
+                // 📌 Alineación texto (TOTAL ...)
+                $sheet->getStyle("A{$row}")
+                    ->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_LEFT);
+
+                // 📌 Alineación importe (derecha)
+                $sheet->getStyle("{$lastColumn}{$row}")
+                    ->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            }   
+        }
+    ];
     }
-
     /**
      * Marca una fila como corte
      */
