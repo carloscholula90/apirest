@@ -457,29 +457,32 @@ class EstadoCuentaController extends Controller{
             ->value('importe'); // Devuelve solo el valor
         return $importe ?? 0;
     }
-        private function obtieneReferenciaInscripcion($uid, $secuencia, $idServicioInscripcion,$idPeriodo){
+        private function obtieneReferenciaInscripcion($uid, $secuencia,$idPeriodo){
+        
         $referencia = DB::table('edocta as edo')
             ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioInscripcion')
-            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
-                $join->on('al.uid', '=', 'edo.uid')
-                    ->on('al.secuencia', '=', 'edo.secuencia')
-                    ->where('al.uid', $uid)
-                    ->where('al.secuencia', $secuencia);
-            })
-            ->join('periodo as per', function ($join) use ($idPeriodo) {
-                $join->on('per.idNivel', '=', 'al.idNivel')
-                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                    ->where('per.idPeriodo', '=', $idPeriodo);
-            })
-            ->where('ct.idServicioInscripcion', $idServicioInscripcion) 
+            ->where('edo.uid', $uid)
+            ->where('edo.secuencia', $secuencia)
+            ->where('edo.idPeriodo', $idPeriodo )
             ->value('edo.referencia');
- 
-        return $referencia ?? 0;
+
+    return $referencia ?? 0;
+    }
+
+    private function obtieneReferenciaSdoAnterior($uid, $secuencia, $idPeriodo){
+        $referencia = DB::table('edocta as edo')
+            ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioTraspasoSaldos1')
+            ->where('edo.uid', $uid)
+            ->where('edo.secuencia', $secuencia)
+            ->where('edo.idPeriodo', $idPeriodo)
+            ->value('edo.referencia');
+
+    return $referencia ?? 0;
     }
 
     private function procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $idPeriodo, $uidcajero, $fecha, $folio){
       
-        if ($movimiento['idServicio'] == $servicios->idServicioTraspasoSaldos1) {
+        if ($movimiento['idServicio'] == $servicios->idServicioTraspasoSaldos1 || $movimiento['idServicio'] == $servicios->idServicioNotaCredito) {
             $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1, $idPeriodo);
             if($importeSaldo>0){
                 $pago = min($movimiento['importe'], $importeSaldo);
@@ -492,16 +495,20 @@ class EstadoCuentaController extends Controller{
                                                             'fechaMovto' => $fecha,
                                                             'parcialidad' => 999,
                                                             'folio' => $folio,
+                                                            'referencia'=> $this->obtieneReferenciaSdoAnterior($uid, $secuencia,$idPeriodo),
                                                             'uidcajero' => $uidcajero
                 ]));
-                $movimiento['idServicio'] = $servicios->idServicioInscripcion;
+                if($movimiento['idServicio'] == $servicios->idServicioNotaCredito)
+                     $movimiento['idServicio'] == $servicios->idServicioNotaCredito;
+                else $movimiento['idServicio'] = $servicios->idServicioInscripcion;
                 $movimiento['importe'] = $restante;
-            }else $movimiento['idServicio'] = $servicios->idServicioInscripcion;
-        } 
-         
+            }else if($movimiento['idServicio'] == $servicios->idServicioNotaCredito)
+                     $movimiento['idServicio'] == $servicios->idServicioNotaCredito;
+               else $movimiento['idServicio'] = $servicios->idServicioInscripcion;
+        }          
 
         if($movimiento['importe'] >0){
-        if ($movimiento['idServicio'] == $servicios->idServicioInscripcion) {
+        if ($movimiento['idServicio'] == $servicios->idServicioInscripcion ||  $movimiento['idServicio'] == $servicios->idServicioNotaCredito) {
             $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion,$idPeriodo);
             $restante = $movimiento['importe'];
 
@@ -514,15 +521,19 @@ class EstadoCuentaController extends Controller{
                                                             'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
                                                             'importe' => $pagoInscripcion,
                                                             'idPeriodo' => $idPeriodo,
-                                                            'referencia' =>  $this->obtieneReferenciaInscripcion($uid, $secuencia,$servicios->idServicioInscripcion,$idPeriodo),
+                                                            'referencia' =>  $this->obtieneReferenciaInscripcion($uid, $secuencia,$idPeriodo),
                                                             'fechaMovto' => $fecha,
                                                             'parcialidad' => 0,
                                                             'folio' => $folio,
                                                             'uidcajero' => $uidcajero
                     ]));
                 }
-                 if ($restante > 0) 
-                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,0);
+
+                 if ($restante > 0 && ($movimiento['idServicio'] == $servicios->idServicioNotaCredito)) 
+                      $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero, $servicios->idServicioNotaCredito);
+                else if($restante > 0)
+                    $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,0);
+                
            
             } 
             else if($movimiento['idServicio'] == $servicios->idServicioRecargo)
