@@ -341,7 +341,7 @@ class EstadoCuentaController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -864,6 +864,9 @@ class EstadoCuentaController extends Controller{
         $importe = 0;
         $importeTotal = 0;
         $noRegistros =0;
+
+
+
         if (!is_array($movimientos)) 
             return response()->json(['error' => 'Datos inválidos, se espera un arreglo'], 400);
         
@@ -885,7 +888,7 @@ class EstadoCuentaController extends Controller{
                                 $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
                                     ->where('edocta.transaccion', '=',$transaccion);
                             })
-                            ->where('periodo.idPeriodo', $mov['idPeriodo'])
+                            ->where('periodo.activo', 1)
                             ->where('alumno.matricula', $matricula)
                             ->select('alumno.uid','alumno.secuencia', 'periodo.idPeriodo','edocta.transaccion')
                             ->first();
@@ -912,7 +915,9 @@ class EstadoCuentaController extends Controller{
 
            $importe = $importe + $abono;
            $noRegistros = $noRegistros + 1;
-           $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia,$mov['idPeriodo']);
+           $idPeriodo = $result->idPeriodo;
+
+           $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia,$idPeriodo);
            $movimiento = ['importe'        => $abono,
                           'idformaPago'    => $mov['idFormaPago'],
                           'idServicio'     => $servicios->idServicioTraspasoSaldos1,
@@ -925,8 +930,8 @@ class EstadoCuentaController extends Controller{
             $fecha = Carbon::createFromFormat('d/m/Y', str_replace('-', '/', $mov['dia']));
             $folio = (EstadoCuenta::max('folio') ?? 0) + 1;
            
-            $this->procesarMovimiento($movimiento, $servicios, $result->uid, $result->secuencia, 
-                                          $result->idPeriodo, $mov['uidcajero'],$fecha, $folio);  
+            $this->procesarMovimiento($movimiento, $servicios, $result->uid, $result->secuencia, $idPeriodo,
+                                           $mov['uidcajero'],$fecha, $folio);  
         }
 
         if(isset($registrosMal)){        
@@ -962,7 +967,7 @@ class EstadoCuentaController extends Controller{
             if (file_exists($filePath)) 
                         return response()->json([
                             'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
-                            'error'   => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport ,
+                            'error'   => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport ,
                             'status'  => 200
                         ], 200);
 

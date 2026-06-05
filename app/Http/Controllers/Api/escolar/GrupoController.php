@@ -6,6 +6,8 @@ use App\Models\escolar\Grupo;
 use Illuminate\Http\Request;  
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;  
 
 class GrupoController extends Controller
 {
@@ -228,4 +230,202 @@ public function obtenerAsignaturas($grupo){
                'data'    => $grupo
             ], 200);
          }
+
+
+
+   public function exportaExcel(){
+    // Ruta del archivo
+    $path = storage_path('app/public/grupos_rpt.xlsx');
+
+    // Columnas a seleccionar
+    $selectColumns = [ 'periodo.idPeriodo','periodo.descripcion AS periodo',
+                       'nivel.idNivel','nivel.descripcion AS nivel',
+                       'grupos.grupo', 'carrera.descripcion AS carrera',
+                       'grupos.idAsignatura', 'asignatura.descripcion AS asignatura',
+                       'turno.descripcion AS turno','empleado.uid',
+                        DB::raw("
+                              CONCAT(
+                                 persona.primerApellido, ' ',
+                                 persona.segundoApellido, ' ',
+                                 persona.nombre
+                              ) AS nombre
+                        "),
+                       'grupos.inscritos',
+                       DB::raw("
+                              CONCAT(
+                                 secretario.primerApellido, ' ',
+                                 secretario.segundoApellido, ' ',
+                                 secretario.nombre
+                              ) AS secretario
+                        "),
+                        DB::raw("
+                              CONCAT(
+                                 supervisor.primerApellido, ' ',
+                                 supervisor.segundoApellido, ' ',
+                                 supervisor.nombre
+                              ) AS supervisor
+                        "),
+                        DB::raw("
+                              CONCAT(
+                                 presidente.primerApellido, ' ',
+                                 presidente.segundoApellido, ' ',
+                                 presidente.nombre
+                              ) AS presidente
+                        "),
+                        'grupos.fechaIni', 'grupos.horaIni', 'grupos.horaFin',
+                        'grupos.logoSep','grupos.logoEscudo'
+                     ];
+
+    // Encabezados del Excel
+    $namesColumns = [ 'ID PERIODO','PERIODO','ID NIVEL', 'NIVEL','GRUPO','CARRERA','ID ASIGNATURA',
+                      'ASIGNATURA','TURNO','UID DOCENTE','DOCENTE','INSCRITOS','SECRETARIO','SUPERVISOR',
+                      'PRESIDENTE','FECHA INICIO','HORA INICIO','HORA FIN','LOGO SEP','LOGO ESCUDO'];
+
+   $joins = [
+      // grupos
+   [
+        'table' => 'grupos',
+        'type'  => 'inner',
+        'conditions' => [
+            [
+                'first'  => 'grupos.idNivel',
+                'second' => 'nivel.idNivel'
+            ]
+        ]
+    ],
+    // periodo
+    [
+        'table' => 'periodo',
+        'type'  => 'inner',
+        'conditions' => [
+            [
+                'first'  => 'periodo.activo',
+                'second' => DB::raw('1')
+            ],
+             [
+                'first'  => 'grupos.idPeriodo',
+                'second' => 'periodo.idPeriodo'
+            ],
+             [
+                'first'  => 'nivel.idNivel',
+                'second' => 'periodo.idNivel'
+            ]
+        ]
+    ],
+    // carrera
+    [
+        'table' => 'carrera',
+        'type'  => 'inner',
+        'conditions' => [
+            [
+                'first'  => 'carrera.idNivel',
+                'second' => 'nivel.idNivel'
+            ],
+            [
+                'first'  => DB::raw("SUBSTRING(grupos.grupo, 1, CASE WHEN LENGTH(grupos.grupo) = 4 THEN 1 ELSE 2 END)"),
+                'second' => 'carrera.idCarrera'
+             ]
+        ]
+    ],
+    // turno
+    [
+        'table' => 'turno',
+        'type'  => 'inner',
+        'conditions' => [
+            [
+                'first'  => 'turno.idTurno',
+                'second' => 'grupos.idTurno'
+            ]
+        ]
+    ],
+    // asignatura
+    [
+        'table' => 'asignatura',
+        'type'  => 'inner',
+        'conditions' => [
+            [
+                'first'  => 'asignatura.idAsignatura',
+                'second' => 'grupos.idAsignatura'
+            ]
+        ]
+    ],
+    // empleado
+    [
+        'table' => 'empleado',
+        'type'  => 'left',
+        'conditions' => [
+            [
+                'first'  => 'empleado.uid',
+                'second' => 'grupos.uidProfesor'
+            ]
+        ]
+    ],
+    // persona docente
+    [
+        'table' => 'persona',
+        'type'  => 'left',
+        'conditions' => [
+            [
+                'first'  => 'persona.uid',
+                'second' => 'empleado.uid'
+            ]
+        ]
+    ],
+    // secretario
+    [
+        'table' => 'persona as secretario',
+        'type'  => 'left',
+        'conditions' => [
+            [
+                'first'  => 'secretario.uid',
+                'second' => 'grupos.uidSecretario'
+            ]
+        ]
+    ],
+    // supervisor
+    [
+        'table' => 'persona as supervisor',
+        'type'  => 'left',
+        'conditions' => [
+            [
+                'first'  => 'supervisor.uid',
+                'second' => 'grupos.uidSupervisor'
+            ]
+        ]
+    ],
+    // presidente
+    [
+        'table' => 'persona as presidente',
+        'type'  => 'left',
+        'conditions' => [
+            [
+                'first'  => 'presidente.uid',
+                'second' => 'grupos.uidPresidente'
+            ]
+           ]
+       ]
+   ];
+
+    // Exportación
+    $export = new GenericTableExportEsp('nivel','grupos.grupo',
+                  [],['grupos.grupo'], ['asc'],$selectColumns, $joins, $namesColumns);
+
+    // Guardar archivo
+    Excel::store($export, 'grupos_rpt.xlsx', 'public');
+
+    // Validar existencia
+    if (file_exists($path)) {
+
+        return response()->json([
+            'status'  => 200,
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
+        ]);
+
+    } else {
+        return response()->json([
+            'status'  => 500,
+            'message' => 'Error al generar el reporte'
+        ]);
+    }
+}
 }

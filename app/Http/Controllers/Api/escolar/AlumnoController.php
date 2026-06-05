@@ -120,7 +120,7 @@ class AlumnoController extends Controller
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -187,7 +187,7 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -203,26 +203,135 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         $namesColumns = ['UID','NOMBRE','CVE CARRERA','NOMBRE CARRERA']; // Seleccionar columnas específicas
         
         $joins = [
-                  ['table' => 'alumno', 
-                   'type' => 'inner',
-                   'conditions' => [
-                        ['first' => 'alumno.uid', 'second' => 'ciclos.uid'],
-                        ['first' => 'alumno.secuencia', 'second' => 'ciclos.secuencia']
-                    ]
-                   ],
-                    ['table' => 'persona', 
-                    'type' => 'inner',
-                    'conditions' => [
-                        ['first' => 'ciclos.uid','second' => 'persona.uid']]                     
+                     [
+                        'table' => 'periodo',
+                        'type'  => 'inner',
+                        'conditions' => [
+                            [
+                                'first'  => DB::raw('1'),
+                                'second' => DB::raw('1')
+                            ]
+                        ]
                     ],
-                    ['table' => 'carrera', 
-                     'type' => 'left' ,
-                     'conditions' => [
-                        ['first' => 'carrera.idCarrera', 'second' => 'alumno.idCarrera'],
-                        ['first' => 'carrera.idNivel', 'second' => 'alumno.idNivel']
-                     ]                    
+                    // grupos
+                    [
+                        'table' => 'grupos',
+                        'type'  => 'inner',
+                        'conditions' => [
+                            [
+                                'first'  => 'grupos.idNivel',
+                                'second' => 'nivel.idNivel'
+                            ]
+                        ]
+                    ],
+
+                    // carrera
+                    [
+                        'table' => 'carrera',
+                        'type'  => 'inner',
+                        'conditions' => [
+                            [
+                                'first'  => 'carrera.idNivel',
+                                'second' => 'nivel.idNivel'
+                            ]
+                        ]
+                    ],
+
+                    // turno
+                    [
+                        'table' => 'turno',
+                        'type'  => 'inner',
+                        'conditions' => [
+                            [
+                                'first'  => 'turno.idTurno',
+                                'second' => 'grupos.idTurno'
+                            ],
+                            [
+                                'first'  => "DB::raw('SUBSTRING(grupos.grupo, 1,
+                                             CASE 
+                                                WHEN LENGTH(grupos.grupo) = 4 THEN 1
+                                                WHEN LENGTH(grupos.grupo) = 5 THEN 2
+                                                ELSE 2
+                                             END
+                                       
+                                       ))",
+                                'second' => 'carrera.idCarrera'
+                            ]
+                        ]
+                    ],
+
+                    // asignatura
+                    [
+                        'table' => 'asignatura',
+                        'type'  => 'inner',
+                        'conditions' => [
+                            [
+                                'first'  => 'asignatura.idAsignatura',
+                                'second' => 'grupos.idAsignatura'
+                            ]
+                        ]
+                    ],
+
+                    // empleado
+                    [
+                        'table' => 'empleado',
+                        'type'  => 'left',
+                        'conditions' => [
+                            [
+                                'first'  => 'empleado.uid',
+                                'second' => 'grupos.uidProfesor'
+                            ]
+                        ]
+                    ],
+
+                    // persona docente
+                    [
+                        'table' => 'persona',
+                        'type'  => 'left',
+                        'conditions' => [
+                            [
+                                'first'  => 'persona.uid',
+                                'second' => 'empleado.uid'
+                            ]
+                        ]
+                    ],
+
+                    // secretario
+                    [
+                        'table' => 'persona as secretario',
+                        'type'  => 'left',
+                        'conditions' => [
+                            [
+                                'first'  => 'secretario.uid',
+                                'second' => 'grupos.uidSecretario'
+                            ]
+                        ]
+                    ],
+
+                    // supervisor
+                    [
+                        'table' => 'persona as supervisor',
+                        'type'  => 'left',
+                        'conditions' => [
+                            [
+                                'first'  => 'supervisor.uid',
+                                'second' => 'grupos.uidSupervisor'
+                            ]
+                        ]
+                    ],
+
+                    // presidente
+                    [
+                        'table' => 'persona as presidente',
+                        'type'  => 'left',
+                        'conditions' => [
+                            [
+                                'first'  => 'presidente.uid',
+                                'second' => 'grupos.uidPresidente'
+                            ]
+                        ]
                     ]
-            ]; 
+                ];
 
         $filters = [ 'alumno.idNivel' => $idNivel,
                     'ciclos.idPeriodo' => $idPeriodo];
@@ -236,7 +345,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$name // URL pública para descargar el archivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$name // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([
@@ -294,7 +403,7 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $fileName
             
         ]);
     } else {
