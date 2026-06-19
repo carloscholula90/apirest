@@ -418,7 +418,7 @@ public function obtenerAsignaturas($grupo){
 
         return response()->json([
             'status'  => 200,
-            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
         ]);
 
     } else {

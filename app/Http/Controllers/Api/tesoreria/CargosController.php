@@ -230,7 +230,7 @@ class CargosController extends Controller
                     if (file_exists($path))  {
                         return response()->json([
                             'status' => 200,  
-                            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptCargosAnalitico.xlsx' // URL pública para descargar el archivo
+                            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptCargosAnalitico.xlsx' // URL pública para descargar el archivo
                         ]);
                         } else {
                             return response()->json([
@@ -387,7 +387,7 @@ class CargosController extends Controller
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptCargosConcentrado.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptCargosConcentrado.xlsx' // URL pública para descargar el archivo
             ]);
             } else {
                 return response()->json([
@@ -533,7 +533,7 @@ Log::info('termino pivote 4ett45:');
 
     return response()->json([
         'status'  => 200,
-        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
   
@@ -637,7 +637,7 @@ public function generateReportConcentrado(
 
     return response()->json([
         'status'  => 200,
-        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 

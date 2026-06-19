@@ -34,40 +34,45 @@ class ServicioCarreraController extends Controller
                     s.idServicio, s.descripcion AS servicio,
                     sp.monto,s.cargoAutomatico, sp.semestre,
                     t.idTurno, t.descripcion as turno,
-                    c.idCarrera, c.descripcion as carrera
+                    c.idCarrera, c.descripcion as carrera,sp.secuencia
             FROM servicio s
             INNER JOIN servicioCarrera sp ON sp.idServicio = s.idServicio
+            INNER JOIN periodo p ON p.idNivel = sp.idNivel AND p.idPeriodo = sp.idPeriodo
+                        AND (p.activo = 1 OR p.inscripciones = 1)             
             INNER JOIN carrera c ON sp.idCarrera = c.idCarrera AND sp.idNivel = c.idNivel
             INNER JOIN nivel n ON n.idNivel = sp.idNivel
-            INNER JOIN periodo p ON p.idNivel = sp.idNivel AND p.idPeriodo = sp.idPeriodo
-            INNER JOIN turno t ON t.idTurno = sp.idTurno
-            WHERE (p.activo = 1 OR p.inscripciones = 1)  
+            INNER JOIN turno t ON t.idTurno = sp.idTurno            
             ORDER BY n.idNivel, p.idPeriodo, c.idCarrera, s.idServicio, t.idTurno, sp.semestre");
 
     $estructura = [];
 
-    foreach ($rows as $row) {
-    if (!isset($estructura[$row->licenciatura])) {
-        $estructura[$row->licenciatura] = [
+foreach ($rows as $row) {
+
+    $nivelKey = $row->idNivel;
+    $periodoKey = $row->idPeriodo;
+
+    // Nivel
+    if (!isset($estructura[$nivelKey])) {
+        $estructura[$nivelKey] = [
             'nivel' => $row->licenciatura,
             'idNivel' => $row->idNivel,
             'periodos' => []
         ];
     }
 
-    $periodos =& $estructura[$row->licenciatura]['periodos'];
-
-    if (!isset($periodos[$row->idPeriodo])) {
-        $periodos[$row->idPeriodo] = [
+    // Periodo
+    if (!isset($estructura[$nivelKey]['periodos'][$periodoKey])) {
+        $estructura[$nivelKey]['periodos'][$periodoKey] = [
             'idPeriodo' => $row->idPeriodo,
             'descripcion' => $row->periodo,
             'servicios' => []
         ];
     }
 
-    $periodos[$row->idPeriodo]['servicios'][] = [
+    // Servicio
+    $estructura[$nivelKey]['periodos'][$periodoKey]['servicios'][] = [
         'idServicio' => $row->idServicio,
-        'idNivel'=> $row->idNivel,
+        'idNivel' => $row->idNivel,
         'descripcion' => $row->servicio,
         'cargoAutomatico' => $row->cargoAutomatico,
         'idTurno' => $row->idTurno,
@@ -75,15 +80,21 @@ class ServicioCarreraController extends Controller
         'carrera' => $row->carrera,
         'turno' => $row->turno,
         'semestre' => $row->semestre,
-        'monto'=>  $row->monto
-        ];
-    }
+        'monto' => $row->monto,
+        'secuencia' => $row->secuencia
+    ];
+}
 
-        // Convertir a arrays indexados
-        $final = array_values(array_map(function($licenciatura) {
-            $licenciatura['periodos'] = array_values($licenciatura['periodos']);
-            return $licenciatura;
-        }, $estructura));
+// Convertir periodos a arreglos indexados
+foreach ($estructura as &$nivel) {
+    $nivel['periodos'] = array_values($nivel['periodos']);
+}
+unset($nivel);
+
+// Convertir niveles a arreglo indexado
+$final = array_values($estructura);
+
+return $final;
     return $final;
 }
 
@@ -197,6 +208,7 @@ class ServicioCarreraController extends Controller
                                     'idNivel' => 'required|numeric',
                                     'idPeriodo' => 'required|numeric',
                                     'monto' => 'required|numeric',
+                                    'secuencia' => 'required|numeric',
                                     'idCarrera' => 'required|numeric',
                                     'idTurno' => 'required|numeric',
                                     'semestre' => 'required|numeric',
@@ -213,6 +225,8 @@ class ServicioCarreraController extends Controller
                             ->where('idServicio', $request->idServicio)
                             ->where('idCarrera', $request->idCarrera)
                             ->where('idTurno', $request->idTurno)
+                            ->where('semestre', $request->semestre)
+                            ->where('secuencia', $request->secuencia)
                             ->update(['monto' => $request->monto,
                             'semestre' => $request->semestre,
                             'aplicaIns' => $request->aplicaIns
@@ -338,7 +352,7 @@ class ServicioCarreraController extends Controller
         if (file_exists($path))  {  
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/serviciosCarrerasRpt.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/serviciosCarrerasRpt.xlsx' // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([

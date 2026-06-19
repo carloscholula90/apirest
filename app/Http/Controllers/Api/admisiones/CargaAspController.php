@@ -10,7 +10,8 @@ use App\Models\general\Integra;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;    
-use Illuminate\Support\Facades\Log;  
+use Illuminate\Support\Facades\Log; 
+use Illuminate\Support\Str; 
 use App\Http\Controllers\Api\serviciosGenerales\ResultadoCargaExport;
    
 class CargaAspController extends Controller{
@@ -18,61 +19,66 @@ class CargaAspController extends Controller{
 
 public function store(Request $request)
 {
-    $totalReg = 0;
     $renglon = 1;
     $resultados = [];
 
     foreach ($request->all() as $aspiranteData) {
 
-        $renglon++;
-
-       
+        $renglon++;   
+        DB::beginTransaction();
         try {
-
             $curp = strtoupper(trim($aspiranteData['curp'] ?? ''));
 
             if (!preg_match('/^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9]{2}$/', $curp)) {
-
                 $resultados[] = [
                     'renglon' => $renglon,
                     'estatus' => 'ERROR',
                     'mensaje' => 'CURP inválida',
                     'uid' => ''
                 ];
-
                 continue;
             }
 
             $grupo = trim($aspiranteData['grupo'] ?? '');
 
             if (!in_array(strlen($grupo), [4, 5])) {
-
                 $resultados[] = [
-                    'renglon' => $renglon,
-                    'estatus' => 'ERROR',
-                    'mensaje' => 'El grupo debe tener 4 o 5 caracteres',
-                    'uid' => ''
+                                'renglon' => $renglon,
+                                'estatus' => 'ERROR',
+                                'mensaje' => 'El grupo debe tener 4 o 5 caracteres',
+                                'uid' => ''
                 ];
+                continue;
+            }
 
-                DB::rollBack();
+            $idPlan = DB::table('plan')
+                        ->where('idCarrera', $aspiranteData['idCarrera'])
+                        ->where('idNivel', $aspiranteData['idNivel'])
+                        ->where('vigente', 1)
+                        ->value('idPlan');
+
+                    if (!$idPlan) {
+                        $resultados[] = [
+                                'renglon' => $renglon,
+                                'estatus' => 'ERROR',
+                                'mensaje' => 'No existe un plan vigente para la carrera y nivel indicados',
+                                'uid' => ''
+                ];
                 continue;
             }
 
             $existeCarrera = DB::table('carrera')
-                ->where('idCarrera', $aspiranteData['idCarrera'])
-                ->where('idNivel', $aspiranteData['idNivel'])
-                ->exists();
+                                ->where('idCarrera', $aspiranteData['idCarrera'])
+                                ->where('idNivel', $aspiranteData['idNivel'])
+                                ->exists();
 
             if (!$existeCarrera) {
-
                 $resultados[] = [
-                    'renglon' => $renglon,
-                    'estatus' => 'ERROR',
-                    'mensaje' => 'La carrera no pertenece al nivel indicado',
-                    'uid' => ''
-                ];
-
-                DB::rollBack();
+                                'renglon' => $renglon,
+                                'estatus' => 'ERROR',
+                                'mensaje' => 'La carrera no pertenece al nivel indicado',
+                                'uid' => ''
+                            ];
                 continue;
             }
 
@@ -80,23 +86,19 @@ public function store(Request $request)
             $uid = $uid ?: 0;
 
             if ($uid > 0) {
-
                 $existeAlumno = DB::table('alumno')
-                    ->where('uid', $uid)
-                    ->where('idCarrera', $aspiranteData['idCarrera'])
-                    ->where('idNivel', $aspiranteData['idNivel'])
-                    ->exists();
+                                ->where('uid', $uid)
+                                ->where('idCarrera', $aspiranteData['idCarrera'])
+                                ->where('idNivel', $aspiranteData['idNivel'])
+                                ->exists();
 
                 if ($existeAlumno) {
-
                     $resultados[] = [
-                        'renglon' => $renglon,
-                        'estatus' => 'ERROR',
-                        'mensaje' => 'La persona ya está dada de alta en la carrera',
-                        'uid' => $uid
-                    ];
-
-                    DB::rollBack();
+                                    'renglon' => $renglon,
+                                    'estatus' => 'ERROR',
+                                    'mensaje' => 'La persona ya está dada de alta en la carrera',
+                                    'uid' => $uid
+                                ];
                     continue;
                 }
             }
@@ -106,34 +108,23 @@ public function store(Request $request)
             $mes = substr($fechaCurp, 2, 2);
             $dia = substr($fechaCurp, 4, 2);
 
-            $anioCompleto = ($anio >= date('y'))
-                ? '19' . $anio
-                : '20' . $anio;
-
+            $anioCompleto = ($anio >= date('y')) ? '19' . $anio : '20' . $anio;
             $fechaNacimiento = $anioCompleto . '-' . $mes . '-' . $dia;
-
             $sexo = substr($curp, 10, 1);
-
-            $letraTurno = substr(
-                $grupo,
-                0,
-                strlen($grupo) == 4 ? 3 : 2
-            );
+            $semestre = substr($grupo, strlen($grupo) == 5 ? 3 : 2, 1);
+            $letraTurno = substr($grupo, strlen($grupo) == 5 ? 2 : 1, 1);
 
             $idTurno = DB::table('turno')
-                ->where('letra', $letraTurno)
-                ->value('idTurno');
+                            ->where('letra', $letraTurno)
+                            ->value('idTurno');
 
             if (!$idTurno) {
-
                 $resultados[] = [
-                    'renglon' => $renglon,
-                    'estatus' => 'ERROR',
-                    'mensaje' => 'No existe el turno para el grupo indicado',
-                    'uid' => ''
+                                'renglon' => $renglon,
+                                'estatus' => 'ERROR',
+                                'mensaje' => 'No existe el turno para el grupo indicado ',
+                                'uid' => ''
                 ];
-
-                DB::rollBack();
                 continue;
             }
 
@@ -145,22 +136,22 @@ public function store(Request $request)
                 $newId = $maxId ? $maxId + 1 : 1;
 
                 $persona = Persona::create([
-                    'uid' => $newId,
-                    'curp' => $curp,
-                    'nombre' => strtoupper(trim($aspiranteData['nombre'] ?? '')),
-                    'primerApellido' => strtoupper(trim(
-                        $aspiranteData['primerApellido']
-                        ?? $aspiranteData['paterno']
-                        ?? ''
-                    )),
-                    'segundoApellido' => strtoupper(trim(
-                        $aspiranteData['segundoApellido']
-                        ?? $aspiranteData['materno']
-                        ?? ''
-                    )),
-                    'fechaNacimiento' => $fechaNacimiento,
-                    'sexo' => strtoupper($sexo)
-                ]);
+                                    'uid' => $newId,
+                                    'curp' => $curp,
+                                    'nombre' => strtoupper(trim($aspiranteData['nombre'] ?? '')),
+                                    'primerApellido' => strtoupper(trim(
+                                        $aspiranteData['primerApellido']
+                                        ?? $aspiranteData['paterno']
+                                        ?? ''
+                                    )),
+                                    'segundoApellido' => strtoupper(trim(
+                                        $aspiranteData['segundoApellido']
+                                        ?? $aspiranteData['materno']
+                                        ?? ''
+                                    )),
+                                    'fechaNacimiento' => $fechaNacimiento,
+                                    'sexo' => strtoupper($sexo)
+                                ]);
 
                 if (!$persona) {
                     throw new \Exception('No fue posible crear la persona');
@@ -168,8 +159,8 @@ public function store(Request $request)
             }
 
             $maxSeq = Integra::where('uid', $newId)
-                                ->where('idRol', 3)
-                                ->max('secuencia');
+                              ->where('idRol', 3)
+                              ->max('secuencia');
 
             $secuencialPers = $maxSeq ? $maxSeq + 1 : 1;
 
@@ -188,53 +179,57 @@ public function store(Request $request)
                                 'idTurno' => $idTurno,
                                 'uidEmpleado' => $aspiranteData['uidEmpleado'],
                                 'fechaSolicitud' => now(),
-                                'semestreIngreso' => $aspiranteData['semestre'],
+                                'semestreIngreso' => $semestre,
                                 'observaciones' => ''
-            ]);
+            ]);  
 
-            DB::select(
-                'CALL conviertealumno(?, ?, ?, ?, ?, ?, ?, ?)',[
-                                                                $newId,
-                                                                $aspiranteData['idPeriodo'],
-                                                                $secuencialPers,
-                                                                $aspiranteData['idCarrera'],
-                                                                $idTurno,
-                                                                $aspiranteData['semestre'],
-                                                                $aspiranteData['uidEmpleado'],
-                                                                $aspiranteData['idNivel']
-                                                                ]
-            );
-            $totalReg++;
+            DB::commit();
+            $result = DB::select('CALL conviertealumno(?, ?, ?, ?, ?, ?, ?,?)', 
+                                                        [$newId,
+                                                        $aspiranteData['idPeriodo'], 
+                                                        $secuencialPers,
+                                                        $aspiranteData['idCarrera'],
+                                                        $idTurno,
+                                                        $semestre,
+                                                        $aspiranteData['uidEmpleado'],
+                                                        $aspiranteData['idNivel']
+                                                        ]);
+      
+           
             $resultados[] = [
-                'renglon' => $renglon,
-                'estatus' => 'OK',
-                'mensaje' => 'Alumno registrado correctamente',
-                'uid' => $newId
+                            'renglon' => $renglon,
+                            'estatus' => 'OK',
+                            'mensaje' => 'Alumno registrado correctamente ',
+                            'uid' => $newId
             ];
 
         } catch (\Throwable $e) {
             $resultados[] = [
-                'renglon' => $renglon,
-                'estatus' => 'ERROR',
-                'mensaje' => $e->getMessage(),
-                'uid' => ''
-            ];
+                            'renglon' => $renglon,
+                            'estatus' => 'ERROR',
+                            'mensaje' => $e->getMessage(),
+                            'uid' => ''
+                        ];
+                         DB::rollBack();
         }
     }
-    $path = storage_path('app/public/resultado_carga_aspirantes.xlsx');
+    $nombreArchivo = 'resultado_carga_aspirantes_'.Str::random(8) . '.xlsx';
+    $path = storage_path('app/public/' . $nombreArchivo);
+
     $export = new ResultadoCargaExport($resultados);
-    Excel::store($export, 'resultado_carga_aspirantes.xlsx', 'public');
-        // Verifica si el archivo existe usando Storage de Laravel
-        if (file_exists($path))  {
+    Excel::store($export, $nombreArchivo, 'public');
+
+        // Verifica si el archivo existe
+        if (file_exists($path)) {
             return response()->json([
-                'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/resultado_carga_aspirantes.xlsx' // URL pública para descargar el archivo
+                'status' => 200,
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nombreArchivo
             ]);
         } else {
             return response()->json([
                 'status' => 500,
-                'message' => 'Error al generar el reporte '
+                'message' => 'Error al generar el reporte'
             ]);
-        }  
+        }
     }
 }
