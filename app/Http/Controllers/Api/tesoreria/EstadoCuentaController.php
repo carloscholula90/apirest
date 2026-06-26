@@ -915,7 +915,7 @@ class EstadoCuentaController extends Controller{
 
            $importe = $importe + $abono;
            $noRegistros = $noRegistros + 1;
-           $idPeriodo = $result->idPeriodo;
+           $idPeriodo = $mov['idPeriodo'] ?? $result->idPeriodo;
 
            $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia,$idPeriodo);
            $movimiento = ['importe'        => $abono,
