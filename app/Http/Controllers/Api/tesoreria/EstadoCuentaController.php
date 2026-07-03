@@ -877,18 +877,28 @@ class EstadoCuentaController extends Controller{
                     'error' => "Falta campo en elemento $index",
                 ], 400);
             }
-            
+
             $transaccion = $mov['transaccion'];
             $abono = floatval($mov['abono']);
             $matricula = (int) substr($mov['concepto'], 0, 7);
             $importeTotal = $importeTotal + $abono;
+        
+            $periodo = DB::table('periodo as p')
+                            ->join('alumno', 'p.idNivel', '=', 'alumno.idNivel')
+                            ->where('p.activo', 1)
+                            ->where('alumno.matricula', $matricula)
+                            ->select('p.idPeriodo')
+                            ->first();
+
+            $idPeriodo = $mov['idPeriodo'] ?? $periodo->idPeriodo;
+  
             $result = DB::table('periodo')  
                             ->join('alumno', 'periodo.idNivel', '=', 'alumno.idNivel')
                             ->leftJoin('edocta', function ($join) use ($transaccion) {
                                 $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
                                     ->where('edocta.transaccion', '=',$transaccion);
                             })
-                            ->where('periodo.activo', 1)
+                            ->where('periodo.idPeriodo', $idPeriodo)
                             ->where('alumno.matricula', $matricula)
                             ->select('alumno.uid','alumno.secuencia', 'periodo.idPeriodo','edocta.transaccion')
                             ->first();
@@ -915,8 +925,7 @@ class EstadoCuentaController extends Controller{
 
            $importe = $importe + $abono;
            $noRegistros = $noRegistros + 1;
-           $idPeriodo = $mov['idPeriodo'] ?? $result->idPeriodo;
-
+          
            $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia,$idPeriodo);
            $movimiento = ['importe'        => $abono,
                           'idformaPago'    => $mov['idFormaPago'],

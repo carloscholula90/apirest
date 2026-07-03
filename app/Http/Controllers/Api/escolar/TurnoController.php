@@ -13,6 +13,71 @@ class TurnoController extends Controller{
         return $this->returnData('turnos',$turnos,200);
     }
 
+    public function turnosConDetalle()
+    {
+        $turnos = Turno::with(['detallesTurno' => function ($query) {
+            $query->orderBy('idDtlTurno');
+        }])
+            ->orderBy('descripcion')
+            ->get()
+            ->map(function ($turno) {
+                $detalles = $turno->detallesTurno;
+                $horaInicio = $detalles->min('horaInicio');
+                $horaFin = $detalles->max('horaFin');
+                $horario = $horaInicio && $horaFin
+                    ? $this->formatHora($horaInicio) . ' - ' . $this->formatHora($horaFin)
+                    : null;
+
+                return [
+                    'idTurno' => $turno->idTurno,
+                    'descripcion' => $turno->descripcion,
+                    'letra' => $turno->letra,
+                    'parciales' => $turno->parciales,
+                    'textoTurno' => $horario
+                        ? trim($turno->descripcion) . ' (' . $horario . ')'
+                        : trim($turno->descripcion),
+                    'horaInicio' => $horaInicio,
+                    'horaFin' => $horaFin,
+                    'horario' => $horario,
+                    'diasTurno' => $detalles->map(function ($detalle) {
+                        return [
+                            'idDtlTurno' => $detalle->idDtlTurno,
+                            'diaSemana' => $detalle->diaSemana,
+                            'diaCorto' => $this->diaCorto($detalle->diaSemana),
+                            'horaInicio' => $detalle->horaInicio,
+                            'horaFin' => $detalle->horaFin,
+                        ];
+                    })->values(),
+                ];
+            });
+
+        return $this->returnData('turnos', $turnos, 200);
+    }
+
+    private function formatHora($hora)
+    {
+        return substr($hora, 0, 5);
+    }
+
+    private function diaCorto($diaSemana)
+    {
+        $dias = [
+            'LUNES' => 'L',
+            'MARTES' => 'M',
+            'MIERCOLES' => 'M',
+            'MIÉRCOLES' => 'M',
+            'JUEVES' => 'J',
+            'VIERNES' => 'V',
+            'SABADO' => 'S',
+            'SÁBADO' => 'S',
+            'DOMINGO' => 'D',
+        ];
+
+        $dia = strtoupper(trim($diaSemana));
+
+        return $dias[$dia] ?? substr($dia, 0, 1);
+    }
+
     public function store(Request $request)
     {
 

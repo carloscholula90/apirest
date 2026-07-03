@@ -432,88 +432,103 @@ public function getAvance($uid,$secuencia){
         return response()->json($data, 200);
     }
 
-    public function getAlumno($uid){
-        $subCiclos = DB::table('ciclos as c1')
-                    ->select('c1.uid', 'c1.secuencia', 'c1.idPeriodo', 'c1.grupo')
-                    ->whereRaw('c1.idPeriodo = (
-                        SELECT MAX(c2.idPeriodo)
-                        FROM ciclos c2
-                        WHERE c2.uid = c1.uid
-                        AND c2.secuencia = c1.secuencia
-                    )');
+   public function getAlumno($uid){
 
-        $alumnos = DB::table('alumno as a')
-                    ->join('nivel as n', 'n.idNivel', '=', 'a.idNivel')
-                    ->join('carrera as c', function($join) {
-                        $join->on('c.idCarrera', '=', 'a.idCarrera')
-                            ->on('c.idNivel', '=', 'a.idNivel');
-                    })
-                    ->join('persona as p', 'p.uid', '=', 'a.uid')
-                    ->leftJoin('ciudad as ci', function($join) {
-                        $join->on('ci.idEstado', '=', 'p.idEstado')
-                            ->on('ci.idPais', '=', 'p.idPais')
-                            ->on('ci.idCiudad', '=', 'p.idCiudad');
-                    })
-                    ->leftJoin('estado as e', function($join) {
-                        $join->on('e.idEstado', '=', 'p.idEstado')
-                            ->on('e.idPais', '=', 'p.idPais');
-                    })
-                    ->leftJoin('pais as pa', 'pa.idPais', '=', 'p.idPais')
-                    ->leftJoin('edoCivil as ec', 'ec.idEdoCivil', '=', 'p.idEdoCivil')
-                    ->leftJoinSub($subCiclos, 'sc', function ($join) {
-                        $join->on('sc.uid', '=', 'a.uid')
-                            ->on('sc.secuencia', '=', 'a.secuencia');
-                    })
-                    ->leftJoin('periodo as per', function ($join) {
-                        $join->on('per.idPeriodo', '=', 'sc.idPeriodo')
-                            ->on('per.idNivel', '=', 'a.idNivel');
-                    })
-                    // Búsqueda optimizada: varias columnas con OR
-                    ->where(function($query) use ($uid) {
-                    $query->where(DB::raw("CONCAT(p.nombre, ' ', p.primerApellido, ' ', p.segundoApellido)"),
-                                        'LIKE', "%{$uid}%")
-                            ->orWhere('p.uid', 'LIKE', "%{$uid}%")
-                            ->orWhere('a.matricula', 'LIKE', "%{$uid}%");      
-                    })
-                    ->select([
-                        'a.uid',     
-                        'a.idNivel',
-                        'a.secuencia',
-                        'a.idCarrera',
-                        'a.matricula',
-                        'n.descripcion as nivel',
-                        'c.descripcion as nombreCarrera',
-                        'p.curp',
-                        'p.nombre',
-                        'p.primerapellido',
-                        'p.segundoapellido',
-                        'p.sexo',
-                        'p.rfc',
-                        'p.fechaNacimiento',
-                        'ci.descripcion as ciudad',
-                        'e.descripcion as estado',
-                        'pa.descripcion as pais',
-                        'ec.descripcion as edocivil',
-                        'sc.idPeriodo',
-                        'sc.grupo',
-                        'per.descripcion as periodo'
-                    ])
-                    ->get();
+    $alumnos = DB::table('alumno as a')
+        ->join('nivel as n', 'n.idNivel', '=', 'a.idNivel')
 
-            if (!$alumnos) {
-                $data = [
-                    'message' => 'Alumno no encontrado',
-                    'status' => 404
-                ];
-                return response()->json($data, 404);
-            }
-    
-            $data = [
-                'alumnos' => $alumnos,
-                'status' => 200
-            ];
-    
-            return response()->json($data, 200);
+        ->join('carrera as c', function ($join) {
+            $join->on('c.idCarrera', '=', 'a.idCarrera')
+                 ->on('c.idNivel', '=', 'a.idNivel');
+        })
+        ->join('persona as p', function ($join) use ($uid) {
+                $like = "%{$uid}%";
+
+                $join->on('p.uid', '=', 'a.uid')
+                    ->whereRaw("
+                        (
+                            CONCAT(p.nombre, ' ', p.primerApellido, ' ', p.segundoApellido) LIKE ?
+                            OR p.uid LIKE ?
+                            OR a.matricula LIKE ?
+                        )
+                    ", [$like, $like, $like]);
+            })
+        ->leftJoin('ciudad as ci', function ($join) {
+            $join->on('ci.idEstado', '=', 'p.idEstado')
+                 ->on('ci.idPais', '=', 'p.idPais')
+                 ->on('ci.idCiudad', '=', 'p.idCiudad');
+        })
+
+        ->leftJoin('estado as e', function ($join) {
+            $join->on('e.idEstado', '=', 'p.idEstado')
+                 ->on('e.idPais', '=', 'p.idPais');
+        })
+
+        ->leftJoin('pais as pa', 'pa.idPais', '=', 'p.idPais')
+
+        ->leftJoin('edoCivil as ec', 'ec.idEdoCivil', '=', 'p.idEdoCivil')
+
+        // Periodo activo del nivel del alumno
+        ->join('periodo as perActivo', function ($join) {
+            $join->on('perActivo.idNivel', '=', 'a.idNivel')
+                 ->where('perActivo.activo', '=', 1);
+        })
+
+      ->leftJoin('ciclos as sc', function ($join) {
+                $join->on('sc.uid', '=', 'a.uid')
+                    ->on('sc.secuencia', '=', 'a.secuencia')
+                    ->whereRaw("
+                        sc.idPeriodo IN (perActivo.idPeriodo, perActivo.idPeriodo + 1)
+                    ");
+            })  // Periodo real del ciclo encontrado
+        ->leftJoin('periodo as per', function ($join) {
+            $join->on('per.idPeriodo', '=', 'sc.idPeriodo')
+                 ->on('per.idNivel', '=', 'a.idNivel');
+        })
+
+      ->select([
+                    'a.uid',
+                    'a.idNivel',
+                    'a.secuencia',
+                    'a.idCarrera',
+                    'a.matricula',
+
+                    'n.descripcion as nivel',
+                    'c.descripcion as nombreCarrera',
+
+                    'p.curp',
+                    DB::raw("CONCAT(p.primerApellido, ' ', p.segundoApellido, ' ', p.nombre) AS nombre"),
+
+                    'p.primerApellido',
+                    'p.segundoApellido',
+                    'p.sexo',
+                    'p.rfc',
+                    'p.fechaNacimiento',
+
+                    'ci.descripcion as ciudad',
+                    'e.descripcion as estado',
+                    'pa.descripcion as pais',
+                    'ec.descripcion as edoCivil',
+
+                    'sc.idPeriodo',
+                    'sc.grupo',
+                    'per.descripcion as periodo',
+                ])
+                ->get();
+    if ($alumnos->isEmpty()) {
+        $data = [
+            'message' => 'Alumno no encontrado',
+            'status' => 404
+        ];
+
+        return response()->json($data, 404);
     }
 
+    $data = [
+        'alumnos' => $alumnos,
+        'status' => 200
+    ];
+
+    return response()->json($data, 200);
+}
 }

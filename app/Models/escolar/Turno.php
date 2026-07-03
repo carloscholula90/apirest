@@ -20,4 +20,9 @@ class Turno extends Model
                         'letra',
                         'parciales'
     ];
+
+    public function detallesTurno()
+    {
+        return $this->hasMany(DetalleTurno::class, 'idTurno', 'idTurno');
+    }
 }

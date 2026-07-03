@@ -62,6 +62,10 @@ Route::prefix('bloqueospersonas')->group(function () {
 Route::prefix('cancelainscripciones')->group(function () {
     require base_path('routes/escolar/cancelainscripciones.php');
 });
+
+Route::prefix('calendariopago')->group(function () {
+    require base_path('routes/tesoreria/calendariopago.php');
+});
   
 Route::prefix('carreras')->group(function () {
     require base_path('routes/escolar/carreras.php');
@@ -113,6 +117,14 @@ Route::prefix('contactos')->group(function () {
 
 Route::prefix('detallesplanes')->group(function () {
     require base_path('routes/escolar/detallesplanes.php');
+});
+
+Route::prefix('detallesturno')->group(function () {
+    require base_path('routes/escolar/detallesturno.php');
+});
+
+Route::prefix('defaultturno')->group(function () {
+    require base_path('routes/escolar/defaultturno.php');
 });
   
 Route::prefix('direcciones')->group(function () {
@@ -170,6 +182,10 @@ Route::prefix('grupos')->group(function () {
 
 Route::prefix('horarios')->group(function () {
     require base_path('routes/escolar/horarios.php');
+});
+
+Route::prefix('horarioprofesor')->group(function () {
+    require base_path('routes/escolar/horarioprofesor.php');
 });
 
 Route::prefix('idiomas')->group(function () {
@@ -311,6 +327,10 @@ Route::prefix('servicioscobro')->group(function () {
 
 Route::prefix('tipoasignatura')->group(function () {
     require base_path('routes/escolar/tipoasignatura.php');
+});
+
+Route::prefix('tipobloque')->group(function () {
+    require base_path('routes/escolar/tipobloque.php');
 });
 
 Route::prefix('tiposexamenes')->group(function () {
