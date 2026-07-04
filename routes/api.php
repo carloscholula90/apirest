@@ -168,6 +168,10 @@ Route::prefix('estados')->group(function () {
     require base_path('routes/general/estados.php');
 });
 
+Route::prefix('entradas')->group(function () {
+    require base_path('routes/general/entradas.php');
+});
+
 Route::prefix('estatusfacturas')->group(function () {
     require base_path('routes/tesoreria/estatusfacturas.php');
 });
