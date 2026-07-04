@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\tesoreria\CalendarioPagoController;
+use App\Http\Controllers\Api\nomina\CalendarioPagoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [CalendarioPagoController::class, 'index']);

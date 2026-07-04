@@ -27,6 +27,10 @@ Route::prefix('aceptaAviso')->group(function () {
     require base_path('routes/general/aceptaAviso.php');
 });
 
+Route::prefix('adeudos')->group(function () {
+    require base_path('routes/tesoreria/adeudos.php');
+});
+
 Route::prefix('alumnos')->group(function () {
     require base_path('routes/escolar/alumnos.php');
 });
@@ -64,7 +68,7 @@ Route::prefix('cancelainscripciones')->group(function () {
 });
 
 Route::prefix('calendariopago')->group(function () {
-    require base_path('routes/tesoreria/calendariopago.php');
+    require base_path('routes/nomina/calendariopago.php');
 });
   
 Route::prefix('carreras')->group(function () {

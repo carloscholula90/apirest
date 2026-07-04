@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Api\tesoreria;
+namespace App\Http\Controllers\Api\nomina;
 
 use App\Http\Controllers\Controller;
-use App\Models\tesoreria\CalendarioPago;
+use App\Models\nomina\CalendarioPago;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;

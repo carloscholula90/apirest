@@ -254,15 +254,29 @@ public function store(Request $request){
     }
 
 
-    public function condonar(Request $request){
+public function condonar(Request $request)
+{
+    $data = $request->validate([
+        'movimientos' => 'required|array|min:1',
+        'movimientos.*.uid' => 'required|integer',
+        'movimientos.*.secuencia' => 'required|integer',
+        'movimientos.*.idServicio' => 'required|integer',
+        'movimientos.*.consecutivo' => 'required|integer',
+        'movimientos.*.idPeriodo' => 'required|integer',
+        'movimientos.*.uidcajero' => 'required|integer',
+    ]);
 
-        $data = $request->validate(['movimientos' => 'required|array']);
-        $fecha = Carbon::now('America/Mexico_City')->format('Y-m-d');
-        DB::beginTransaction();
+    $fecha = Carbon::now('America/Mexico_City')->format('Y-m-d');
 
-        try {
+    DB::beginTransaction();
 
-            foreach ($data['movimientos'] as $movimiento) 
+    try {
+        $uid = null;
+        $secuencia = null;
+        $idPeriodo = null;
+        $uidcajero = null;
+
+        foreach ($data['movimientos'] as $movimiento) {
             DB::table('edocta')
                 ->where('uid', $movimiento['uid'])
                 ->where('secuencia', $movimiento['secuencia'])
@@ -274,12 +288,79 @@ public function store(Request $request){
                     'fechaMovto' => $fecha,
                     'uidcajero' => $movimiento['uidcajero']
                 ]);
-            DB::commit();
-            return $this->returnData('mensaje', 'condonacion exitosa', 200);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return $this->returnEstatus('Error actualizar el registro', 500, $e->getMessage());
+
+            $uid = $movimiento['uid'];
+            $secuencia = $movimiento['secuencia'];
+            $idPeriodo = $movimiento['idPeriodo'];
+            $uidcajero = $movimiento['uidcajero'];
         }
+
+        // Obtener matrícula
+        $matricula = DB::table('alumno')
+            ->where('uid', $uid)
+            ->where('secuencia', $secuencia)
+            ->value('matricula');
+
+        if (!$matricula) {
+            DB::rollBack();
+
+            return $this->returnEstatus(
+                'No se encontró la matrícula del alumno',
+                404,
+                'Matrícula no encontrada'
+            );
+        }
+
+        // Recalcular saldo
+        DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [
+            $uid,
+            $matricula,
+            $idPeriodo
+        ]);
+
+        $saldoResult = DB::select("SELECT @vencido AS vencido, @total AS total");
+
+        $vencido = $saldoResult[0]->vencido ?? 0;
+
+        if ($vencido > 0) {
+            $existe = DB::table('bloqueoPersonas')
+                ->where('uid', $uid)
+                ->where('secuencia', $secuencia)
+                ->where('idBloqueo', 1)
+                ->exists();
+
+            if (!$existe) {
+                DB::table('bloqueoPersonas')->insert([
+                    'uid' => $uid,
+                    'secuencia' => $secuencia,
+                    'idBloqueo' => 1,
+                    'uidBloqueador' => $uidcajero,
+                    'secuenciaBloq' => 1,
+                    'BloqueoActivo' => '1',
+                    'fechaBloqueo' => Carbon::now('America/Mexico_City'),
+                    'descripcion' => 'Adeudo'
+                ]);
+            }
+        } else {
+            DB::table('bloqueoPersonas')
+                ->where('uid', $uid)
+                ->where('secuencia', $secuencia)
+                ->where('idBloqueo', 1)
+                ->delete();
+        }
+
+        DB::commit();
+
+        return $this->returnData('mensaje', 'Condonación exitosa', 200);
+
+    } catch (\Throwable $e) {
+        DB::rollBack();
+
+        return $this->returnEstatus(
+            'Error al actualizar el registro',
+            500,
+            $e->getMessage()
+        );
     }
-    
+}    
   }

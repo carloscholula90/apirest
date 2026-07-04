@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\tesoreria;
+namespace App\Models\nomina;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

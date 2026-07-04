@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF;
 use App\Http\Controllers\Api\serviciosGenerales\GenericExport;
 
-class SaldosController extends Controller{
+class AdeudosController extends Controller{
 
     protected $pdfController;
 
@@ -22,139 +22,101 @@ class SaldosController extends Controller{
         $this->pdfController = $pdfController;
     }
 
-    public function consulta($idNivel,$activo,$idPeriodo,$fechaLimite){
- 
-     $periodo = null; 
-
-        if($idPeriodo==0)
-        $periodo = DB::table('periodo')
-                       ->select('idPeriodo')
-                       ->where('activo', 1)
-                       ->where('idNivel', $idNivel)
-                       ->first();
-       
-        $periodoB = $periodo->idPeriodo ?? $idPeriodo;
-  
+    public function consulta($idNivel,$idPeriodo,$fechaLimite){
+      
+        $periodoB = $idPeriodo;  
+      
         $query = DB::table('alumno')
-                        ->join('persona', 'persona.uid', '=', 'alumno.uid')
-                        ->join('carrera as car', function ($join) {
-                            $join->on('car.idNivel', '=', 'alumno.idNivel')
-                                ->on('car.idCarrera', '=', 'alumno.idCarrera');
-                        })
-                        ->join('configuracionTesoreria as ct', 'ct.idNivel', '=', 'alumno.idNivel')
-                        ->leftJoin('ciclos', function ($join) use ($periodoB) {
-                            $join->on('ciclos.uid', '=', 'alumno.uid')
-                                ->on('ciclos.secuencia', '=', 'alumno.secuencia')
-                                ->where('ciclos.idPeriodo', '=', $periodoB);
-                        })
-                        ->leftJoin('edocta as e', function ($join) use ($periodoB, $fechaLimite) {
-                            $join->on('e.uid', '=', 'alumno.uid')
-                                ->on('e.secuencia', '=', 'alumno.secuencia')
-                                ->where('e.idPeriodo', '=', $periodoB)
-                                ->whereDate('e.FechaPago', '<=', $fechaLimite);
-                        })
-                        ->leftJoin('servicio as s', function ($join) {
-                            $join->on('s.idServicio', '=', 'e.idServicio')
-                                ->where('s.tipoEdoCta', 1);
-                        })
-                       ->where('alumno.idNivel', $idNivel)
-                        ->groupBy(
-                            'alumno.uid',
-                            'persona.primerApellido',
-                            'persona.segundoApellido',
-                            'persona.nombre',
-                            'car.descripcion',
-                            'ciclos.grupo'
-                        )
-                        ->select([
-                            'persona.uid',
-                            'car.descripcion as carrera',
-                            'ciclos.grupo',
-                            DB::raw("CONCAT(
-                                persona.primerApellido,' ',
-                                persona.segundoApellido,' ',
-                                persona.nombre
-                            ) AS nombre"),
-                            DB::raw("
-                                IFNULL(SUM(
-                                    CASE WHEN e.tipomovto = 'C'
-                                    THEN e.importe ELSE 0 END
-                                ),0)
-                                -
-                                IFNULL(SUM(
-                                    CASE 
-                                        WHEN e.tipomovto = 'A'
-                                        AND e.idServicio IN (
-                                            ct.idServicioInscripcion,
-                                            ct.idServicioColegiatura,
-                                            ct.idServicioRecargo,
-                                            ct.idServicioBeca,
-                                            ct.idServicioNotaCredito,
-                                            ct.idServicioTraspasoSaldos1
-                                        )
-                                    THEN e.importe ELSE 0 END
-                                ),0)
-                                AS saldo
-                            "),
-                        ]);
+            ->join('persona', 'persona.uid', '=', 'alumno.uid')
+            ->join('carrera as car', function ($join) {
+                $join->on('car.idNivel', '=', 'alumno.idNivel')
+                    ->on('car.idCarrera', '=', 'alumno.idCarrera');
+            })
+            ->join('configuracionTesoreria as ct', 'ct.idNivel', '=', 'alumno.idNivel')
+            ->leftJoin('ciclos', function ($join) use ($periodoB) {
+                $join->on('ciclos.uid', '=', 'alumno.uid')
+                    ->on('ciclos.secuencia', '=', 'alumno.secuencia')
+                    ->where('ciclos.idPeriodo', '=', $periodoB);
+            })
+            ->leftJoin('edocta as e', function ($join) use ($periodoB) {
+                $join->on('e.uid', '=', 'alumno.uid')
+                    ->on('e.secuencia', '=', 'alumno.secuencia')
+                    ->where('e.idPeriodo', '=', $periodoB)
+                    ->where(function ($q) {
+                        $q->whereColumn('e.idServicio', 'ct.idServicioInscripcion')
+                            ->orWhereColumn('e.idServicio', 'ct.idServicioColegiatura')
+                            ->orWhereColumn('e.idServicio', 'ct.idServicioRecargo')
+                            ->orWhereColumn('e.idServicio', 'ct.idServicioBeca')
+                            ->orWhereColumn('e.idServicio', 'ct.idServicioNotaCredito')
+                            ->orWhereColumn('e.idServicio', 'ct.idServicioNotaCargo')
+                            ->orWhereColumn('e.idServicio', 'ct.idServicioTraspasoSaldos1');
+                    });
+            })
+            ->where('alumno.idNivel', $idNivel)
+            ->select([
+                'persona.uid',
+                'car.descripcion as carrera',
+                'ciclos.grupo'
+            ])
+            ->selectRaw("
+                CONCAT(
+                    persona.primerApellido, ' ',
+                    persona.segundoApellido, ' ',
+                    persona.nombre
+                ) AS nombre
+            ")
+            ->selectRaw("
+                IFNULL(SUM(
+                    CASE
+                        WHEN e.tipomovto = 'C'
+                        AND (DATE(e.fechaVencimiento) <= ? OR e.fechaVencimiento IS NULL)
+                        THEN e.importe
+                        ELSE 0
+                    END
+                ), 0)
+                -
+                IFNULL(SUM(
+                    CASE
+                        WHEN e.tipomovto = 'A'
+                        AND DATE(e.FechaPago) <= ?
+                        THEN e.importe
+                        ELSE 0
+                    END
+                ), 0) AS saldo
+            ", [$fechaLimite, $fechaLimite])
+            ->groupBy(
+                'persona.uid',
+                'persona.primerApellido',
+                'persona.segundoApellido',
+                'persona.nombre',
+                'car.descripcion',
+                'ciclos.grupo'
+            )
+            ->havingRaw('saldo > 0');
+                    
+        $dataArray = $query->get()->map(fn ($i) => (array) $i)->toArray();
 
-                    /* 🔹 SERVICIOS (solo si NO está activo) */
-                    if ($activo == 0) {
-                        $query->addSelect(DB::raw("
-                            IFNULL(SUM(
-                                CASE 
-                                    WHEN e.tipomovto = 'A'
-                                    AND e.idServicio NOT IN (
-                                        ct.idServicioInscripcion,
-                                        ct.idServicioColegiatura,
-                                        ct.idServicioRecargo,
-                                        ct.idServicioBeca,
-                                        ct.idServicioNotaCredito,
-                                        ct.idServicioTraspasoSaldos1
-                                    )
-                                THEN e.importe ELSE 0 END
-                            ),0) AS servicios
-                        "));
-                    }
-                    $query->havingRaw(
-                        $activo == 0
-                            ? '(saldo > 0 OR servicios > 0)'
-                            : 'saldo > 0'
-                    ); 
-                       
-                    $dataArray = $query->get()->map(fn($i) => (array)$i)->toArray();
-                    $total = $query->count();
-                    return $dataArray;
+        return $dataArray;
      }
 
      // Función para generar el reporte de personas
     public function generaReporte($idNivel,$idPeriodo,$fechaLimite){
                       
-       $config = DB::table('configuracion')
-                    ->where('id_campo', 1)
-                    ->first();
-
-       $activo = $config->valor ?? 0;
                    
-       $dataArray= $this->consulta($idNivel,$activo,$idPeriodo,$fechaLimite);
+       $dataArray= $this->consulta($idNivel,$idPeriodo,$fechaLimite);
          
        $headers = ['UID', 'NOMBRE', 'CARRERA', 'GRUPO','ADEUDO'];
        $columnWidths = [80, 300, 200,100,100];
        $keys = ['uid', 'nombre', 'carrera', 'grupo','saldo'];
 
-        if ($activo == 0) {
-            $headers[] = 'ADEUDO SERVICIOS A LA FECHA '.$fechaLimite;
-            $columnWidths[] = 100;
-            $keys[] = 'servicios';
-        }  
-
+        
         $aleatorio =random_int(1, 1000);
 
         return $this->generateReport(
             $dataArray,
             $columnWidths,
             $keys,
-            'REPORTE DE ADEUDOS A LA FECHA '.$fechaLimite,
+            'REPORTE DE ADEUDOS VENCIDOS A LA FECHA '.$fechaLimite,
             $headers,
             'L',
             'letter',

@@ -1105,14 +1105,48 @@ class EstadoCuentaController extends Controller{
             ->where('idPeriodo', $idPeriodo)
             ->where('consecutivo', '>=', $consecutivo)
             ->delete();
-        });
-          Log::info('uid:'.$uid);  
-           Log::info('secuencia:'.$secuencia);  
-            Log::info('idPeriodo:'.$idPeriodo);  
-             Log::info('consecutivo:'.$consecutivo);  
-             Log::info('idPeriodo:'.$idPeriodo);  
-              Log::info('uidcajero:'.$uidcajero);
-                      
+        });        
+
+         $matricula = DB::table('alumno')
+                    ->where('uid', $uid)
+                    ->where('secuencia', $secuencia)
+                    ->value('matricula'); // devuelve directamente string o int
+
+        DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
+
+        $saldoResult = DB::select("SELECT @vencido AS vencido, @total AS total");
+  
+       if ($saldoResult[0]->vencido > 0) {
+                    // Verificamos si ya existe el registro
+                    $existe = DB::table('bloqueoPersonas')
+                        ->where('uid', $uid)
+                        ->where('secuencia', $secuencia)
+                        ->where('idBloqueo', 1)
+                        ->exists();
+
+                    // Si no existe, insertamos
+                    if (!$existe) {
+                        DB::table('bloqueoPersonas')->insert([
+                            'uid' => $uid,
+                            'secuencia' => $secuencia,
+                            'idBloqueo' => 1,
+                            'uidBloqueador' => $uidcajero,
+                            'secuenciaBloq' => 1,
+                            'BloqueoActivo' => '1', // S o N, dependiendo de tu convención
+                            'fechaBloqueo' => now(), // o date('Y-m-d')
+                            'descripcion' => 'Adeudo'
+                        ]);
+                    }
+        }
+        else{
+             DB::table('bloqueoPersonas')
+                    ->where('uid', $uid)
+                    ->where('secuencia', $secuencia)
+                    ->where('idBloqueo', 1)
+                    ->delete();
+
+        }
+
          return $this->returnData('Registros eliminados',null,200);  
     }
 
