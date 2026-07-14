@@ -59,6 +59,10 @@ Route::prefix('avisosPrivacidad')->group(function () {
     require base_path('routes/general/avisosPrivacidad.php');
 });
 
+Route::prefix('auditoria/estado-cuenta')->group(function () {
+    require base_path('routes/auditoria/estadoCuenta.php');
+});
+
 Route::prefix('bloqueospersonas')->group(function () {
     require base_path('routes/seguridad/bloqueospersonas.php');
 });

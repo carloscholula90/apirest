@@ -26,6 +26,38 @@ class EstadoCuentaController extends Controller{
         return $this->returnData('EstadoCuenta',$resultados,200);
     }
 
+    public function buscarLogPorUidSecuencia($uid, $secuencia)
+    {
+        $movimientos = DB::table('edocta')
+            ->select(
+                'uid',
+                'secuencia',
+                'idPeriodo',
+                'idServicio',
+                'consecutivo',
+                'importe',
+                'tipomovto',
+                'fechaMovto',
+                'folio',
+                'log'
+            )
+            ->where('uid', $uid)
+            ->where('secuencia', $secuencia)
+            ->orderBy('idPeriodo')
+            ->orderBy('consecutivo')
+            ->get()
+            ->map(function ($movimiento) {
+                $movimiento->logJson = $movimiento->log ? json_decode($movimiento->log, true) : null;
+                return $movimiento;
+            });
+
+        if ($movimientos->isEmpty()) {
+            return $this->returnEstatus('No se encontraron movimientos para el uid y secuencia indicados', 404, null);
+        }
+
+        return $this->returnData('movimientos', $movimientos, 200);
+    }
+
     public function obtenerFolios($uid,$matricula,$tipoEdoCta){
             $datos = DB::table('edocta as edo')
                             ->select(
@@ -1211,4 +1243,3 @@ class EstadoCuentaController extends Controller{
             return $this->returnData('abonos',$resultados,200);
     }
 }
-

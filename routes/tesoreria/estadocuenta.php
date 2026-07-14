@@ -6,6 +6,13 @@ use Illuminate\Support\Facades\Route;
 Route::group([], function () {   
 
     Route::get(
+        '/log/{uid}/{secuencia}',
+        [EstadoCuentaController::class, 'buscarLogPorUidSecuencia']
+    )
+    ->whereNumber('uid')
+    ->whereNumber('secuencia');
+
+    Route::get(
         '/folios/{uid}/{matricula}/{tipoEdoCta}',
         [EstadoCuentaController::class, 'obtenerFolios']
     )
