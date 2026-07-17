@@ -267,6 +267,305 @@ class SaldosController extends Controller{
         }
      }
 
+    public function consultaSaldosNegativos($idNivel, $idPeriodo, $tipoCuenta)
+    {
+        $funcionSaldo = $tipoCuenta == 1 ? 'consultaSaldo' : 'consultaSaldo2';
+        $nombreTipoCuenta = $tipoCuenta == 1 ? 'ESTADO DE CUENTA 1' : 'ESTADO DE CUENTA 2';
+
+        $datos = DB::query()
+            ->fromSub(function ($query) use ($idNivel, $idPeriodo, $funcionSaldo, $tipoCuenta, $nombreTipoCuenta) {
+                $query->from('ciclos as c')
+                    ->join('alumno as a', function ($join) {
+                        $join->on('a.uid', '=', 'c.uid')
+                            ->on('a.secuencia', '=', 'c.secuencia');
+                    })
+                    ->join('carrera as car', function ($join) {
+                        $join->on('car.idNivel', '=', 'a.idNivel')
+                            ->on('car.idCarrera', '=', 'a.idCarrera');
+                    })
+                    ->join('persona', 'persona.uid', '=', 'a.uid')
+                    ->where('c.idPeriodo', $idPeriodo)
+                    ->where('a.idNivel', $idNivel)
+                    ->select(
+                        'c.uid',
+                        'a.matricula',
+                        'car.descripcion as escuela',
+                        DB::raw($tipoCuenta . ' AS tipoCuenta'),
+                        DB::raw("'" . $nombreTipoCuenta . "' AS nombreTipoCuenta"),
+                        'persona.primerApellido',
+                        'persona.segundoApellido',
+                        'persona.nombre',
+                        DB::raw($funcionSaldo . '(c.uid, a.matricula, c.idPeriodo) AS saldo')
+                    );
+            }, 't')
+            ->where('t.saldo', '<', 0)
+            ->orderBy('t.escuela')
+            ->orderBy('t.primerApellido')
+            ->orderBy('t.segundoApellido')
+            ->orderBy('t.nombre')
+            ->get()
+            ->map(fn($i) => (array)$i)
+            ->toArray();
+
+        return $datos;
+    }
+
+    public function saldosNegativos($idNivel, $idPeriodo)
+    {
+        $dataArray = array_merge(
+            $this->consultaSaldosNegativos($idNivel, $idPeriodo, 1),
+            $this->consultaSaldosNegativos($idNivel, $idPeriodo, 2)
+        );
+
+        if (empty($dataArray)) {
+            return $this->returnEstatus('No existen saldos negativos para los parametros indicados', 404, null);
+        }
+
+        usort($dataArray, function ($a, $b) {
+            return [$a['tipoCuenta'], $a['escuela'], $a['primerApellido'], $a['segundoApellido'], $a['nombre']]
+                <=> [$b['tipoCuenta'], $b['escuela'], $b['primerApellido'], $b['segundoApellido'], $b['nombre']];
+        });
+
+        $headers = ['UID', 'MATRICULA', 'ESCUELA', 'NOMBRE', 'SALDO'];
+        $columnWidths = [70, 80, 190, 260, 90];
+        $keys = ['uid', 'matricula', 'escuela', 'nombreCompleto', 'saldo'];
+
+        $dataArray = array_map(function ($row) {
+            $row['nombreCompleto'] = trim(
+                ($row['primerApellido'] ?? '') . ' ' .
+                ($row['segundoApellido'] ?? '') . ' ' .
+                ($row['nombre'] ?? '')
+            );
+
+            return $row;
+        }, $dataArray);
+
+        $aleatorio = random_int(1, 1000);
+
+        return $this->generateReportSaldosNegativos(
+            $dataArray,
+            $columnWidths,
+            $keys,
+            'REPORTE DE SALDOS NEGATIVOS',
+            $headers,
+            'L',
+            'letter',
+            'rptSaldosNegativos'.$aleatorio.'.pdf'
+        );
+    }
+
+    public function exportaExcelSaldosNegativos($idNivel, $idPeriodo)
+    {
+        $dataArray = array_merge(
+            $this->consultaSaldosNegativos($idNivel, $idPeriodo, 1),
+            $this->consultaSaldosNegativos($idNivel, $idPeriodo, 2)
+        );
+
+        if (empty($dataArray)) {
+            return $this->returnEstatus('No existen saldos negativos para los parametros indicados', 404, null);
+        }
+
+        usort($dataArray, function ($a, $b) {
+            return [$a['tipoCuenta'], $a['escuela'], $a['primerApellido'], $a['segundoApellido'], $a['nombre']]
+                <=> [$b['tipoCuenta'], $b['escuela'], $b['primerApellido'], $b['segundoApellido'], $b['nombre']];
+        });
+
+        $dataFinal = [];
+        $tipoCuentaActual = null;
+        $totalTipoCuenta = 0;
+        $totalGeneral = 0;
+
+        foreach ($dataArray as $row) {
+            if ($tipoCuentaActual !== $row['nombreTipoCuenta']) {
+                if ($tipoCuentaActual !== null) {
+                    $dataFinal[] = [
+                        'tipoCuenta' => 'TOTAL ' . $tipoCuentaActual,
+                        'uid' => '',
+                        'matricula' => '',
+                        'escuela' => '',
+                        'nombreCompleto' => '',
+                        'saldo' => $totalTipoCuenta,
+                    ];
+                    $totalTipoCuenta = 0;
+                }
+
+                $dataFinal[] = [
+                    'tipoCuenta' => $row['nombreTipoCuenta'],
+                    'uid' => '',
+                    'matricula' => '',
+                    'escuela' => '',
+                    'nombreCompleto' => '',
+                    'saldo' => '',
+                ];
+
+                $tipoCuentaActual = $row['nombreTipoCuenta'];
+            }
+
+            $row['nombreCompleto'] = trim(
+                ($row['primerApellido'] ?? '') . ' ' .
+                ($row['segundoApellido'] ?? '') . ' ' .
+                ($row['nombre'] ?? '')
+            );
+
+            $dataFinal[] = [
+                'tipoCuenta' => $row['nombreTipoCuenta'],
+                'uid' => $row['uid'],
+                'matricula' => $row['matricula'],
+                'escuela' => $row['escuela'],
+                'nombreCompleto' => $row['nombreCompleto'],
+                'saldo' => $row['saldo'],
+            ];
+
+            $totalTipoCuenta += (float)$row['saldo'];
+            $totalGeneral += (float)$row['saldo'];
+        }
+
+        if ($tipoCuentaActual !== null) {
+            $dataFinal[] = [
+                'tipoCuenta' => 'TOTAL ' . $tipoCuentaActual,
+                'uid' => '',
+                'matricula' => '',
+                'escuela' => '',
+                'nombreCompleto' => '',
+                'saldo' => $totalTipoCuenta,
+            ];
+        }
+
+        $dataFinal[] = [
+            'tipoCuenta' => 'TOTAL GENERAL',
+            'uid' => '',
+            'matricula' => '',
+            'escuela' => '',
+            'nombreCompleto' => '',
+            'saldo' => $totalGeneral,
+        ];
+
+        $headers = ['TIPO CUENTA', 'UID', 'MATRICULA', 'ESCUELA', 'NOMBRE', 'SALDO'];
+        $keys = ['tipoCuenta', 'uid', 'matricula', 'escuela', 'nombreCompleto', 'saldo'];
+        $aleatorio = random_int(1, 1000);
+        $nameReport = 'rptSaldosNegativos'.$aleatorio.'.xlsx';
+        $path = storage_path('app/public/'.$nameReport);
+
+        Excel::store(new GenericExport($dataFinal, $headers, $keys), $nameReport, 'public');
+
+        if (file_exists($path)) {
+            return response()->json([
+                'status' => 200,
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport
+            ]);
+        }
+
+        return response()->json([
+            'status' => 500,
+            'message' => 'Error al generar el reporte'
+        ]);
+    }
+
+    public function generateReportSaldosNegativos(
+        $data,
+        $columnWidths,
+        $keys,
+        $title,
+        $headers,
+        $orientation,
+        $size,
+        $nameReport
+    ) {
+        $imagePathEnc = public_path('images/encPag.png');
+        $imagePathPie = public_path('images/piePag.png');
+
+        $pdf = new CustomTCPDF($orientation, PDF_UNIT, $size, true, 'UTF-8', false);
+        $pdf->setHeaders(null, $columnWidths, $title);
+        $pdf->setImagePaths($imagePathEnc, $imagePathPie, $orientation);
+
+        $pdf->SetFont('helvetica', '', 14);
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('SIAWEB');
+        $pdf->SetMargins(15, 30, 15);
+        $pdf->SetAutoPageBreak(true, 25);
+        $pdf->AddPage();
+        $pdf->SetFont('helvetica', '', 8);
+
+        $html = '<br><br><br><table border="0" cellpadding="1">';
+        $html .= '<tr>';
+
+        foreach ($headers as $index => $header) {
+            $align = $index === count($headers) - 1 ? 'right' : 'left';
+            $html .= '<td style="font-size:9px;" width="' . $columnWidths[$index] . '" align="' . $align . '"><b>' .
+                htmlspecialchars($header) . '</b></td>';
+        }
+
+        $html .= '</tr><tr><td colspan="' . count($headers) . '"></td></tr>';
+
+        $totalGeneral = 0;
+        $totalTipoCuenta = 0;
+        $tipoCuentaActual = null;
+
+        foreach ($data as $row) {
+            if ($tipoCuentaActual !== $row['nombreTipoCuenta']) {
+                if ($tipoCuentaActual !== null) {
+                    $html .= '<tr><td colspan="' . count($headers) . '"><hr></td></tr>';
+                    $html .= '<tr style="font-weight:bold;font-size:9px;">
+                                <td colspan="4">TOTAL ' . htmlspecialchars($tipoCuentaActual) . '</td>
+                                <td align="right">$ ' . number_format($totalTipoCuenta, 2) . '</td>
+                              </tr>';
+                    $totalTipoCuenta = 0;
+                }
+
+                $html .= '<tr>
+                            <td colspan="' . count($headers) . '" style="font-weight:bold;font-size:9px;">
+                                <br><br>' . htmlspecialchars($row['nombreTipoCuenta']) . '
+                            </td>
+                          </tr>';
+
+                $tipoCuentaActual = $row['nombreTipoCuenta'];
+            }
+
+            $html .= '<tr>';
+
+            foreach ($keys as $index => $key) {
+                $value = $row[$key] ?? '';
+
+                if ($key === 'saldo') {
+                    $totalGeneral += (float)$value;
+                    $totalTipoCuenta += (float)$value;
+                    $html .= '<td width="' . $columnWidths[$index] . '" align="right">$ ' .
+                        number_format((float)$value, 2) . '</td>';
+                } else {
+                    $html .= '<td width="' . $columnWidths[$index] . '">' .
+                        htmlspecialchars((string)$value) . '</td>';
+                }
+            }
+
+            $html .= '</tr>';
+        }
+
+        if ($tipoCuentaActual !== null) {
+            $html .= '<tr><td colspan="' . count($headers) . '"><hr></td></tr>';
+            $html .= '<tr style="font-weight:bold;font-size:9px;">
+                        <td colspan="4">TOTAL ' . htmlspecialchars($tipoCuentaActual) . '</td>
+                        <td align="right">$ ' . number_format($totalTipoCuenta, 2) . '</td>
+                      </tr>';
+        }
+
+        $html .= '<tr><td colspan="' . count($headers) . '"><hr></td></tr>';
+        $html .= '<tr style="font-weight:bold;font-size:10px;">
+                    <td colspan="4">TOTAL GENERAL</td>
+                    <td align="right">$ ' . number_format($totalGeneral, 2) . '</td>
+                  </tr>';
+        $html .= '</table>';
+
+        $pdf->writeHTML($html);
+
+        $filePath = storage_path('app/public/' . $nameReport);
+        $pdf->Output($filePath, 'F');
+
+        return response()->json([
+            'status'  => 200,
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        ]);
+    }
+
 
      public function generateReport(
     $data,

@@ -447,7 +447,7 @@ public function getAvance($uid,$secuencia){
                 $join->on('p.uid', '=', 'a.uid')
                     ->whereRaw("
                         (
-                            CONCAT(p.nombre, ' ', p.primerApellido, ' ', p.segundoApellido) LIKE ?
+                            CONCAT(p.primerApellido, ' ', p.segundoApellido,' ',p.nombre) LIKE ?                            
                             OR p.uid LIKE ?
                             OR a.matricula LIKE ?
                         )

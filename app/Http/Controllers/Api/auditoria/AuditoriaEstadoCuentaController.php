@@ -19,7 +19,7 @@ class AuditoriaEstadoCuentaController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return $this->returnEstatus('Error en la validacion de los datos', 400, $validator->errors());
+            return $this->returnEstatus('Error en la validación de los datos', 400, $validator->errors());
         }
 
         $auditoria = DB::select($this->queryAuditoriaEstadoCuenta(), [
@@ -28,7 +28,7 @@ class AuditoriaEstadoCuentaController extends Controller
         ]);
 
         if (empty($auditoria)) {
-            return $this->returnEstatus('No se encontraron registros de auditoria', 404, null);
+            return $this->returnEstatus('No se encontraron registros de auditoría', 404, null);
         }
 
         return $this->returnData('auditoria', $auditoria, 200);
@@ -58,7 +58,7 @@ SELECT
     CASE
         WHEN logs_base.operacion = 'I' THEN
             CONCAT(
-                'Se agrego un ',
+                'Se agregó un ',
                 CASE JSON_UNQUOTE(JSON_EXTRACT(logs_base.log, '$.tipomovto'))
                     WHEN 'C' THEN 'cargo'
                     WHEN 'A' THEN 'abono'
@@ -71,7 +71,7 @@ SELECT
             )
         WHEN logs_base.operacion = 'D' THEN
             CONCAT(
-                'Se elimino un ',
+                'Se eliminó un ',
                 CASE JSON_UNQUOTE(JSON_EXTRACT(logs_base.log, '$.tipomovto'))
                     WHEN 'C' THEN 'cargo'
                     WHEN 'A' THEN 'abono'
@@ -85,10 +85,10 @@ SELECT
         WHEN logs_base.operacion = 'U' THEN
             CASE
                 WHEN GREATEST(JSON_LENGTH(logs_base.log) - 8, 0) = 0 THEN
-                    CONCAT('Se registro una actualizacion en ', servicio.descripcion, ', pero no cambio ningun campo auditado')
+                    CONCAT('Se registró una actualización en ', servicio.descripcion, ', pero no cambió ningún campo auditado')
                 ELSE
                     CONCAT(
-                        'Se realizo modificacion en ',
+                        'Se realizó modificación en ',
                         CASE
                             WHEN JSON_CONTAINS_PATH(logs_base.log, 'one', '$.referenciaI') = 1 THEN
                                 CONCAT(
@@ -109,7 +109,7 @@ SELECT
                                             'noviembre',
                                             'diciembre'
                                         ),
-                                        'mes no valido'
+                                        'mes no válido'
                                     )
                                 )
                         END,
@@ -136,7 +136,7 @@ SELECT
                             END,
                             CASE
                                 WHEN JSON_CONTAINS_PATH(logs_base.log, 'one', '$.cuatrodigitos') = 1 THEN
-                                    CONCAT('ultimos cuatro digitos a ', COALESCE(JSON_UNQUOTE(JSON_EXTRACT(logs_base.log, '$.cuatrodigitos')), 'sin valor'))
+                                    CONCAT('últimos cuatro dígitos a ', COALESCE(JSON_UNQUOTE(JSON_EXTRACT(logs_base.log, '$.cuatrodigitos')), 'sin valor'))
                             END,
                             CASE
                                 WHEN JSON_CONTAINS_PATH(logs_base.log, 'one', '$.tipomovto') = 1 THEN
@@ -175,13 +175,13 @@ SELECT
                             END,
                             CASE
                                 WHEN JSON_CONTAINS_PATH(logs_base.log, 'one', '$.transaccion') = 1 THEN
-                                    CONCAT('transaccion a ', COALESCE(JSON_UNQUOTE(JSON_EXTRACT(logs_base.log, '$.transaccion')), 'sin valor'))
+                                    CONCAT('transacción a ', COALESCE(JSON_UNQUOTE(JSON_EXTRACT(logs_base.log, '$.transaccion')), 'sin valor'))
                             END
                         )
                     )
             END
         ELSE
-            'No fue posible identificar la accion'
+            'No fue posible identificar la acción'
     END AS descripcion,
     CASE
         WHEN logs_base.origen <> 'LARAVEL' THEN 'ADMINISTRADOR'

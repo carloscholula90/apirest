@@ -224,7 +224,7 @@ class ReciboController extends Controller
     $datosRecibos = $datos[0]; 
     
     Carbon::setLocale('es');  
-    $fecha = Carbon::now('America/Mexico_City')->translatedFormat('d \d\e F \d\e Y');
+    $fecha = \Carbon\Carbon::parse($datosRecibos->fechaPago)->translatedFormat('d \d\e F \d\e Y');
     $folioFormateado = str_pad($folio, 5, '0', STR_PAD_LEFT);
     $totalFormateado = number_format($datosRecibos->total, 2, '.', ',');
 

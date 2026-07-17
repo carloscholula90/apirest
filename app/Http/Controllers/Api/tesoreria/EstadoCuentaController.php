@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth; 
 use Illuminate\Support\Str;
 
-class EstadoCuentaController extends Controller{
+class EstadoCuentaController extends Controller{  
 
 
     public function validarQR($uid,$qr){
@@ -914,25 +914,10 @@ class EstadoCuentaController extends Controller{
             $abono = floatval($mov['abono']);
             $matricula = (int) substr($mov['concepto'], 0, 7);
             $importeTotal = $importeTotal + $abono;
-        
-            $periodo = DB::table('periodo as p')
-                            ->join('alumno', 'p.idNivel', '=', 'alumno.idNivel')
-                            ->where('p.activo', 1)
-                            ->where('alumno.matricula', $matricula)
-                            ->select('p.idPeriodo')
-                            ->first();
 
-            $idPeriodo = $mov['idPeriodo'] ?? $periodo->idPeriodo;
-  
-            $result = DB::table('periodo')  
-                            ->join('alumno', 'periodo.idNivel', '=', 'alumno.idNivel')
-                            ->leftJoin('edocta', function ($join) use ($transaccion) {
-                                $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
-                                    ->where('edocta.transaccion', '=',$transaccion);
-                            })
-                            ->where('periodo.idPeriodo', $idPeriodo)
+            $result = DB::table('alumno')  
                             ->where('alumno.matricula', $matricula)
-                            ->select('alumno.uid','alumno.secuencia', 'periodo.idPeriodo','edocta.transaccion')
+                            ->select('alumno.uid','alumno.secuencia')
                             ->first();
 
             if (!$result) {
@@ -944,6 +929,26 @@ class EstadoCuentaController extends Controller{
                 ];
                 continue;
             } 
+        
+            $periodo = DB::table('periodo as p')
+                            ->join('alumno', 'p.idNivel', '=', 'alumno.idNivel')
+                            ->where('p.activo', 1)
+                            ->where('alumno.matricula', $matricula)
+                            ->select('p.idPeriodo')
+                            ->first();
+
+            $idPeriodo = $mov['idPeriodo'] ?? $periodo->idPeriodo;
+  
+           $result = DB::table('periodo')  
+                            ->join('alumno', 'periodo.idNivel', '=', 'alumno.idNivel')
+                            ->leftJoin('edocta', function ($join) use ($transaccion) {
+                                $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
+                                    ->where('edocta.transaccion', '=',$transaccion);
+                            })
+                            ->where('periodo.idPeriodo', $idPeriodo)
+                            ->where('alumno.matricula', $matricula)
+                            ->select('alumno.uid','alumno.secuencia', 'periodo.idPeriodo','edocta.transaccion')
+                            ->first();
          
             if (isset($result->transaccion)) {
                      $registrosMal[] = [
