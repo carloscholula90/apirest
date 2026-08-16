@@ -193,9 +193,9 @@ class BecasAlumnoController extends Controller{
                             'fechaModificacion' => Carbon::now(),
                         ]);
 
-        $datos = $this->obtenerSemestre($uid,$secuencia);       
-        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?, ? ,?)", [$idNivel,$idPeriodo,
-                                                         $uid,$secuencia, $datos->semestre, $datos->idTurno]);
+        $datos = $this->obtenerSemestre($request->uid,$request->secuencia);       
+        DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?, ? ,?)", [$request->idNivel,$request->idPeriodo,
+                                                         $request->uid,$request->secuencia, $datos->semestre, $datos->idTurno]);
                     
         return $this->returnData('Beca',"Actualizado ",200);
     }

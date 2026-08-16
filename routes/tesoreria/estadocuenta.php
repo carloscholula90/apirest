@@ -36,6 +36,14 @@ Route::group([], function () {
     ->whereNumber('tipoEdoCta');
 
     Route::get(
+        '/pagosEdo/{uid}/{secuencia}/{idPeriodo}',
+        [EstadoCuentaController::class, 'getAbonos2']
+    )
+    ->whereNumber('uid')
+    ->whereNumber('secuencia')
+    ->whereNumber('idPeriodo');
+
+    Route::get(
         '/pagos/{uid}/{secuencia}/{idPeriodo}',
         [EstadoCuentaController::class, 'getAbonos']
     )
@@ -56,6 +64,11 @@ Route::group([], function () {
     Route::post(
         '/create',
         [EstadoCuentaController::class, 'store']
+    );
+
+    Route::post(
+        '/create-dinamico',
+        [EstadoCuentaController::class, 'storeDinamico']
     );
 
     Route::get(

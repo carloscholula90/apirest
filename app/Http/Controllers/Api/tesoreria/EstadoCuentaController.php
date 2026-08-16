@@ -69,7 +69,12 @@ class EstadoCuentaController extends Controller{
                             ->join('alumno as a', function($join) {
                                 $join->on('a.uid', '=', 'edo.uid')
                                     ->on('a.secuencia', '=', 'edo.secuencia');
-                            })                          
+                            })
+                            ->join('periodo as per', function($join) {
+                                $join->on('per.idNivel', '=', 'a.idNivel')
+                                    ->on('per.idPeriodo', '=', 'edo.idPeriodo')
+                                    ->where('per.activo', 1);
+                            })
                             ->where('edo.uid', $uid)       
                             ->where('s.tipoEdoCta', $tipoEdoCta)
                             ->where('a.matricula', $matricula)
@@ -561,13 +566,53 @@ class EstadoCuentaController extends Controller{
                     ]));
                 }
 
-                 if ($restante > 0 && ($movimiento['idServicio'] == $servicios->idServicioNotaCredito)) 
-                      $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero, $servicios->idServicioNotaCredito);
+                 if ($restante > 0 ) {
+                    $adeudosServicio58 = DB::table('edocta')
+                        ->select([
+                            'referencia',
+                            'parcialidad',
+                            DB::raw("SUM(CASE WHEN tipomovto = 'C' THEN importe ELSE -importe END) AS saldo"),
+                        ])
+                        ->where('uid', $uid)
+                        ->where('secuencia', $secuencia)
+                        ->where('idPeriodo', $idPeriodo)
+                        ->where('idServicio', 58)
+                        ->groupBy('referencia', 'parcialidad')
+                        ->havingRaw("SUM(CASE WHEN tipomovto = 'C' THEN importe ELSE -importe END) > 0")
+                        ->orderBy('parcialidad')
+                        ->get();
+
+                    foreach ($adeudosServicio58 as $adeudoServicio58) {
+                        if ($restante <= 0) {
+                            break;
+                        }
+
+                        $pagoServicio58 = min($restante, (float) $adeudoServicio58->saldo);
+
+                        $this->crearMovimiento(array_merge($movimiento, [
+                            'uid' => $uid,
+                            'secuencia' => $secuencia,
+                            'idServicio' => 58,
+                            'importe' => $pagoServicio58,
+                            'idPeriodo' => $idPeriodo,
+                            'referencia' => $adeudoServicio58->referencia,
+                            'fechaMovto' => $fecha,
+                            'parcialidad' => $adeudoServicio58->parcialidad,
+                            'folio' => $folio,
+                            'uidcajero' => $uidcajero,
+                        ]));
+
+                        $restante -= $pagoServicio58;
+                    }
+
+                    if ($restante > 0) {
+                        $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero, $servicios->idServicioColegiatura);
+                    }
+              
+                 }
                 else if($restante > 0)
                     $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,0);
-                
-           
-            } 
+              } 
             else if($movimiento['idServicio'] == $servicios->idServicioRecargo)
                 $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
             else if($movimiento['idServicio'] == $servicios->idServicioColegiatura)
@@ -978,6 +1023,153 @@ class EstadoCuentaController extends Controller{
            
             $this->procesarMovimiento($movimiento, $servicios, $result->uid, $result->secuencia, $idPeriodo,
                                            $mov['uidcajero'],$fecha, $folio);  
+        }
+
+        if(isset($registrosMal)){        
+            $imagePathEnc = public_path('images/encPag.png');
+            $imagePathPie = public_path('images/piePag.png');  
+            $columnWidths = [50, 50,50,50,300];
+            $pdf = new CustomTCPDF('P', PDF_UNIT, 'letter', true, 'UTF-8', false);
+            $pdf->setHeaders(null, $columnWidths, 'MOVIMIENTOS NO PROCESADOS');
+            $pdf->setImagePaths($imagePathEnc, $imagePathPie,'P');
+            $pdf->SetFont('helvetica', '', 14);
+            $pdf->SetCreator(PDF_CREATOR);
+            $pdf->SetAuthor('SIAWEB');
+            $pdf->SetMargins(15, 30, 15);
+            $pdf->SetAutoPageBreak(TRUE, 25);
+            $pdf->AddPage();
+            $pdf->SetFont('helvetica', '', 8);
+
+            $html2 = '<br><br><br><table border="0" cellpadding="1">';
+            $html2 .= '<tr><td style="font-size: 9px;" width="80"><b>MATRICULA</b></td><td style="font-size: 9px;" width="80"><b>UID</b></td><td style="font-size: 9px;" width="80"><b>IMPORTE</b></td><td style="font-size: 9px;" width="400"><b>MENSAJE DE ERROR</b></td></tr>';
+        
+            foreach ($registrosMal as $registro) 
+                $html2 .='<tr><td width="80">'.$registro['matricula'].'</td><td width="80">'.$registro['uid'].'</td><td width="80">'.number_format($registro['importe'], 2, '.', ',').'</td><td width=400>'.$registro['mensaje'].'</td></tr>';
+                
+            $html2 .= '</table>';
+            
+            // Escribir la tabla en el PDF
+            $pdf->writeHTML($html2, true, false, true, false, '');
+
+            $nameReport= 'validacion'.rand(1, 100).'.pdf';
+            $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo       
+            $pdf->Output($filePath, 'F');  
+
+            if (file_exists($filePath)) 
+                        return response()->json([
+                            'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
+                            'error'   => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport ,
+                            'status'  => 200
+                        ], 200);
+
+        } else{    
+            return response()->json([
+                            'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
+                            'error'   => null ,
+                            'status'  => 200
+                        ], 200);
+
+        }
+   
+    }
+
+
+    public function guardarMovtosServicios(Request $request){
+
+        $movimientos = $request->all();
+        $registrosMal = [];
+        $importe = 0;
+        $importeTotal = 0;
+        $noRegistros =0;
+
+        if (!is_array($movimientos)) 
+            return response()->json(['error' => 'Datos inválidos, se espera un arreglo'], 400);        
+
+        foreach ($movimientos as $index => $mov) {
+            if (!isset($mov['dia'], $mov['concepto'], $mov['abono'], $mov['transaccion'])) {
+                return response()->json([
+                    'error' => "Falta campo en elemento $index",
+                ], 400);
+            }
+
+            $transaccion = $mov['transaccion'];
+            $abono = floatval($mov['abono']);
+            $matricula = (int) substr($mov['concepto'], 0, 7);
+            $importeTotal = $importeTotal + $abono;
+
+            $result = DB::table('alumno')  
+                            ->where('alumno.matricula', $matricula)
+                            ->select('alumno.uid','alumno.secuencia')
+                            ->first();
+
+            if (!$result) {
+                $registrosMal[] = [
+                    'matricula' => $matricula,
+                    'mensaje'   => 'No existe la matricula en el sistema',
+                    'uid'   => null,
+                    'importe'   => $abono
+                ];
+                continue;
+            } 
+        
+            $periodo = DB::table('periodo as p')
+                        ->join('alumno', 'p.idNivel', '=', 'alumno.idNivel')
+                        ->where('p.activo', 1)
+                        ->where('alumno.matricula', $matricula)
+                        ->select('p.idPeriodo')
+                        ->first();
+
+            $idPeriodo = $mov['idPeriodo'] ?? $periodo->idPeriodo;
+  
+            $result = DB::table('periodo')  
+                            ->join('alumno', 'periodo.idNivel', '=', 'alumno.idNivel')
+                            ->leftJoin('edocta', function ($join) use ($transaccion) {
+                                $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
+                                    ->where('edocta.transaccion', '=',$transaccion);
+                            })
+                            ->where('periodo.idPeriodo', $idPeriodo)
+                            ->where('alumno.matricula', $matricula)
+                            ->select('alumno.uid','alumno.secuencia', 'periodo.idPeriodo','edocta.transaccion')
+                            ->first();
+         
+            if (isset($result->transaccion)) {
+                    $registrosMal[] = [
+                            'matricula' => $matricula,
+                            'mensaje'   => 'La transaccion ya se encuentra dada de alta en el periodo',
+                            'importe'   => $abono,
+                            'uid'   => $result->uid,
+                            ];
+                    continue;
+            }
+
+           $importe = $importe + $abono;
+           $noRegistros = $noRegistros + 1;
+          
+           $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia,$idPeriodo);
+           $movimiento = ['importe'        => $abono,
+                          'idformaPago'    => $mov['idFormaPago'],
+                          'idServicio'     => $servicios->idServicioTraspasoSaldos1,
+                          'cuatrodigitos'  => null,
+                          'tipomovto'      => 'A',
+                          'cargoAut'       => 0,
+                          'transaccion' => $transaccion,
+                        ];
+            //Validamos si se generò un recargo previo a la carga se elimina
+            $fecha = Carbon::createFromFormat('d/m/Y', str_replace('-', '/', $mov['dia']));
+            $folio = (EstadoCuenta::max('folio') ?? 0) + 1;
+
+            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
+                                                            'secuencia' => $result->secuencia,
+                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $result->secuencia,$idPeriodo),
+                                                            'importe' => $abono,
+                                                            'idPeriodo' => $idPeriodo,
+                                                            'fechaMovto' => $fecha,
+                                                            'parcialidad' => null,
+                                                            'folio' => $folio,
+                                                            'referencia'=> $this->obtieneReferenciaSdoAnterior($uid, $secuencia,$idPeriodo),
+                                                            'uidcajero' => $mov['uidcajero']
+                ]));
+           
         }
 
         if(isset($registrosMal)){        

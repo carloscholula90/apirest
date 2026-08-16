@@ -119,55 +119,11 @@ return $final;
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | VALIDACIÓN PERSONALIZADA CON QUERY
-    |--------------------------------------------------------------------------
-    */
+    $validacionRegla = $this->validarReglaNegocio($request);
 
-    $existe = ServicioCarrera::where('idNivel', $request->idNivel)
-        ->where('idPeriodo', $request->idPeriodo)
-        ->where('idServicio', $request->idServicio)
-        ->where('idCarrera', $request->idCarrera)
-        ->where(function ($query) use ($request) {
-
-            $query->where(function ($q) use ($request) {
-                // Caso exacto
-                $q->where('idTurno', $request->idTurno)
-                  ->where('semestre', $request->semestre);
-            })
-            ->orWhere(function ($q) use ($request) {
-                // Ya existe uno con todos los turnos
-                $q->where('idTurno', 0)
-                  ->where('semestre', $request->semestre);
-            })
-            ->orWhere(function ($q) use ($request) {
-                // Ya existe uno con todos los semestres
-                $q->where('idTurno', $request->idTurno)
-                  ->where('semestre', 0);
-            })
-            ->orWhere(function ($q) {
-                // Registro completamente global
-                $q->where('idTurno', 0)
-                  ->where('semestre', 0);
-            });
-
-        })
-        ->exists();
-
-    if ($existe) {
-        return $this->returnEstatus(
-            'Ya existe un registro con esa combinación o una configuración global que la cubre.',
-            400,
-            null
-        );
+    if ($validacionRegla !== true) {
+        return $this->returnEstatus($validacionRegla, 400, null);
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | CREAR REGISTRO
-    |--------------------------------------------------------------------------
-    */
 
     ServicioCarrera::create([
         'idNivel'=> $request->idNivel,
@@ -185,6 +141,64 @@ return $final;
     return $this->returnData('servicios', null, 200);
 }
 
+    private function validarReglaNegocio(Request $request, $secuencia = null)
+    {
+        $base = ServicioCarrera::where('idNivel', $request->idNivel)
+            ->where('idPeriodo', $request->idPeriodo)
+            ->where('idServicio', $request->idServicio)
+            ->where('idCarrera', $request->idCarrera);
+
+        if ($secuencia !== null) {
+            $base->where('secuencia', '<>', $secuencia);
+        }
+
+        $existeExacto = (clone $base)
+            ->where('idTurno', $request->idTurno)
+            ->where('semestre', $request->semestre)
+            ->exists();
+
+        if ($existeExacto) {
+            return 'Ya existe un registro con la misma combinacion de nivel, periodo, carrera, servicio, turno y semestre.';
+        }
+
+        if ((int) $request->idTurno === 0) {
+            $existenTurnosEspecificos = (clone $base)
+                ->where('idTurno', '<>', 0)
+                ->exists();
+
+            if ($existenTurnosEspecificos) {
+                return 'No se puede agregar el turno TODOS porque ya existen registros con turnos especificos para ese nivel, periodo, carrera y servicio.';
+            }
+        } else {
+            $existeTodosTurnos = (clone $base)
+                ->where('idTurno', 0)
+                ->exists();
+
+            if ($existeTodosTurnos) {
+                return 'No se puede agregar un turno especifico porque ya existe un registro con turno TODOS para ese nivel, periodo, carrera y servicio.';
+            }
+        }
+
+        if ((int) $request->semestre === 0) {
+            $existenSemestresEspecificos = (clone $base)
+                ->where('semestre', '<>', 0)
+                ->exists();
+
+            if ($existenSemestresEspecificos) {
+                return 'No se puede agregar el semestre TODOS porque ya existen registros con semestres especificos para ese nivel, periodo, carrera y servicio.';
+            }
+        } else {
+            $existeTodosSemestres = (clone $base)
+                ->where('semestre', 0)
+                ->exists();
+
+            if ($existeTodosSemestres) {
+                return 'No se puede agregar un semestre especifico porque ya existe un registro con semestre TODOS para ese nivel, periodo, carrera y servicio.';
+            }
+        }
+
+        return true;
+    }
     public function destroy($idNivel,$idPeriodo,$idServicio,$idCarrera,$idTurno)
     {
         $destroy = DB::table('servicioCarrera')
@@ -218,6 +232,12 @@ return $final;
        
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+
+        $validacionRegla = $this->validarReglaNegocio($request, $request->secuencia);
+
+        if ($validacionRegla !== true) {
+            return $this->returnEstatus($validacionRegla, 400, null);
+        }
 
         $filas= DB::table('servicioCarrera')
                             ->where('idNivel', $request->idNivel  )
@@ -395,3 +415,4 @@ return $final;
 }
 
 }
+

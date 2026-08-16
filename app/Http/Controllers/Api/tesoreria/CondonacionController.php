@@ -15,6 +15,256 @@ use App\Http\Controllers\Api\serviciosGenerales\GenericExport;
 class CondonacionController extends Controller  
 {
 
+    public function guardar(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'uid' => 'required|integer',
+            'secuencia' => 'required|integer',
+            'idServicio' => 'nullable|integer',
+            'consecutivoEdocta' => 'required|integer',
+            'idPeriodo' => 'required|integer',
+            'idAutorizacion' => 'required|integer',
+            'parcialidad' => 'nullable|integer',
+            'fechaMovto' => 'nullable|date',
+            'importe' => 'nullable|numeric|min:0',
+            'importeCondonar' => 'required|numeric|min:0',
+            'motivo' => 'nullable|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->returnEstatus(
+                'Error en la validacion de los datos',
+                400,
+                $validator->errors()
+            );
+        }
+
+        try {
+            $condonacion = DB::transaction(function () use ($request) {
+                $edocta = DB::table('edocta')
+                    ->where('uid', $request->uid)
+                    ->where('secuencia', $request->secuencia)
+                    ->where('consecutivo', $request->consecutivoEdocta)
+                    ->when($request->filled('idServicio'), function ($query) use ($request) {
+                        $query->where('idServicio', $request->idServicio);
+                    })
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$edocta) {
+                    return null;
+                }
+
+                $importeAnterior = (float) ($edocta->importe ?? 0);
+                $importeCondonar = (float) $request->importeCondonar;
+
+                if ($importeCondonar > $importeAnterior) {
+                    return false;
+                }
+
+                $importeNuevo = $importeAnterior - $importeCondonar;
+                $idServicio = $edocta->idServicio;
+
+                $consecutivo = ((int) DB::table('condonar')
+                    ->where('uid', $request->uid)
+                    ->where('secuencia', $request->secuencia)
+                    ->where('idServicio', $idServicio)
+                    ->lockForUpdate()
+                    ->max('consecutivo')) + 1;
+
+                $data = [
+                    'uid' => $request->uid,
+                    'secuencia' => $request->secuencia,
+                    'idServicio' => $idServicio,
+                    'consecutivoEdocta' => $request->consecutivoEdocta,
+                    'consecutivo' => $consecutivo,
+                    'idPeriodo' => $request->idPeriodo,
+                    'idAutorizacion' => $request->idAutorizacion,
+                    'parcialidad' => $request->parcialidad,
+                    'fechaMovto' => $request->fechaMovto ?? now()->toDateString(),
+                    'importe' => $importeAnterior,
+                    'importeCondonar' => $importeCondonar,
+                    'motivo' => $request->motivo,
+                ];
+
+                DB::table('condonar')->insert($data);
+                DB::table('edocta')
+                    ->where('uid', $request->uid)
+                    ->where('secuencia', $request->secuencia)
+                    ->where('consecutivo', $request->consecutivoEdocta)
+                    ->update(['importe' => $importeNuevo]);
+
+                $data['importeNuevo'] = $importeNuevo;
+
+                return $data;
+            });
+
+            if (!$condonacion) {
+                if ($condonacion === false) {
+                    return $this->returnEstatus(
+                        'El importe a condonar no puede ser mayor al importe del estado de cuenta',
+                        400,
+                        null
+                    );
+                }
+
+                return $this->returnEstatus(
+                    'No se encontro el movimiento de estado de cuenta',
+                    404,
+                    null
+                );
+            }
+
+            return $this->returnData('condonacion', $condonacion, 200);
+        } catch (\Throwable $e) {
+            Log::error('Error al guardar condonacion', [
+                'error' => $e->getMessage(),
+                'request' => $request->all(),
+            ]);
+
+            return $this->returnEstatus(
+                'Error al guardar la condonacion',
+                500,
+                $e->getMessage()
+            );
+        }
+    }
+
+    public function datosCondonaciones($fechaInicio, $fechaFin)
+    {
+        return DB::table('condonar as c')
+            ->select(
+                'c.uid',
+                'c.secuencia',
+                DB::raw("CONCAT(p.primerApellido, ' ', p.segundoApellido, ' ', p.nombre) AS alumno"),
+                'c.idPeriodo',
+                'c.idAutorizacion',
+                'c.idServicio',
+                's.descripcion as servicio',
+                'c.consecutivoEdocta',
+                'c.consecutivo',
+                'c.parcialidad',
+                'c.fechaMovto',
+                'c.importe',
+                'c.importeCondonar',
+                'c.motivo'
+            )
+            ->leftJoin('persona as p', 'p.uid', '=', 'c.uid')
+            ->leftJoin('servicio as s', 's.idServicio', '=', 'c.idServicio')
+            ->whereBetween('c.fechaMovto', [$fechaInicio, $fechaFin])
+            ->orderBy('c.fechaMovto')
+            ->orderBy('c.uid')
+            ->orderBy('c.secuencia')
+            ->orderBy('c.consecutivo')
+            ->get();
+    }
+
+    public function reporteCondonaciones($fechaInicio, $fechaFin)
+    {
+        $datos = $this->datosCondonaciones($fechaInicio, $fechaFin);
+
+        if ($datos->isEmpty()) {
+            return $this->returnEstatus('No hay condonaciones para generar el reporte', 404, null);
+        }
+
+        $datosArray = $datos->map(function ($item) {
+            return (array) $item;
+        })->toArray();
+
+        $headers = ['UID', 'ALUMNO', 'PERIODO', 'AUT', 'SERV', 'DESCRIPCION', 'PARC', 'FECHA', 'IMPORTE', 'CONDONAR', 'MOTIVO'];
+        $columnWidths = [40, 140, 50, 40, 40, 110, 35, 60, 60, 60, 160];
+        $keys = ['uid', 'alumno', 'idPeriodo', 'idAutorizacion', 'idServicio', 'servicio', 'parcialidad', 'fechaMovto', 'importe', 'importeCondonar', 'motivo'];
+
+        return $this->downloadReportCondonaciones(
+            $datosArray,
+            $columnWidths,
+            $keys,
+            'REPORTE DE CONDONACIONES',
+            $headers,
+            'rptCondonaciones' . mt_rand(100, 999) . '.pdf'
+        );
+    }
+
+    public function reporteCondonacionesExcel($fechaInicio, $fechaFin)
+    {
+        $datos = $this->datosCondonaciones($fechaInicio, $fechaFin);
+
+        if ($datos->isEmpty()) {
+            return $this->returnEstatus('No hay condonaciones para exportar', 404, null);
+        }
+
+        $datosArray = $datos->map(function ($item) {
+            return (array) $item;
+        })->toArray();
+
+        $headers = ['UID', 'ALUMNO', 'PERIODO', 'AUTORIZACION', 'ID SERVICIO', 'SERVICIO', 'PARCIALIDAD', 'FECHA MOVTO', 'IMPORTE', 'IMPORTE CONDONAR', 'MOTIVO'];
+        $keys = ['uid', 'alumno', 'idPeriodo', 'idAutorizacion', 'idServicio', 'servicio', 'parcialidad', 'fechaMovto', 'importe', 'importeCondonar', 'motivo'];
+        $fileName = 'reporte_condonaciones_' . mt_rand(100, 999) . '.xlsx';
+
+        Excel::store(new GenericExport($datosArray, $headers, $keys), $fileName, 'public');
+
+        $fullPath = storage_path('app/public/' . $fileName);
+
+        if (file_exists($fullPath)) {
+            return response()->json([
+                'status' => 200,
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
+            ]);
+        }
+
+        return $this->returnEstatus('Error al generar el reporte', 500, null);
+    }
+
+    public function downloadReportCondonaciones($data, $columnWidths, $keys, $title, $headers, $nameReport)
+    {
+        $imagePathEnc = public_path('images/encPag.png');
+        $imagePathPie = public_path('images/piePag.png');
+        $pdf = new CustomTCPDF('L', PDF_UNIT, 'legal', true, 'UTF-8', false);
+        $pdf->setHeaders(null, $columnWidths, $title);
+        $pdf->setImagePaths($imagePathEnc, $imagePathPie, 'L');
+        $pdf->SetFont('helvetica', '', 14);
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('SIAWEB');
+        $pdf->SetMargins(10, 30, 10);
+        $pdf->SetAutoPageBreak(true, 25);
+        $pdf->AddPage();
+        $pdf->SetFont('helvetica', '', 6);
+
+        $html = '<br><br><br><table border="0" cellpadding="1">';
+        $html .= '<tr>';
+        foreach ($headers as $index => $header) {
+            $html .= '<td style="font-size: 6px;" width="' . $columnWidths[$index] . '"><b>' . htmlspecialchars($header) . '</b></td>';
+        }
+        $html .= '</tr>';
+
+        foreach ($data as $row) {
+            $html .= '<tr>';
+            foreach ($keys as $index => $key) {
+                $value = $row[$key] ?? '';
+                if (in_array($key, ['importe', 'importeCondonar'])) {
+                    $value = '$ ' . number_format((float) $value, 2);
+                }
+                $html .= '<td width="' . $columnWidths[$index] . '">' . htmlspecialchars((string) $value) . '</td>';
+            }
+            $html .= '</tr>';
+        }
+
+        $html .= '</table>';
+        $pdf->writeHTML($html, true, false, true, false, '');
+
+        $filePath = storage_path('app/public/' . $nameReport);
+        $pdf->Output($filePath, 'F');
+
+        if (file_exists($filePath)) {
+            return response()->json([
+                'status' => 200,
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+            ]);
+        }
+
+        return $this->returnEstatus('Error al generar el reporte', 500, null);
+    }
+
     public function data($idFchInicio, $idFechaFin, $idCajero = null){
     $config = DB::table('configuracion')
                     ->where('id_campo', 1)

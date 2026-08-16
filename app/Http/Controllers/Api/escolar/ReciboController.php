@@ -393,8 +393,6 @@ class ReciboController extends Controller
                 DB::raw("CASE WHEN edo.tipomovto != 'C' THEN edo.importe ELSE null END as abono"),
             ];
 
-           
-
             // Construcción del query completo
             $query = DB::table('edocta as edo')
                 ->select($selects)

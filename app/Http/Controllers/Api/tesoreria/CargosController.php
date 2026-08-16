@@ -663,4 +663,93 @@ public function actualizaCargos(Request $request)
                                                          $request->uid,$request->secuencia, $datos->semestre, $datos->idTurno]);
         return $this->returnData('Cargos actualizados', null, 200);
     }
+
+public function validaGeneraCargos(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'idNivel'    => 'required|max:255',
+        'idPeriodo'  => 'required|max:255',
+        'uid'        => 'required|max:255',
+        'secuencia'  => 'required|max:255'
+    ]);
+
+    if ($validator->fails()) {
+        return $this->returnEstatus(
+            'Error en la validaciÃ³n de los datos',
+            400,
+            $validator->errors()
+        );
+    }
+
+    $datos = $this->obtenerDatosCargoAlumno(
+        $request->idNivel,
+        $request->idPeriodo,
+        $request->uid,
+        $request->secuencia
+    );
+
+    if (!$datos) 
+        return $this->returnEstatus(
+            'No se encontro informacion de carrera, semestre y turno para el alumno',
+            404,
+            null
+        );
+
+        DB::statement(
+        "CALL GeneraCargosInscrip(?, ?, ?, ?, ?, ?, ?)",
+        [
+            $request->idNivel,
+            $request->idPeriodo,
+            $datos->idCarrera,
+            $datos->semestre,
+            $request->uid,
+            $request->secuencia,
+            $datos->idTurno
+        ]
+    );
+
+    DB::statement("CALL ActualizaCargosInscrip(?, ?, ?, ?, ?, ?)",
+            [
+                $request->idNivel,
+                $request->idPeriodo,
+                $request->uid,
+                $request->secuencia,
+                $datos->semestre,
+                $datos->idTurno
+            ]
+        );
+
+        return $this->returnData('resultado', [
+            'message' => 'Cargos actualizados',
+            'procedimiento' => 'ActualizaCargosInscrip'
+        ], 200);
+    
+}
+
+public function obtenerDatosCargoAlumno($idNivel,$idPeriodo,$uid,$secuencia)
+{
+    return DB::table('alumno as al')
+        ->join('ciclos as cl', function($join) use ($idPeriodo) {
+            $join->on('cl.uid', '=', 'al.uid')
+                ->on('cl.secuencia', '=', 'al.secuencia')
+                ->where('cl.idPeriodo', $idPeriodo)
+                ->whereRaw('cl.indexCiclo = (
+                    SELECT MIN(c2.indexCiclo)
+                    FROM ciclos c2
+                    WHERE c2.uid = al.uid
+                    AND c2.secuencia = al.secuencia
+                    AND c2.idPeriodo = cl.idPeriodo
+                )');
+        })
+        ->join('turno as t', function($join) {
+            $join->on('t.letra', '=', DB::raw(
+                'SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 2 WHEN LENGTH(cl.grupo) = 5 THEN 3 ELSE 3 END, 1)'
+            ));
+        })
+        ->where('al.idNivel', $idNivel)
+        ->where('al.uid', $uid)
+        ->where('al.secuencia', $secuencia)
+        ->select('al.idCarrera', 'cl.semestre', 't.idTurno')
+        ->first();
+}
 }

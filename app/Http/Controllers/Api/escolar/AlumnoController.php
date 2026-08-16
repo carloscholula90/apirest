@@ -15,6 +15,35 @@ class AlumnoController extends Controller
     /**
      * Display a listing of the resource.
      */
+    public function actualizaMonto(Request $request)
+    {
+        $data = $request->validate([
+            'matricula' => 'required',
+            'monto' => 'required|numeric|min:0',
+        ]);
+
+        $alumno = DB::table('alumno')
+            ->where('matricula', $data['matricula'])
+            ->first();
+
+        if (!$alumno) {
+            return $this->returnEstatus(
+                'Alumno no encontrado',
+                404,
+                null
+            );
+        }
+
+        DB::table('alumno')
+            ->where('matricula', $data['matricula'])
+            ->update(['monto' => $data['monto']]);
+
+        return $this->returnData('alumno', [
+            'matricula' => $data['matricula'],
+            'monto' => $data['monto'],
+        ], 200);
+    }
+
     public function alumnosInscritosConcentrado($idNivel,$idPeriodo){
         
          $dataArray = $this->obtenerDatosConcentrado($idNivel,$idPeriodo);
@@ -488,11 +517,12 @@ public function getAvance($uid,$secuencia){
 
       ->select([
                     'a.uid',
+                    'a.activo',
                     'a.idNivel',
                     'a.secuencia',
                     'a.idCarrera',
                     'a.matricula',
-
+                    'a.monto',
                     'n.descripcion as nivel',
                     'c.descripcion as nombreCarrera',
 

@@ -73,7 +73,10 @@ class FichasController extends Controller{
             INNER JOIN persona ON persona.uid = al.uid
             INNER JOIN periodo per ON per.idNivel = al.idNivel AND per.activo = 1
             INNER JOIN nivel niv ON niv.idNivel = al.idNivel
-            INNER JOIN servicio s ON s.tipoEdoCta = 1
+            INNER JOIN servicio s ON (
+            s.tipoEdoCta = 1
+            OR (s.tipoEdoCta = 2 AND s.idServicio = 54)
+            )
             INNER JOIN edocta cta ON cta.idServicio = s.idServicio
                 AND cta.uid = al.uid
                 AND cta.secuencia = al.secuencia
@@ -92,7 +95,7 @@ class FichasController extends Controller{
                 persona.nombre
         ) AS CONS"))
         ->selectRaw("
-            CONS.nombre,
+            CONS.nombre, CONS.uid,
             CONS.matricula,
             CONS.servicios,
             CONS.total,
@@ -166,6 +169,10 @@ class FichasController extends Controller{
                 <td style="font-size: 12pt;">' . $fila->nombre . '</td>
                 </tr>';
             $html .= '<tr>
+                <td style="width: 150px; font-size: 8pt;">UID:</td>
+                <td style="font-size: 12pt;">' . $fila->uid . '</td>
+                </tr>';  
+            $html .= '<tr>
                 <td style="width: 150px; font-size: 8pt;">MATRICULA:</td>
                 <td style="font-size: 12pt;">' .$fila->matricula. '</td>
                 </tr><br>';
@@ -193,10 +200,10 @@ class FichasController extends Controller{
     }  
 
     $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edison en apoyo a la situación
-                    económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $1,200.00
+                    económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $'.$total.'
                     con fecha límite de pago los días 10 de cada mes. En caso contrario se aplicará un recargo del 20%
                 </td></tr><br><tr>
-                <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son instransferibles e indivuales.</td></tr>';
+                <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son intransferibles e individuales .</td></tr>';
   
     $html .= '</table>';     
     $pdf->writeHTML($html, true, false, true, false, '');
@@ -230,7 +237,7 @@ public function generarFichaEspecial($matricula,$importe,$fechaVencimiento){
     ->join('persona as p', 'a.uid', '=', 'p.uid')
     ->selectRaw("
         CONCAT(p.primerApellido, ' ', p.segundoApellido, ' ', p.nombre) AS nombre,
-        a.matricula,
+        a.matricula, a.uid,
         ? as total,
         DATE_FORMAT(?, '%Y-%m-%d') AS fechaVencimiento,
         Algoritmo45Fun(
@@ -285,10 +292,10 @@ public function generarFichaEspecial($matricula,$importe,$fechaVencimiento){
         if($name==''||$name!=$fila->nombre){
             if($name!=''){
                   $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edison en apoyo a la situación
-                    económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $1,200.00
+                    económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $'.$total.'
                     con fecha límite de pago los días 10 de cada mes. En caso contrario se aplicará un recargo del 20%
                 </td></tr><br><tr>
-                <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son instransferibles e indivuales.</td></tr>';
+                <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son intransferibles e individuales .</td></tr>';
 
                 // Cierra la tabla actual y escribe en el PDF
              $html .= '</table>';
@@ -306,6 +313,10 @@ public function generarFichaEspecial($matricula,$importe,$fechaVencimiento){
                 <td style="width: 150px; font-size: 8pt;">NOMBRE:</td>
                 <td style="font-size: 12pt;">' . $fila->nombre . '</td>
                 </tr>';
+                $html .= '<tr>
+                <td style="width: 150px; font-size: 8pt;">UID:</td>
+                <td style="font-size: 12pt;">' . $fila->uid . '</td>
+                </tr>';  
             $html .= '<tr>
                 <td style="width: 150px; font-size: 8pt;">MATRICULA:</td>
                 <td style="font-size: 12pt;">' .$fila->matricula. '</td>
@@ -326,11 +337,8 @@ public function generarFichaEspecial($matricula,$importe,$fechaVencimiento){
                 </tr><br>';
     }  
 
-    $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edison en apoyo a la situación
-                    económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $1,200.00
-                    con fecha límite de pago los días 10 de cada mes. En caso contrario se aplicará un recargo del 20%
-                </td></tr><br><tr>
-                <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son instransferibles e indivuales.</td></tr>';
+    $html .= '<br><tr>
+                <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son intransferibles e individuales .</td></tr>';
   
     $html .= '</table>';     
     $pdf->writeHTML($html, true, false, true, false, '');

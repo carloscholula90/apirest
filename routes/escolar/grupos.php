@@ -18,6 +18,26 @@ Route::group([], function () {
         'obtenerAsignaturas'
     ]);
 
+    Route::get('/semestres/{idNivel}/{idPeriodo}/{idCarrera}', [
+        GrupoController::class,
+        'gruposSemestre'
+    ]);
+
+    Route::get('/alumnos/{idNivel}/{idPeriodo}/{grupo}', [
+        GrupoController::class,
+        'alumnosInscritosGrupo'
+    ]);
+
+    Route::get('/profesor/{idPeriodo}/{uidProfesor}/{secuenciaProfesor?}', [
+        GrupoController::class,
+        'gruposProfesor'
+    ]);
+
+    Route::get('/relacionados/{grupo}', [
+        GrupoController::class,
+        'gruposRelacionados'
+    ]);
+
     Route::get('/{idNivel}/{idPeriodo}/{idCarrera}', [
         GrupoController::class,
         'show'
