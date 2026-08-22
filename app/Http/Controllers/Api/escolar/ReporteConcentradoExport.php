@@ -12,12 +12,14 @@ class ReporteConcentradoExport implements FromCollection,  ShouldAutoSize, WithC
     protected $data;
     protected $headers;
     protected $idPeriodo;
+    protected $totalesSemestre;
 
-    public function __construct($data, $headers, $idPeriodo)
+    public function __construct($data, $headers, $idPeriodo, $totalesSemestre = [])
     {
         $this->data = $data;       // array de filas
         $this->headers = $headers; // nombres de columnas
         $this->idPeriodo = $idPeriodo;
+        $this->totalesSemestre = $totalesSemestre;
     }
     /**
      * Retorna los datos como colección
@@ -41,6 +43,21 @@ class ReporteConcentradoExport implements FromCollection,  ShouldAutoSize, WithC
         // Total general al final
         $total = array_sum(array_column($this->data, 'total'));
         $rows[] = ['TOTAL ALUMNOS', $total];
+
+        $rows[] = [];
+        $rows[] = ['CONCENTRADO POR SEMESTRE'];
+        $rows[] = ['SEMESTRE', 'TOTAL'];
+
+        $totalSemestres = 0;
+        foreach ($this->totalesSemestre as $row) {
+            $totalSemestres += $row['total'];
+            $rows[] = [
+                $row['semestre'],
+                $row['total'],
+            ];
+        }
+
+        $rows[] = ['TOTAL GENERAL', $totalSemestres];
 
         return collect($rows);
     }

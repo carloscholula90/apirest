@@ -7,6 +7,7 @@ use App\Models\escolar\Alumno;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF; 
 use App\Http\Controllers\Api\escolar\ReporteConcentradoExport;
+use App\Http\Controllers\Api\escolar\ReporteDetalladoInscritosExport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;  
 
@@ -47,12 +48,14 @@ class AlumnoController extends Controller
     public function alumnosInscritosConcentrado($idNivel,$idPeriodo){
         
          $dataArray = $this->obtenerDatosConcentrado($idNivel,$idPeriodo);
+         $totalesSemestre = $this->obtenerTotalesPorSemestre($idNivel,$idPeriodo);
  
          return $this->generateReportConcentrado($idNivel,$idPeriodo,
                                                     $dataArray,
                                                     ['CARRERA', 'TOTAL'],
                                                     [400, 50],
-                                                    ['escuela', 'total'],            
+                                                    ['escuela', 'total'],
+                                                    $totalesSemestre,
                                                     'CONCENTRADO DE INSCRITOS POR ESCUELA',
                                                     'L',
                                                     'letter',
@@ -69,7 +72,9 @@ class AlumnoController extends Controller
                                         'p.uid',
                                          DB::raw('CONCAT(p.primerApellido, " ", p.segundoApellido, " ", p.nombre) AS nombre'),
                                         'al.idCarrera',
-                                        'c.descripcion'
+                                        'c.descripcion',
+                                        'cl.grupo',
+                                        DB::raw("SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre")
                                     )
                                     ->join('persona as p', 'cl.uid', '=', 'p.uid')
                                     ->join('alumno as al', function ($join) {
@@ -82,18 +87,43 @@ class AlumnoController extends Controller
                                     })
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
+                                    ->whereNull('cl.fechaBaja')
                                     ->orderBy('al.idCarrera')
+                                    ->orderBy('semestre')
+                                    ->orderBy('cl.grupo')
                                     ->orderBy('p.uid')  
                                     ->get();
         $dataArray = $resultado->map(function ($item) {
             return (array) $item;
         })->toArray();
+
+        $carreras = $resultado
+            ->map(function ($item) {
+                return $item->idCarrera . ' - ' . $item->descripcion;
+            })
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $totalesSemestre = $resultado
+            ->groupBy('semestre')
+            ->map(function ($items, $semestre) {
+                return [
+                    'semestre' => $semestre,
+                    'total' => $items->count()
+                ];
+            })
+            ->sortBy('semestre')
+            ->values()
+            ->toArray();
  
          return $this->generateReportDtl($idNivel,$idPeriodo,
                                         $dataArray,
-                                        ['UID', 'NOMBRE','CVE CARRERA','NOMBRE CARRERA'],
-                                        [50, 400,100,200],
-                                        ['uid', 'nombre','idCarrera','descripcion'],            
+                                        ['UID', 'NOMBRE','GRUPO'],
+                                        [60, 480,80],
+                                        ['uid', 'nombre','grupo'],
+                                        $carreras,
+                                        $totalesSemestre,
                                         'DETALLADO DE INSCRITOS POR ESCUELA',
                                         'L',
                                         'letter',
@@ -102,7 +132,7 @@ class AlumnoController extends Controller
     }
 
 
-    public function generateReportDtl($idNivel,$idPeriodo,$data, $headers,$columnWidths, $keys, $title, $orientation, $size, $nameReport){
+    public function generateReportDtl($idNivel,$idPeriodo,$data, $headers,$columnWidths, $keys, $carreras, $totalesSemestre, $title, $orientation, $size, $nameReport){
     $imagePathEnc = public_path('images/encPag.png');
     $imagePathPie = public_path('images/piePag.png');
     $descripcionPeriodo = DB::table('periodo')
@@ -123,9 +153,11 @@ class AlumnoController extends Controller
     $html .= '<tr>';
     $html .= '<td align="right" style="font-size:11pt;"><b>PERIODO '.$idPeriodo.' - '.$descripcionPeriodo.'</b></td>';
     $html .= '</tr>';
+    $html .= '<tr>';
+    $html .= '<td align="right" style="font-size:10pt;"><b>CARRERA(S): '.htmlspecialchars(implode(', ', $carreras)).'</b></td>';
+    $html .= '</tr>';
     $html .= '</table>';
     $html = $html.'<br><br><br><table border="0" cellpadding="2">';
-    $totalesGenerales = 0;
     $html .= '<tr style="font-weight:bold; font-size:10px;">';
     
     foreach ($headers as $i => $h) 
@@ -142,6 +174,27 @@ class AlumnoController extends Controller
     }   
     $html .= '</table>';
 
+    $html .= '<br><br><table border="0" cellpadding="2">';
+    $html .= '<tr style="font-weight:bold; font-size:10px;">';
+    $html .= '<td width="120">SEMESTRE</td>';
+    $html .= '<td width="80" align="right">TOTAL</td>';
+    $html .= '</tr>';
+
+    $totalGeneral = 0;
+    foreach ($totalesSemestre as $row) {
+        $totalGeneral += $row['total'];
+        $html .= '<tr>';
+        $html .= '<td width="120">'.htmlspecialchars((string) $row['semestre']).'</td>';
+        $html .= '<td width="80" align="right">'.$row['total'].'</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '<tr style="font-weight:bold; font-size:10px;">';
+    $html .= '<td width="120">TOTAL GENERAL</td>';
+    $html .= '<td width="80" align="right">'.$totalGeneral.'</td>';
+    $html .= '</tr>';
+    $html .= '</table>';
+
     $pdf->writeHTML($html);
 
     $filePath = storage_path('app/public/' . $nameReport);
@@ -149,11 +202,11 @@ class AlumnoController extends Controller
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
-public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$columnWidths, $keys, $title, $orientation, $size, $nameReport)
+public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$columnWidths, $keys, $totalesSemestre, $title, $orientation, $size, $nameReport)
 {
     $imagePathEnc = public_path('images/encPag.png');
     $imagePathPie = public_path('images/piePag.png');
@@ -209,6 +262,27 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
     $html .= '</tr>';
     $html .= '</table>';
 
+    $html .= '<br><br><table border="0" cellpadding="2">';
+    $html .= '<tr style="font-weight:bold; font-size:10px;">';
+    $html .= '<td width="120">SEMESTRE</td>';
+    $html .= '<td width="80" align="right">TOTAL</td>';
+    $html .= '</tr>';
+
+    $totalSemestres = 0;
+    foreach ($totalesSemestre as $row) {
+        $totalSemestres += $row['total'];
+        $html .= '<tr>';
+        $html .= '<td width="120">'.htmlspecialchars((string) $row['semestre']).'</td>';
+        $html .= '<td width="80" align="right">'.$row['total'].'</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '<tr style="font-weight:bold; font-size:10px;">';
+    $html .= '<td width="120">TOTAL GENERAL</td>';
+    $html .= '<td width="80" align="right">'.$totalSemestres.'</td>';
+    $html .= '</tr>';
+    $html .= '</table>';
+
     $pdf->writeHTML($html);
 
     $filePath = storage_path('app/public/' . $nameReport);
@@ -216,174 +290,92 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
-public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {  
-        // Ruta del archivo a almacenar en el disco público
+public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         $name = 'detalleInscritos'.rand(1, 999).'.xlsx';
         $path = storage_path('app/public/'.$name);
-        $selectColumns = [ 'persona.uid',
-                            DB::raw('CONCAT(persona.primerApellido, " ", persona.segundoApellido, " ", persona.nombre) AS nombre'),
-                            'alumno.idCarrera',
-                            'carrera.descripcion'
-                 ]; // Seleccionar columnas específicas
-        $namesColumns = ['UID','NOMBRE','CVE CARRERA','NOMBRE CARRERA']; // Seleccionar columnas específicas
-        
-        $joins = [
-                     [
-                        'table' => 'periodo',
-                        'type'  => 'inner',
-                        'conditions' => [
-                            [
-                                'first'  => DB::raw('1'),
-                                'second' => DB::raw('1')
-                            ]
-                        ]
-                    ],
-                    // grupos
-                    [
-                        'table' => 'grupos',
-                        'type'  => 'inner',
-                        'conditions' => [
-                            [
-                                'first'  => 'grupos.idNivel',
-                                'second' => 'nivel.idNivel'
-                            ]
-                        ]
-                    ],
 
-                    // carrera
-                    [
-                        'table' => 'carrera',
-                        'type'  => 'inner',
-                        'conditions' => [
-                            [
-                                'first'  => 'carrera.idNivel',
-                                'second' => 'nivel.idNivel'
-                            ]
-                        ]
-                    ],
+        $resultado = DB::table('ciclos as cl')
+                                    ->distinct()
+                                    ->select(
+                                        'p.uid',
+                                        DB::raw('CONCAT(p.primerApellido, " ", p.segundoApellido, " ", p.nombre) AS nombre'),
+                                        'al.idCarrera',
+                                        'c.descripcion',
+                                        'cl.grupo',
+                                        DB::raw("SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre")
+                                    )
+                                    ->join('persona as p', 'cl.uid', '=', 'p.uid')
+                                    ->join('alumno as al', function ($join) {
+                                        $join->on('al.uid', '=', 'cl.uid')
+                                            ->on('cl.secuencia', '=', 'al.secuencia');
+                                    })
+                                    ->join('carrera as c', function ($join) {
+                                        $join->on('c.idCarrera', '=', 'al.idCarrera')
+                                            ->on('c.idNivel', '=', 'al.idNivel');
+                                    })
+                                    ->where('cl.idNivel', $idNivel)
+                                    ->where('cl.idPeriodo', $idPeriodo)
+                                    ->whereNull('cl.fechaBaja')
+                                    ->orderBy('al.idCarrera')
+                                    ->orderBy('semestre')
+                                    ->orderBy('cl.grupo')
+                                    ->orderBy('p.uid')
+                                    ->get();
 
-                    // turno
-                    [
-                        'table' => 'turno',
-                        'type'  => 'inner',
-                        'conditions' => [
-                            [
-                                'first'  => 'turno.idTurno',
-                                'second' => 'grupos.idTurno'
-                            ],
-                            [
-                                'first'  => "DB::raw('SUBSTRING(grupos.grupo, 1,
-                                             CASE 
-                                                WHEN LENGTH(grupos.grupo) = 4 THEN 1
-                                                WHEN LENGTH(grupos.grupo) = 5 THEN 2
-                                                ELSE 2
-                                             END
-                                       
-                                       ))",
-                                'second' => 'carrera.idCarrera'
-                            ]
-                        ]
-                    ],
+        $dataArray = $resultado->map(function ($item) {
+            return (array) $item;
+        })->toArray();
 
-                    // asignatura
-                    [
-                        'table' => 'asignatura',
-                        'type'  => 'inner',
-                        'conditions' => [
-                            [
-                                'first'  => 'asignatura.idAsignatura',
-                                'second' => 'grupos.idAsignatura'
-                            ]
-                        ]
-                    ],
+        $descripcionPeriodo = DB::table('periodo')
+                        ->where('idNivel', $idNivel)
+                        ->where('idPeriodo', $idPeriodo)
+                        ->value('descripcion');
 
-                    // empleado
-                    [
-                        'table' => 'empleado',
-                        'type'  => 'left',
-                        'conditions' => [
-                            [
-                                'first'  => 'empleado.uid',
-                                'second' => 'grupos.uidProfesor'
-                            ]
-                        ]
-                    ],
+        $carreras = $resultado
+            ->map(function ($item) {
+                return $item->idCarrera . ' - ' . $item->descripcion;
+            })
+            ->unique()
+            ->values()
+            ->toArray();
 
-                    // persona docente
-                    [
-                        'table' => 'persona',
-                        'type'  => 'left',
-                        'conditions' => [
-                            [
-                                'first'  => 'persona.uid',
-                                'second' => 'empleado.uid'
-                            ]
-                        ]
-                    ],
-
-                    // secretario
-                    [
-                        'table' => 'persona as secretario',
-                        'type'  => 'left',
-                        'conditions' => [
-                            [
-                                'first'  => 'secretario.uid',
-                                'second' => 'grupos.uidSecretario'
-                            ]
-                        ]
-                    ],
-
-                    // supervisor
-                    [
-                        'table' => 'persona as supervisor',
-                        'type'  => 'left',
-                        'conditions' => [
-                            [
-                                'first'  => 'supervisor.uid',
-                                'second' => 'grupos.uidSupervisor'
-                            ]
-                        ]
-                    ],
-
-                    // presidente
-                    [
-                        'table' => 'persona as presidente',
-                        'type'  => 'left',
-                        'conditions' => [
-                            [
-                                'first'  => 'presidente.uid',
-                                'second' => 'grupos.uidPresidente'
-                            ]
-                        ]
-                    ]
+        $totalesSemestre = $resultado
+            ->groupBy('semestre')
+            ->map(function ($items, $semestre) {
+                return [
+                    'semestre' => $semestre,
+                    'total' => $items->count()
                 ];
+            })
+            ->sortBy('semestre')
+            ->values()
+            ->toArray();
 
-        $filters = [ 'alumno.idNivel' => $idNivel,
-                    'ciclos.idPeriodo' => $idPeriodo];
+        $export = new ReporteDetalladoInscritosExport(
+            $dataArray,
+            $idPeriodo.' - '.$descripcionPeriodo,
+            $carreras,
+            $totalesSemestre
+        );
 
-        $export = new GenericTableExportEsp('ciclos', 'uid', $filters, ['alumno.idCarrera','persona.uid'], ['asc','asc'], $selectColumns, $joins,$namesColumns);
-
-        // Guardar el archivo en el disco público
         Excel::store($export, $name, 'public');
-       
-        // Verifica si el archivo existe usando Storage de Laravel
+
         if (file_exists($path))  {
             return response()->json([
-                'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$name // URL pública para descargar el archivo
+                'status' => 200,
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$name
             ]);
-        } else {
-            return response()->json([
-                'status' => 500,
-                'message' => 'Error al generar el reporte '
-            ]);
-        }  
-    }
+        }
 
+        return response()->json([
+            'status' => 500,
+            'message' => 'Error al generar el reporte '
+        ]);
+    }
 public function obtenerDatosConcentrado($idNivel,$idPeriodo){
 
     $resultado = DB::table('ciclos as cl')
@@ -403,6 +395,7 @@ public function obtenerDatosConcentrado($idNivel,$idPeriodo){
                                     })
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
+                                    ->whereNull('cl.fechaBaja')
                                     ->groupBy('c.idCarrera', 'c.descripcion')
                                     ->get();
 
@@ -410,6 +403,25 @@ public function obtenerDatosConcentrado($idNivel,$idPeriodo){
             return (array) $item;
         })->toArray();
         return $dataArray;
+}
+
+public function obtenerTotalesPorSemestre($idNivel,$idPeriodo){
+
+    $resultado = DB::table('ciclos as cl')
+                                    ->select(
+                                        DB::raw("SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre"),
+                                        DB::raw('COUNT(DISTINCT cl.uid, cl.secuencia) as total')
+                                    )
+                                    ->where('cl.idNivel', $idNivel)
+                                    ->where('cl.idPeriodo', $idPeriodo)
+                                    ->whereNull('cl.fechaBaja')
+                                    ->groupBy(DB::raw("SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 3 ELSE 4 END, 1)"))
+                                    ->orderBy('semestre')
+                                    ->get();
+
+        return $resultado->map(function ($item) {
+            return (array) $item;
+        })->toArray();
 }
 
 public function exportExcelCocentrado($idNivel,$idPeriodo)
@@ -421,18 +433,19 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
                         ->value('descripcion'); // devuelve solo el valor de la columna
 
     $dataArray = $this->obtenerDatosConcentrado($idNivel,$idPeriodo);
+    $totalesSemestre = $this->obtenerTotalesPorSemestre($idNivel,$idPeriodo);
 
     $headers = ['escuela', 'total'];
     $fileName = 'rptInscritosConcEscuela_'.mt_rand(100,999).'.xlsx';
     $path = storage_path('app/public/'.$fileName);
  
-    Excel::store(new ReporteConcentradoExport($dataArray, $headers, 'PERIODO '.$idPeriodo.' - '.$descripcionPeriodo), $fileName, 'public');
+    Excel::store(new ReporteConcentradoExport($dataArray, $headers, 'PERIODO '.$idPeriodo.' - '.$descripcionPeriodo, $totalesSemestre), $fileName, 'public');
 
    
     if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $fileName
             
         ]);
     } else {

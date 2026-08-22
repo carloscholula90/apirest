@@ -223,7 +223,7 @@ public function store(Request $request)
         if (file_exists($path)) {
             return response()->json([
                 'status' => 200,
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nombreArchivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nombreArchivo
             ]);
         } else {
             return response()->json([

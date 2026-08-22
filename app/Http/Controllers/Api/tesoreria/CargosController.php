@@ -15,15 +15,15 @@ class CargosController extends Controller
 {
 
 
-    public function index($concentrado, $idPeriodo, $idNivel){
-        return $this->generaReporte($concentrado, $idPeriodo, $idNivel,0);
+    public function index($concentrado, $idPeriodo, $idNivel, $idServicio = null){
+        return $this->generaReporte($concentrado, $idPeriodo, $idNivel, 0, $idServicio);
     }
 
-    public function indexExcel($concentrado, $idPeriodo, $idNivel){
-        return $this->generaReporte($concentrado, $idPeriodo, $idNivel,1);
+    public function indexExcel($concentrado, $idPeriodo, $idNivel, $idServicio = null){
+        return $this->generaReporte($concentrado, $idPeriodo, $idNivel, 1, $idServicio);
     }
 
-    public function generaReporte($concentrado, $idPeriodo, $idNivel,$excel)
+    public function generaReporte($concentrado, $idPeriodo, $idNivel, $excel, $idServicio = null)
     {
         // ==========================
         // CONFIGURACIÓN
@@ -45,6 +45,17 @@ class CargosController extends Controller
                 'message' => 'No se encontró el periodo'
             ]);
         }
+
+        $nivel = DB::table('nivel')
+            ->where('idNivel', $idNivel)
+            ->first();
+
+        $descripcionNivel = $nivel->descripcion ?? $idNivel;
+        $descripcionPeriodo = $periodo->descripcion ?? $idPeriodo;
+        $tituloNivelReporte = 'NIVEL: ' . $descripcionNivel;
+        $tituloPeriodoReporte = 'PERIODO: ' . $descripcionPeriodo;
+        $subtituloReporte = "\nNIVEL: " . $descripcionNivel . "\nPERIODO: " . $descripcionPeriodo;
+        $idServicioFiltro = ($idServicio !== null && (int)$idServicio > 0) ? (int)$idServicio : null;
 
         // ==========================
         // MESES
@@ -75,10 +86,11 @@ class CargosController extends Controller
             $query = DB::table('edocta as cta')
                 ->select(
                     'cta.uid',
+                    'cta.idServicio',
                     's.descripcion as servicio',
                     'ca.descripcion as escuela',
                     DB::raw("CONCAT(pers.nombre,' ',pers.primerApellido,' ',pers.segundoApellido) AS nombre"),
-                    DB::raw("MONTH(cta.FechaPago) AS mes"),
+                    DB::raw("MONTH(COALESCE(cta.FechaPago, cta.fechaVencimiento, cta.fechaMovto)) AS mes"),
                     DB::raw("SUM(cta.importe) AS importe")
                 )
                 ->join('persona as pers', 'pers.uid', '=', 'cta.uid')
@@ -96,28 +108,34 @@ class CargosController extends Controller
                       ->on('ca.idCarrera', '=', 'al.idCarrera');
                 })
                 ->where('cta.tipomovto', 'C')
-                ->where('p.idPeriodo', $idPeriodo);
+                ->where('p.idPeriodo', $idPeriodo)
+                ->where('ca.idNivel', $idNivel);
 
             if ($activo == 0) {
                 $query->where('s.tipoEdoCta', 1);
             }
 
+            if ($idServicioFiltro !== null) {
+                $query->where('cta.idServicio', $idServicioFiltro);
+            }
+
             $results = $query
                 ->groupBy(
                     'cta.uid',
+                    'cta.idServicio',
                     's.descripcion',
                     'ca.descripcion',
                     'pers.nombre',
                     'pers.primerApellido',
                     'pers.segundoApellido',
-                    DB::raw("MONTH(cta.FechaPago)")
+                    DB::raw("MONTH(COALESCE(cta.FechaPago, cta.fechaVencimiento, cta.fechaMovto))")
                 )
-                ->orderBy('servicio')
+                ->orderBy('cta.idServicio')
                 ->orderBy('cta.uid')
                 ->get();
 
                 $results = $results->sortBy([
-                            ['servicio', 'asc'],
+                            ['idServicio', 'asc'],
                             ['escuela', 'asc'],
                             ['mes', 'asc'],
                         ]);
@@ -135,7 +153,8 @@ class CargosController extends Controller
             foreach ($results as $r) {
                 if (!isset($meses[$r->mes])) continue;
 
-                $key = $r->uid . '|' . $r->servicio;
+                $servicio = '(' . $r->idServicio . ') ' . $r->servicio;
+                $key = $r->uid . '|' . $servicio;
                 $mes = $meses[$r->mes];
 
                 if (!isset($pivot[$key])) {
@@ -143,7 +162,7 @@ class CargosController extends Controller
                         'uid' => $r->uid,
                         'nombre' => $r->nombre,
                         'escuela' => $r->escuela,
-                        'servicio' => $r->servicio,
+                        'servicio' => $servicio,
                     ];
                     foreach ($meses as $m) $pivot[$key][$m] = 0;
                     $pivot[$key]['total'] = 0;
@@ -222,15 +241,20 @@ class CargosController extends Controller
                         $dataConCortes[] = $totalRow;
                     }
                     Log::info('termino pivote 3:');
-                 $dataFinal = $dataConCortes;
-                 $path = storage_path('app/public/rptCargosAnalitico.xlsx');
-                    Excel::store(new GenericExport($dataFinal, $headers, $keys),'rptCargosAnalitico.xlsx',  'public');
+                  $dataFinal = $dataConCortes;
+                  $path = storage_path('app/public/rptCargosAnalitico.xlsx');
+                    $titleRowsExcel = [
+                        'REPORTE DE CARGOS ANALÍTICO POR SERVICIO',
+                        $tituloNivelReporte,
+                        $tituloPeriodoReporte,
+                    ];
+                    Excel::store(new GenericExport($dataFinal, $headers, $keys, $titleRowsExcel),'rptCargosAnalitico.xlsx',  'public');
                 
                     // Verifica si el archivo existe usando Storage de Laravel
                     if (file_exists($path))  {
                         return response()->json([
                             'status' => 200,  
-                            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptCargosAnalitico.xlsx' // URL pública para descargar el archivo
+                            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptCargosAnalitico.xlsx' // URL pública para descargar el archivo
                         ]);
                         } else {
                             return response()->json([
@@ -241,12 +265,23 @@ class CargosController extends Controller
             }
 
             // ---------------- PDF ----------------
+            $dataPdf = array_map(function ($row) {
+                $row['uidNombre'] = trim(($row['uid'] ?? '') . ' - ' . ($row['nombre'] ?? ''));
+                return $row;
+            }, $data);
+
+            $headersPdf = array_merge(['UID / NOMBRE','ESCUELA'], array_values($meses), ['TOTAL']);
+            $keysPdf    = array_merge(['uidNombre','escuela'], array_values($meses), ['total']);
+
+            $columnWidthsAnalitico = array_fill(0, count($headersPdf), 70);
+            $columnWidthsAnalitico[0] = 250;
+
             return $this->generateReport(
-                $data,
-                array_fill(0, count($headers), 60),
-                $keys,
-                'REPORTE DE CARGOS ANALÍTICO',
-                $headers,
+                $dataPdf,
+                $columnWidthsAnalitico,
+                $keysPdf,
+                'REPORTE DE CARGOS ANALÍTICO POR SERVICIO' . $subtituloReporte,
+                $headersPdf,
                 'L',
                 'letter',
                 'rptCargosAnalitico.pdf'
@@ -259,8 +294,9 @@ class CargosController extends Controller
         $query = DB::table('edocta as cta')
             ->select(
                 'ca.descripcion as escuela',
+                'cta.idServicio',
                 's.descripcion as servicio',
-                DB::raw("MONTH(cta.FechaPago) AS mes"),
+                DB::raw("MONTH(COALESCE(cta.FechaPago, cta.fechaVencimiento, cta.fechaMovto)) AS mes"),
                 DB::raw("SUM(cta.importe) AS importe")
             )
             ->join('alumno as al', function ($j) {
@@ -277,17 +313,22 @@ class CargosController extends Controller
                   ->on('ca.idCarrera', '=', 'al.idCarrera');
             })
             ->where('cta.tipomovto', 'C')
-            ->where('p.idPeriodo', $idPeriodo);
+            ->where('p.idPeriodo', $idPeriodo)
+            ->where('ca.idNivel', $idNivel);
 
         if ($activo == 0) {
             $query->where('s.tipoEdoCta', 1);
         }
 
+        if ($idServicioFiltro !== null) {
+            $query->where('cta.idServicio', $idServicioFiltro);
+        }
+
         $results = $query
-            ->groupBy('ca.descripcion','s.descripcion',DB::raw("MONTH(cta.FechaPago)"))
+            ->groupBy('ca.descripcion','cta.idServicio','s.descripcion',DB::raw("MONTH(COALESCE(cta.FechaPago, cta.fechaVencimiento, cta.fechaMovto))"))
             ->get();
         $results = $results->sortBy([
-                                    ['servicio', 'asc'],
+                                    ['idServicio', 'asc'],
                                     ['escuela', 'asc'],
                                     ['mes', 'asc'],
                                 ]);
@@ -296,13 +337,14 @@ class CargosController extends Controller
         foreach ($results as $r) {
             if (!isset($meses[$r->mes])) continue;
 
-            $key = $r->escuela . '|' . $r->servicio;
+            $servicio = '(' . $r->idServicio . ') ' . $r->servicio;
+            $key = $r->escuela . '|' . $servicio;
             $mes = $meses[$r->mes];
 
             if (!isset($pivot[$key])) {
                 $pivot[$key] = [
                     'escuela' => $r->escuela,
-                    'servicio' => $r->servicio
+                    'servicio' => $servicio
                 ];
                 foreach ($meses as $m) $pivot[$key][$m] = 0;
                 $pivot[$key]['total'] = 0;
@@ -381,13 +423,18 @@ class CargosController extends Controller
 
         $dataFin = $dataConCortes;
         $path = storage_path('app/public/rptCargosConcentrado.xlsx');
-        Excel::store(new GenericExport($dataFin, $headers, $keys),'rptCargosConcentrado.xlsx',  'public');
+        $titleRowsExcel = [
+            'REPORTE DE CARGOS CONCENTRADO POR SERVICIO',
+            $tituloNivelReporte,
+            $tituloPeriodoReporte,
+        ];
+        Excel::store(new GenericExport($dataFin, $headers, $keys, $titleRowsExcel),'rptCargosConcentrado.xlsx',  'public');
        
         // Verifica si el archivo existe usando Storage de Laravel
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/rptCargosConcentrado.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/rptCargosConcentrado.xlsx' // URL pública para descargar el archivo
             ]);
             } else {
                 return response()->json([
@@ -397,16 +444,65 @@ class CargosController extends Controller
             }
         }
 
+        $columnWidthsConcentrado = array_fill(0, count($headers), 65);
+        $columnWidthsConcentrado[0] = 250;
+
         return $this->generateReportConcentrado(
             $data,
-            array_fill(0, count($headers), 70),
+            $columnWidthsConcentrado,
             $keys,
-            'REPORTE DE CARGOS CONCENTRADO',
+            'REPORTE DE CARGOS CONCENTRADO POR SERVICIO' . $subtituloReporte,
             $headers,
             'L',
             'letter',
             'rptCargosConcentrado.pdf'
         );
+    }
+
+    public function serviciosDisponibles($idPeriodo, $idNivel)
+    {
+        $config = DB::table('configuracion')
+            ->where('id_campo', 1)
+            ->first();
+
+        $activo = $config->valor ?? 0;
+
+        $query = DB::table('edocta as cta')
+            ->join('alumno as al', function ($j) {
+                $j->on('al.uid', '=', 'cta.uid')
+                  ->on('al.secuencia', '=', 'cta.secuencia');
+            })
+            ->join('servicio as s', 's.idServicio', '=', 'cta.idServicio')
+            ->join('periodo as p', function ($j) {
+                $j->on('p.idPeriodo', '=', 'cta.idPeriodo')
+                  ->on('p.idNivel', '=', 'al.idNivel');
+            })
+            ->join('carrera as ca', function ($j) {
+                $j->on('ca.idNivel', '=', 'al.idNivel')
+                  ->on('ca.idCarrera', '=', 'al.idCarrera');
+            })
+            ->where('cta.tipomovto', 'C')
+            ->where('p.idPeriodo', $idPeriodo)
+            ->where('ca.idNivel', $idNivel);
+
+        if ($activo == 0) {
+            $query->where('s.tipoEdoCta', 1);
+        }
+
+        $servicios = $query
+            ->select(
+                'cta.idServicio',
+                's.descripcion',
+                DB::raw("CONCAT('(', cta.idServicio, ') ', s.descripcion) AS servicio")
+            )
+            ->distinct()
+            ->orderBy('cta.idServicio')
+            ->get();
+
+        return response()->json([
+            'status' => 200,
+            'servicios' => $servicios
+        ]);
     }
 
 public function generateReport(
@@ -431,21 +527,41 @@ public function generateReport(
     $pdf->SetFont('helvetica', '', 14);
     $pdf->SetCreator(PDF_CREATOR);
     $pdf->SetAuthor('SIAWEB');
-    $pdf->SetMargins(15, 30, 15);
+    $pdf->SetMargins(15, 55, 15);
     $pdf->SetAutoPageBreak(true, 25);
 
     $pdf->AddPage();
     $pdf->SetFont('helvetica', '', 8);
 
-    $html2 = '<br><br><br><table border="0" cellpadding="1">';
+    $textKeys = ['uid', 'nombre', 'uidNombre'];
+    $skipKeys = ['escuela', 'servicio'];
+    $numericKeys = [];
+
+    foreach ($keys as $key) {
+        if (!in_array($key, $textKeys, true) && !in_array($key, $skipKeys, true)) {
+            $numericKeys[] = $key;
+        }
+    }
+
+    $totalLabelColspan = 0;
+    foreach ($keys as $key) {
+        if (in_array($key, $textKeys, true)) {
+            $totalLabelColspan++;
+        }
+    }
+    $totalLabelColspan = max(1, $totalLabelColspan);
+
+    $html2 = '<table border="0" cellpadding="1"><thead>';
 
     // ================= ENCABEZADOS =================
     $html2 .= '<tr>';
     foreach ($headers as $index => $header) {
 
-        if ($index == 2) continue;
+        $key = $keys[$index] ?? '';
 
-        $align = ($index > 3) ? 'right' : 'left';
+        if (in_array($key, $skipKeys, true)) continue;
+
+        $align = in_array($key, $numericKeys, true) ? 'right' : 'left';
 
         $html2 .= '<td style="font-size:9px;" width="' . $columnWidths[$index] . '" align="' . $align . '">
                         <b>' . htmlspecialchars($header) . '</b>
@@ -453,6 +569,7 @@ public function generateReport(
     }
     $html2 .= '</tr>';
     $html2 .= '<tr><td colspan="' . count($headers) . '"></td></tr>';
+    $html2 .= '</thead><tbody>';
 
     // ================= VARIABLES =================
     $servicioActual = '';
@@ -471,9 +588,9 @@ public function generateReport(
             if ($servicioActual !== '') {
                 $html2 .= '<tr><td colspan="' . count($keys) . '"><hr></td></tr>';
                 $html2 .= '<tr style="font-weight:bold;font-size:8px;">
-                            <td colspan="2">TOTAL SERVICIO: ' . htmlspecialchars($servicioActual) . '</td>';
+                            <td colspan="' . $totalLabelColspan . '">TOTAL SERVICIO: ' . htmlspecialchars($servicioActual) . '</td>';
 
-                foreach (array_slice($keys, 3) as $key) {
+                foreach ($numericKeys as $key) {
                     $html2 .= '<td align="right">$ ' .
                         number_format($totalesServicio[$key] ?? 0, 2) . '</td>';
                 }
@@ -493,11 +610,11 @@ public function generateReport(
         $html2 .= '<tr>';
         foreach ($keys as $i => $key) {
 
-            if (in_array($key, ['escuela', 'servicio'])) continue;
+            if (in_array($key, $skipKeys, true)) continue;
 
             $value = $row[$key] ?? '';
 
-            if (in_array($key, ['uid', 'nombre'])) {
+            if (in_array($key, $textKeys, true)) {
                 $html2 .= '<td width="' . $columnWidths[$i] . '">' .
                             htmlspecialchars($value) . '</td>';
             } else {
@@ -514,17 +631,30 @@ public function generateReport(
         $escuelaActual  = $row['escuela'];
     }
 
+    if ($servicioActual !== '') {
+        $html2 .= '<tr><td colspan="' . count($keys) . '"><hr></td></tr>';
+        $html2 .= '<tr style="font-weight:bold;font-size:8px;">
+                    <td colspan="' . $totalLabelColspan . '">TOTAL SERVICIO: ' . htmlspecialchars($servicioActual) . '</td>';
+
+        foreach ($numericKeys as $key) {
+            $html2 .= '<td align="right">$ ' .
+                        number_format($totalesServicio[$key] ?? 0, 2) . '</td>';
+        }
+
+        $html2 .= '</tr>';
+    }
+
     // ================= TOTAL GENERAL =================
     $html2 .= '<tr><td colspan="' . count($keys) . '"><br><br></td></tr>';
     $html2 .= '<tr style="font-weight:bold;font-size:8px;">
-                <td colspan="2">TOTAL GENERAL</td>';
+                <td colspan="' . $totalLabelColspan . '">TOTAL GENERAL</td>';
 
-    foreach (array_slice($keys, 3) as $key) {
+    foreach ($numericKeys as $key) {
         $html2 .= '<td align="right">$ ' .
                     number_format($totalesGenerales[$key] ?? 0, 2) . '</td>';
     }
 
-    $html2 .= '</tr></table>';
+    $html2 .= '</tr></tbody></table>';
 
     $pdf->writeHTML($html2);
 Log::info('termino pivote 4ett45:');
@@ -533,7 +663,7 @@ Log::info('termino pivote 4ett45:');
 
     return response()->json([
         'status'  => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
   
@@ -555,12 +685,12 @@ public function generateReportConcentrado(
     $pdf->setHeaders(null, $columnWidths, $title);
     $pdf->setImagePaths($imagePathEnc, $imagePathPie, $orientation);
 
-    $pdf->SetMargins(15, 30, 15);
+    $pdf->SetMargins(15, 55, 15);
     $pdf->SetAutoPageBreak(true, 25);
     $pdf->AddPage();
     $pdf->SetFont('helvetica', '', 8);
 
-    $html = '<br><br><br><table border="0" cellpadding="2">';
+    $html = '<table border="0" cellpadding="2">';
 
     $servicioActual   = '';
     $totalesServicio  = [];
@@ -620,6 +750,19 @@ public function generateReportConcentrado(
         $servicioActual = $row['servicio'];
     }
 
+    if ($servicioActual !== '') {
+        $html .= '<tr><td colspan="' . count($keys) . '"><hr></td></tr>';
+        $html .= '<tr style="font-weight:bold;">
+                    <td>TOTAL SERVICIO: ' . htmlspecialchars($servicioActual) . '</td>';
+
+        foreach (array_slice($keys, 1) as $k) {
+            $html .= '<td align="right">$ ' .
+                        number_format($totalesServicio[$k] ?? 0, 2) . '</td>';
+        }
+
+        $html .= '</tr>';
+    }
+
     $html .= '<tr><td colspan="' . count($keys) . '"><hr></td></tr>';
     $html .= '<tr style="font-weight:bold;">
                 <td>TOTAL GENERAL</td>';
@@ -637,7 +780,7 @@ public function generateReportConcentrado(
 
     return response()->json([
         'status'  => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 

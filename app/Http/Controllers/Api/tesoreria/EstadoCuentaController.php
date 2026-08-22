@@ -378,7 +378,7 @@ class EstadoCuentaController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -1058,7 +1058,7 @@ class EstadoCuentaController extends Controller{
             if (file_exists($filePath)) 
                         return response()->json([
                             'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
-                            'error'   => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport ,
+                            'error'   => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport ,
                             'status'  => 200
                         ], 200);
 
@@ -1205,7 +1205,7 @@ class EstadoCuentaController extends Controller{
             if (file_exists($filePath)) 
                         return response()->json([
                             'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
-                            'error'   => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport ,
+                            'error'   => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport ,
                             'status'  => 200
                         ], 200);
 

@@ -44,6 +44,12 @@ Route::group([], function () {
     ]);
 
     // Actualizaciones
+    Route::post('/cambioGrupo', [
+        GrupoController::class,
+        'cambioGrupo'
+    ]);
+
+    // Actualizaciones
     Route::post('/grupo/{gruposec}', [
         GrupoController::class,
         'actualizarProfesor'

@@ -15,12 +15,14 @@ class GenericExport implements FromCollection, WithHeadings, WithMapping, WithEv
     protected $headers;
     protected $keys;
     protected $cutRows = [];
+    protected $titleRows = [];
 
-    public function __construct($data, $headers, $keys)
+    public function __construct($data, $headers, $keys, $titleRows = [])
     {
         $this->data = collect($data);
         $this->headers = $headers;
         $this->keys = $keys;
+        $this->titleRows = $titleRows;
     }
 
     public function collection()
@@ -54,6 +56,25 @@ class GenericExport implements FromCollection, WithHeadings, WithMapping, WithEv
 
             // Última columna (importe normalmente)
             $lastColumn = chr(64 + $columnCount);
+
+            if (!empty($this->titleRows)) {
+                $sheet->insertNewRowBefore(1, count($this->titleRows));
+
+                foreach ($this->titleRows as $index => $title) {
+                    $rowNumber = $index + 1;
+                    $sheet->setCellValue("A{$rowNumber}", $title);
+                    $sheet->mergeCells("A{$rowNumber}:{$lastColumn}{$rowNumber}");
+                    $sheet->getStyle("A{$rowNumber}:{$lastColumn}{$rowNumber}")->applyFromArray([
+                        'font' => [
+                            'bold' => true,
+                            'size' => $index === 0 ? 13 : 11,
+                        ],
+                    ]);
+                    $sheet->getStyle("A{$rowNumber}")
+                        ->getAlignment()
+                        ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                }
+            }
 
             // Columna antes de la última (para combinar sin tocar importe)
             $beforeLastColumn = chr(63 + $columnCount);

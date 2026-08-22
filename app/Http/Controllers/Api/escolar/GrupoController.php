@@ -204,98 +204,231 @@ class GrupoController extends Controller
        );
     }
 
-    public function cambioGrupo(Request $request){
+   public function cambioGrupo(Request $request)
+{
+    $datos = $request->validate([
+        'newGrupo'          => ['required', 'string', 'size:5'],
+        'newSemestre'       => ['required', 'integer', 'min:1'],
+        'idNivel'           => ['required', 'integer'],
+        'idPeriodo'         => ['required', 'integer'],
+        'idCarrera'         => ['required', 'integer'],
+        'uidMvto'           => ['required', 'string'],
+        'grupo'             => ['required', 'string'],
 
-      $grupo = $request->newGrupo;
-      $len = strlen($grupo);
-      $posSemestre = ($len == 4) ? 3 : 4;
-      $posTurno    = ($len == 4) ? 2 : 3;
-      $semestre = substr($grupo, $posSemestre - 1, 1);
-      $turno    = substr($grupo, $posTurno - 1, 1);
+        'grupos'             => ['required', 'array', 'min:1'],
+        'grupos.*.uid'       => ['required', 'integer'],
+        'grupos.*.secuencia' => ['required', 'integer'],
+        'grupos.*.matricula' => ['required', 'integer'],
+        'grupos.*.semestre'  => ['required', 'integer'],
+        'grupos.*.idTurno'   => ['required', 'string', 'size:1'],
+        'grupos.*.plan'      => ['required', 'string'],
+    ]);
 
+    $nuevoGrupo = strtoupper($datos['newGrupo']);
+    $longitud = strlen($nuevoGrupo);
 
-      $periodo = DB::table('periodo as p')
-                 ->select('p.idPeriodo', 'p.idTurno', DB::raw("$semestre as semestre"))
-                 ->join('turno as t', 't.letra', '=', DB::raw("'$turno'"))
-                 ->where('p.activo', 1)
-                 ->where('p.idNivel', $request->idNivel)
-                 ->first();
+    /*
+     * 11E5A:
+     * posición 2 = E
+     * posición 3 = 5
+     *
+     * Las posiciones de substr comienzan en cero.
+     */
+    $posicionTurno = $longitud === 4 ? 1 : 2;
+    $posicionSemestre = $longitud === 4 ? 2 : 3;
 
-      //Validar el turno de para ver si cambia de costos
-      DB::statement("SET @origen = 'LARAVEL'");
-      DB::statement("SET @uidMvto = ?", [$request->uidMvto]);
-                    
-      foreach ($request->grupos as $grupos){
+    $nuevoTurno = substr($nuevoGrupo, $posicionTurno, 1);
+    $semestreGrupo = (int) substr(
+        $nuevoGrupo,
+        $posicionSemestre,
+        1
+    );
 
-         $ciclo = DB::table('ciclos')
-               ->where('idPeriodo', $request->idPeriodo)
-               ->where('uid', $grupos->uid)
-               ->where('secuencia', $grupos->secuencia)
-               ->first();
-
-         $indexciclo = $ciclo->indexciclo ?? null;
-
-         DB::table('ciclos')
-                        ->where('idPeriodo', $request->idPeriodo)
-                        ->where('uid',$grupos->uid)
-                        ->where('secuencia', $grupos->secuencia)
-                        ->update(['grupo' => $request->newGrupo,
-                                 'semestre'=> $request->newSemestre]);
-
-                 //valido si hay movimientos en el estado de cuenta
-                 
-            $colegiaturasPagadas = DB::table('edocta as edo')
-                                       ->where('edo.uid', $grupos->uid)
-                                       ->where('edo.secuencia', $grupos->secuencia)
-                                       ->where('edo.idPeriodo', $servicios->idPeriodo)
-                                       ->where('edo.tipomovto', 'A')
-                                       ->whereIn('edo.idServicio', [
-                                                $servicios->idServicioInscripcion,
-                                                $servicios->idServicioColegiatura,
-                                                $servicios->idServicioRecargo
-                            ])
-                            ->orderBy('edo.consecutivo', 'asc')
-                            ->exists();
-
-               //Cambio de grupo borramos materias
-               if (!$colegiaturasPagadas) {
-                     DB::table('edocta as edo')
-                        ->where('edo.uid', $grupos->uid)
-                        ->where('edo.secuencia', $grupos->secuencia)
-                        ->where('edo.idPeriodo', $servicios->idPeriodo)
-                        ->where('edo.tipomovto', 'C')
-                        ->whereIn('edo.idServicio', [
-                           $servicios->idServicioInscripcion,
-                           $servicios->idServicioColegiatura,
-                           $servicios->idServicioRecargo
-                        ])
-                        ->delete();
-
-                     //Actualizamos cargos
-                     $result = DB::select('CALL GeneraCargosInscrip(?, ?, ?, ?, ?, ?, ?)', 
-                                                        [$request->idNivel,$request->idPeriodo, 
-                                                         $request->idCarrera,$request->newSemestre,
-                                                         $grupos->uid,$grupos->secuencia,$grupos->idTurno
-                                                        ]);
-
-               }
-               if($indexciclo!=null){
-                     DB::table('calificaciones')
-                           ->where('indexCiclo', $indexciclo)
-                           ->delete();
-
-                     $result = DB::select('CALL GeneraCargaAcad(?, ?, ?, ?, ?, ?, ?, ?)', 
-                                                        [$request->idNivel,$request->idPeriodo, 
-                                                         $grupos->uid,$grupos->matricula,
-                                                         $grupos->semestre,$request->idCarrera,
-                                                         $grupos->plan,$request->grupo
-                                                        ]);
-               
-               }
-
-      }
-      return $this->returnData('Registros actualizados',null,200);
+    if ($semestreGrupo !== (int) $datos['newSemestre']) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'newSemestre' => [
+                "El semestre enviado no coincide con el grupo {$nuevoGrupo}.",
+            ],
+        ]);
     }
+
+    $periodo = DB::table('periodo as p')
+        ->join('turno as t', function ($join) use ($nuevoTurno) {
+            $join->where('t.letra', '=', $nuevoTurno);
+        })
+        ->select([
+            'p.idPeriodo',
+            't.idTurno',
+        ])
+        ->where('p.idPeriodo', $datos['idPeriodo'])
+        ->where('p.idNivel', $datos['idNivel'])
+        ->where('p.activo', 1)
+        ->first();
+
+    if (!$periodo) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'newGrupo' => [
+                "No existe un periodo activo o no existe el turno {$nuevoTurno}.",
+            ],
+        ]);
+    }
+
+    DB::transaction(function () use (
+        $datos,
+        $nuevoGrupo,
+        $nuevoTurno,
+        $periodo
+    ) {
+        DB::statement("SET @origen = 'LARAVEL'");
+        DB::statement('SET @uidMvto = ?', [
+            $datos['uidMvto'],
+        ]);
+
+        foreach ($datos['grupos'] as $alumno) {
+            $uid = $alumno['uid'];
+            $secuencia = $alumno['secuencia'];
+
+            $ciclo = DB::table('ciclos')
+                ->where('idPeriodo', $datos['idPeriodo'])
+                ->where('uid', $uid)
+                ->where('secuencia', $secuencia)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$ciclo) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'grupos' => [
+                        "No se encontró el ciclo del alumno {$uid}, secuencia {$secuencia}.",
+                    ],
+                ]);
+            }
+
+            $servicios = $this->obtenerServiciosTesoreria(
+                $uid,
+                $secuencia,
+                $datos['idPeriodo']
+            );
+
+            if (!$servicios) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'grupos' => [
+                        "No se encontraron servicios para el alumno {$uid}.",
+                    ],
+                ]);
+            }
+
+            /*
+             * data_get funciona si $servicios es objeto o arreglo.
+             */
+            $idsServicios = array_values(array_filter([
+                data_get($servicios, 'idServicioInscripcion'),
+                data_get($servicios, 'idServicioColegiatura'),
+                data_get($servicios, 'idServicioRecargo'),
+            ], function ($idServicio) {
+                return $idServicio !== null;
+            }));
+
+            if (empty($idsServicios)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'grupos' => [
+                        "No se encontraron IDs de servicios para el alumno {$uid}.",
+                    ],
+                ]);
+            }
+
+            $colegiaturasPagadas = DB::table('edocta as edo')
+                ->where('edo.uid', $uid)
+                ->where('edo.secuencia', $secuencia)
+                ->where('edo.idPeriodo', $datos['idPeriodo'])
+                ->where('edo.tipomovto', 'A')
+                ->whereIn('edo.idServicio', $idsServicios)
+                ->exists();
+
+            DB::table('ciclos')
+                ->where('idPeriodo', $datos['idPeriodo'])
+                ->where('uid', $uid)
+                ->where('secuencia', $secuencia)
+                ->update([
+                    'grupo'    => $nuevoGrupo,
+                    'semestre' => $datos['newSemestre'],
+                ]);
+
+            if (!$colegiaturasPagadas) {
+                DB::table('edocta as edo')
+                    ->where('edo.uid', $uid)
+                    ->where('edo.secuencia', $secuencia)
+                    ->where('edo.idPeriodo', $datos['idPeriodo'])
+                    ->where('edo.tipomovto', 'C')
+                    ->whereIn('edo.idServicio', $idsServicios)
+                    ->delete();
+
+                /*
+                 * Se envía el turno nuevo E.
+                 * Si el procedimiento espera un ID numérico,
+                 * cambia $nuevoTurno por $periodo->idTurno.
+                 */
+                DB::select(
+                    'CALL GeneraCargosInscrip(?, ?, ?, ?, ?, ?, ?)',
+                    [
+                        $datos['idNivel'],
+                        $datos['idPeriodo'],
+                        $datos['idCarrera'],
+                        $datos['newSemestre'],
+                        $uid,
+                        $secuencia,
+                        $nuevoTurno,
+                    ]
+                );
+            }
+
+            if ($ciclo->indexCiclo !== null) {
+                DB::table('calificaciones')
+                    ->where('indexCiclo', $ciclo->indexCiclo)
+                    ->delete();
+
+                DB::select(
+                    'CALL GeneraCargaAcad(?, ?, ?, ?, ?, ?, ?, ?)',
+                    [
+                        $datos['idNivel'],
+                        $datos['idPeriodo'],
+                        $uid,
+                        $alumno['matricula'],
+                        $datos['newSemestre'],
+                        $datos['idCarrera'],
+                        $alumno['plan'],
+                        $nuevoGrupo,
+                    ]
+                );
+            }
+        }
+    });
+
+    return $this->returnData(
+        'Registros actualizados',
+        null,
+        200
+    );
+}
+
+private function obtenerServiciosTesoreria($uid,$secuencia,$idPeriodo){
+    return DB::table('configuracionTesoreria as ct')
+        ->join('alumno as al', function ($join) use ($uid, $secuencia) {
+            $join->on('ct.idNivel', '=', 'al.idNivel')
+                ->where('al.uid', '=', $uid)
+                ->where('al.secuencia', '=', $secuencia);
+        })
+        ->selectRaw("? as idPeriodo", [$idPeriodo])
+        ->addSelect(
+            'al.idNivel',
+            'ct.idServicioColegiatura',
+            'ct.idServicioInscripcion',
+            'ct.idServicioRecargo',
+            'ct.idServicioNotaCredito',
+            'ct.idServicioTraspasoSaldos1'
+        )
+        ->first();
+    }
+
 
 public function obtenerAsignaturas($grupo){
     $datos = DB::table('detasignatura as det')
@@ -587,7 +720,7 @@ public function obtenerAsignaturas($grupo){
 
         return response()->json([
             'status'  => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
         ]);
 
     } else {
