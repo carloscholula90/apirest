@@ -413,9 +413,8 @@ class EstadoCuentaController extends Controller{
         $data = $request->validate(['uid'         => 'required',
                                     'secuencia'   => 'required',
                                     'idPeriodo'   => 'required',
-                                    'uidcajero'   => 'required',
-                                    'movimientos' => 'required|array',
-                                    'idPeriodo'   => 'required'
+                                    'uidcajero'   => 'required',  
+                                    'movimientos' => 'required|array'
         ]);
 
         $uid = $data['uid'];
@@ -1208,7 +1207,7 @@ class EstadoCuentaController extends Controller{
                             'error'   => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport ,
                             'status'  => 200
                         ], 200);
-
+ 
         } else{    
             return response()->json([
                             'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
