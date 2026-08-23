@@ -29,16 +29,78 @@ class FichasController extends Controller{
     $nameReport = 'fichaPago_' . mt_rand(100, 999) . '.pdf';
     DB::statement("SET lc_time_names = 'es_ES'");
     
-    $datos = DB::table(DB::raw("(
-            SELECT 
-                cta.uid,
-                al.matricula,
-                cta.parcialidad,
-                cta.secuencia,
-                GROUP_CONCAT(DISTINCT CONCAT(
-                    s.descripcion, ' ',
-                    CASE WHEN s.descripcion LIKE '%INSCRIP%' THEN ''
-                        ELSE CASE CONVERT(SUBSTRING(cta.referencia, 4), UNSIGNED)
+    /*
+     * Calcular primero los saldos del periodo solicitado. Cuando se genera
+     * la ficha de un alumno, el UID se filtra dentro de la subconsulta para
+     * evitar agrupar toda la tabla edocta.
+     */
+    $saldosPendientes = DB::table('edocta')
+        ->select([
+            'uid',
+            'secuencia',
+            'idPeriodo',
+            'idServicio',
+            'referencia',
+            'parcialidad',
+            DB::raw("SUM(
+                CASE
+                    WHEN tipomovto = 'C' THEN importe
+                    WHEN tipomovto = 'A' THEN -importe
+                    ELSE 0
+                END
+            ) AS saldo"),
+            DB::raw("MAX(
+                CASE
+                    WHEN tipomovto = 'C'
+                    THEN COALESCE(fechaVencimiento, FechaPago)
+                    ELSE NULL
+                END
+            ) AS fechaVencimiento"),
+        ])
+        ->where('idPeriodo', (int) $idPeriodo)
+        ->when((int) $uid > 0, function ($query) use ($uid) {
+            $query->where('uid', (int) $uid);
+        })
+        ->groupBy([
+            'uid',
+            'secuencia',
+            'idPeriodo',
+            'idServicio',
+            'referencia',
+            'parcialidad',
+        ])
+        ->havingRaw("SUM(
+            CASE
+                WHEN tipomovto = 'C' THEN importe
+                WHEN tipomovto = 'A' THEN -importe
+                ELSE 0
+            END
+        ) > 0");
+
+    $datos = DB::query()
+        ->fromSub($saldosPendientes, 'cta')
+        ->join('alumno as al', function ($join) {
+            $join->on('al.uid', '=', 'cta.uid')
+                ->on('al.secuencia', '=', 'cta.secuencia');
+        })
+        ->join('persona', 'persona.uid', '=', 'al.uid')
+        ->join('servicio as s', 's.idServicio', '=', 'cta.idServicio')
+        ->where('al.idCarrera', (int) $idCarrera)
+        ->where('al.idNivel', (int) $idNivel)
+        ->where('s.mostrarFichaPago', 1)
+        ->selectRaw("
+            CONCAT(
+                persona.primerApellido, ' ',
+                persona.segundoApellido, ' ',
+                persona.nombre
+            ) AS nombre,
+            cta.uid,
+            al.matricula,
+            CONCAT(
+                s.descripcion, ' ',
+                CASE
+                    WHEN s.descripcion LIKE '%INSCRIP%' THEN ''
+                    ELSE CASE CONVERT(SUBSTRING(cta.referencia, 4), UNSIGNED)
                         WHEN 1 THEN 'ENERO'
                         WHEN 2 THEN 'FEBRERO'
                         WHEN 3 THEN 'MARZO'
@@ -52,64 +114,20 @@ class FichasController extends Controller{
                         WHEN 11 THEN 'NOVIEMBRE'
                         WHEN 12 THEN 'DICIEMBRE'
                         ELSE ''
-                    END END
-                ) ORDER BY s.descripcion SEPARATOR ' + ') AS servicios,
-                GROUP_CONCAT(DISTINCT s.idServicio ORDER BY s.idServicio SEPARATOR '') AS serviciosClv,
-                SUM(
-                    CASE 
-                        WHEN cta.tipomovto = 'C' THEN cta.importe
-                        WHEN cta.tipomovto = 'A' THEN -cta.importe
-                        ELSE 0
                     END
-                ) AS total,
-                CONCAT(
-                    persona.primerApellido, ' ',
-                    persona.segundoApellido, ' ',
-                    persona.nombre
-                ) AS nombre,
-                MAX( CASE WHEN cta.tipomovto = 'C' THEN cta.fechaVencimiento END) AS fechaVencimiento
-            FROM configuracionTesoreria ct
-            INNER JOIN alumno al ON ct.idNivel = al.idNivel
-            INNER JOIN persona ON persona.uid = al.uid
-            INNER JOIN periodo per ON per.idNivel = al.idNivel AND per.activo = 1
-            INNER JOIN nivel niv ON niv.idNivel = al.idNivel
-            INNER JOIN servicio s ON (
-            s.tipoEdoCta = 1
-            OR (s.tipoEdoCta = 2 AND s.idServicio = 54)
-            )
-            INNER JOIN edocta cta ON cta.idServicio = s.idServicio
-                AND cta.uid = al.uid
-                AND cta.secuencia = al.secuencia
-                AND cta.idPeriodo = per.idPeriodo
-            WHERE cta.idPeriodo =".$idPeriodo.
-                 " AND al.idCarrera =".$idCarrera.
-                 " AND al.idNivel =".$idNivel.
-            ($uid>0?" AND al.uid=".$uid:"").
-            " GROUP BY
-                cta.uid,
-                al.matricula,
-                cta.parcialidad,
-                cta.secuencia,
-                persona.primerApellido,
-                persona.segundoApellido,
-                persona.nombre
-        ) AS CONS"))
-        ->selectRaw("
-            CONS.nombre, CONS.uid,
-            CONS.matricula,
-            CONS.servicios,
-            CONS.total,
-            DATE_FORMAT(fechaVencimiento, '%Y-%m-%d') AS fechaVencimiento,
+                END
+            ) AS servicios,
+            cta.saldo AS total,
+            DATE_FORMAT(cta.fechaVencimiento, '%Y-%m-%d') AS fechaVencimiento,
             Algoritmo45Fun(
                 CONCAT(
-                    LPAD(CONS.matricula, 7, '0'),
-                    LPAD(CONS.serviciosClv, 3, '0')
+                    LPAD(al.matricula, 7, '0'),
+                    LPAD(cta.idServicio, 3, '0')
                 ),
-                DATE_FORMAT(fechaVencimiento, '%Y-%m-%d'),
-                CONS.total
+                DATE_FORMAT(cta.fechaVencimiento, '%Y-%m-%d'),
+                cta.saldo
             ) AS lineaPago
         ")
-        ->having('total', '>', 0)
         ->orderBy('matricula','asc')
         ->orderBy('fechaVencimiento','asc')
         ->get();

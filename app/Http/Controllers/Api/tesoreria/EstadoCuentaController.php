@@ -11,6 +11,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;  
 use Illuminate\Support\Facades\Auth; 
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class EstadoCuentaController extends Controller{  
 
@@ -104,6 +106,8 @@ class EstadoCuentaController extends Controller{
                 'al.idCarrera',
                 'al.matricula',
                 'edo.tipomovto',
+                'ocs.orden as _ordenCobro',
+                'edo.fechaMovto as _fechaMovimientoOrden',
                 'nivel.descripcion as nivel',
                 'carrera.descripcion as nombreCarrera',
                 'persona.nombre',
@@ -171,6 +175,10 @@ class EstadoCuentaController extends Controller{
                     $join->on('al.uid', '=', 'edo.uid')
                         ->on('al.secuencia', '=', 'edo.secuencia');
                 })
+                ->leftJoin('ordenCobroServicio as ocs', function ($join) {
+                    $join->on('ocs.idNivel', '=', 'al.idNivel')
+                        ->on('ocs.idServicio', '=', 'edo.idServicio');
+                })
                 ->join('nivel', 'nivel.idNivel', '=', 'al.idNivel')
                 ->leftJoin('configuracionTesoreria as inscripcion', function ($join) {
                     $join->on('inscripcion.idNivel', '=', 'al.idNivel')
@@ -223,17 +231,21 @@ class EstadoCuentaController extends Controller{
             if (!is_null($tipoEdoCta))
             $query->where('s.tipoEdoCta', $tipoEdoCta);
             // Ordenar y obtener resultados
-            $edocuenta = $query->orderByDesc('traspaso.idServicioTraspasoSaldos1')
-                             ->orderByDesc('inscripcion.idServicioInscripcion')
-                             ->orderByDesc('reinscrip.idServicioReinscripcion')            
-                             ->orderByDesc('colegiatura.idServicioColegiatura')
-                             ->orderByDesc('recargo.idServicioRecargo')
-                             ->orderByDesc('notacargo.idServicioNotaCargo')
-                             ->orderByDesc('notacred.idServicioNotaCredito')
-                             ->orderBy('edo.parcialidad')
-                             ->orderByDesc('edo.tipomovto')                          
-                             ->distinct()
-                             ->get();
+            $edocuenta = $query
+                ->orderByRaw('COALESCE(ocs.orden, 999999) ASC')
+                ->orderByRaw('COALESCE(edo.parcialidad, 999999) ASC')
+                ->orderBy('edo.referencia')
+                ->orderByRaw("CASE WHEN edo.tipomovto = 'C' THEN 0 ELSE 1 END ASC")
+                ->orderBy('edo.fechaMovto')
+                ->orderBy('edo.consecutivo')
+                ->distinct()
+                ->get()
+                ->each(function ($movimiento) {
+                    unset(
+                        $movimiento->_ordenCobro,
+                        $movimiento->_fechaMovimientoOrden
+                    );
+                });
 
             return $edocuenta;
     }
@@ -410,16 +422,31 @@ class EstadoCuentaController extends Controller{
 
     public function store(Request $request){
 
-        $data = $request->validate(['uid'         => 'required',
-                                    'secuencia'   => 'required',
-                                    'idPeriodo'   => 'required',
-                                    'uidcajero'   => 'required',  
-                                    'movimientos' => 'required|array'
+        $data = $request->validate(['uid'         => 'required|integer',
+                                    'secuencia'   => 'required|integer',
+                                    'idPeriodo'   => 'required|integer',
+                                    'uidcajero'   => 'required|integer',
+                                    'fechaPago'   => 'required|date_format:Y-m-d',
+                                    'movimientos' => 'required|array|min:1',
+                                    'movimientos.*.idServicio' => 'required|integer',
+                                    'movimientos.*.importe' => 'required|numeric|gt:0',
+                                    'movimientos.*.idformaPago' => 'nullable|integer',
+                                    'movimientos.*.cuatrodigitos' => 'nullable',
+                                    'movimientos.*.transaccion' => 'nullable|string',
         ]);
 
         $uid = $data['uid'];
         $secuencia = $data['secuencia'];
-        $fecha = Carbon::now();
+        $fecha = Carbon::createFromFormat(
+            'Y-m-d',
+            $data['fechaPago'],
+            'America/Mexico_City'
+        )->startOfDay();
+        $identificadorCaja = sprintf(
+            'CAJA-%s-%s',
+            now('America/Mexico_City')->format('Ymd-His'),
+            Str::uuid()
+        );
 
         DB::beginTransaction();   
         try {
@@ -427,8 +454,38 @@ class EstadoCuentaController extends Controller{
             $folio = (EstadoCuenta::max('folio') ?? 0) + 1;
             $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia, $data['idPeriodo']);
 
-            foreach ($data['movimientos'] as $movimiento) 
-                $this->procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $data['idPeriodo'], $data['uidcajero'], $fecha, $folio);
+            if (!$servicios) {
+                throw new \RuntimeException(
+                    'No existe configuración de Tesorería para el nivel del alumno.'
+                );
+            }
+
+            foreach ($data['movimientos'] as $movimiento) {
+                $this->procesarMovimiento(
+                    $movimiento,
+                    $servicios,
+                    $uid,
+                    $secuencia,
+                    $data['idPeriodo'],
+                    $data['uidcajero'],
+                    $fecha,
+                    $folio,
+                    'CAJA',
+                    $identificadorCaja
+                );
+            }
+
+            $matricula = (int) DB::table('alumno')
+                ->where('uid', $uid)
+                ->where('secuencia', $secuencia)
+                ->value('matricula');
+
+            $this->desbloquearAlumnosProcesados([[
+                'uid' => (int) $uid,
+                'secuencia' => (int) $secuencia,
+                'matricula' => $matricula,
+                'idPeriodo' => (int) $data['idPeriodo'],
+            ]]);
             
             DB::commit();
             return $this->returnData('folio', $folio, 200);
@@ -438,314 +495,83 @@ class EstadoCuentaController extends Controller{
         }
     }
 
-    private function calcularImporteInscripcion($uid, $secuencia, $idServicioInscripcion, $idPeriodo){
-    // Obtenemos el importe de pagos y notas de crédito
-        $importe = DB::table('edocta as edo')
-            ->selectRaw("IFNULL(SUM(CASE 
-                            WHEN edo.tipomovto = 'C' THEN edo.importe
-                            ELSE -1 * edo.importe
-                        END), 0)  AS importe")
-            ->join('configuracionTesoreria as ct', function($join) {
-                    $join->on('edo.idServicio', '=', 'ct.idServicioInscripcion')
-                        ->orOn('edo.idServicio', '=', 'ct.idServicioNotaCredito');
-                })
-            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
-                $join->on('al.uid', '=', 'edo.uid')
-                    ->on('al.secuencia', '=', 'edo.secuencia')
-                    ->on('al.idNivel', '=', 'ct.idNivel')
-                    ->where('al.uid', '=', $uid)
-                    ->where('al.secuencia', '=', $secuencia);
-            })
-            ->join('periodo as per', function ($join)  use ($idPeriodo) {
-                $join->on('per.idNivel', '=', 'al.idNivel')
-                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                    ->where('per.idPeriodo', $idPeriodo);
-            })
-            ->where('edo.parcialidad',0)
-            ->value('importe'); // Devuelve solo el valor
-        return $importe ?? 0;
-    }
+    private function procesarMovimiento(
+        array $movimiento,
+        object $servicios,
+        int $uid,
+        int $secuencia,
+        int $idPeriodo,
+        int $uidcajero,
+        Carbon $fecha,
+        int $folio,
+        string $tipoOrigen = 'CAJA',
+        ?string $identificadorOrigen = null
+    ) {
+        $identificadorOrigen ??= sprintf(
+            'CAJA-%s-%s',
+            now('America/Mexico_City')->format('Ymd-His'),
+            Str::uuid()
+        );
 
-    private function calcularImporteAdeudo($uid,$secuencia,$idServicio,$idPeriodo){
-    // Obtenemos el importe de pagos y notas de crédito
-     $importe = DB::table('edocta as edo')
-            ->selectRaw("IFNULL(SUM(CASE 
-                            WHEN edo.tipomovto = 'C' THEN edo.importe
-                            ELSE -1 * edo.importe
-                        END), 0)  AS importe")
-            ->join('configuracionTesoreria as ct', function($join) {
-                    $join->on('edo.idServicio', '=', 'ct.idServicioNotaCredito')
-                        ->orOn('edo.idServicio', '=', 'ct.idServicioTraspasoSaldos1');
-                })
-            ->join('alumno as al', function ($join) use ($uid, $secuencia) {
-                $join->on('al.uid', '=', 'edo.uid')
-                    ->on('al.secuencia', '=', 'edo.secuencia')
-                    ->on('al.idNivel', '=', 'ct.idNivel')
-                    ->where('al.uid', '=', $uid)
-                    ->where('al.secuencia', '=', $secuencia);
-            })
-            ->join('periodo as per', function ($join) use ($idPeriodo) {
-                $join->on('per.idNivel', '=', 'al.idNivel')
-                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                    ->where('per.idPeriodo', '=', $idPeriodo);
-            })
-            ->where('edo.parcialidad',999)
-            ->value('importe'); // Devuelve solo el valor
-        return $importe ?? 0;
-    }
-        private function obtieneReferenciaInscripcion($uid, $secuencia,$idPeriodo){
-        
-        $referencia = DB::table('edocta as edo')
-            ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioInscripcion')
-            ->where('edo.uid', $uid)
-            ->where('edo.secuencia', $secuencia)
-            ->where('edo.idPeriodo', $idPeriodo )
-            ->value('edo.referencia');
+        $idServicio = (int) ($movimiento['idServicio'] ?? 0);
+        $servicio = DB::table('servicio')
+            ->select('idServicio', 'tipoCobro')
+            ->where('idServicio', $idServicio)
+            ->first();
 
-    return $referencia ?? 0;
-    }
-
-    private function obtieneReferenciaSdoAnterior($uid, $secuencia, $idPeriodo){
-        $referencia = DB::table('edocta as edo')
-            ->join('configuracionTesoreria as ct', 'edo.idServicio', '=', 'ct.idServicioTraspasoSaldos1')
-            ->where('edo.uid', $uid)
-            ->where('edo.secuencia', $secuencia)
-            ->where('edo.idPeriodo', $idPeriodo)
-            ->value('edo.referencia');
-
-    return $referencia ?? 0;
-    }
-
-    private function procesarMovimiento($movimiento, $servicios, $uid, $secuencia, $idPeriodo, $uidcajero, $fecha, $folio){
-      
-        if ($movimiento['idServicio'] == $servicios->idServicioTraspasoSaldos1 || $movimiento['idServicio'] == $servicios->idServicioNotaCredito) {
-            $importeSaldo = $this->calcularImporteAdeudo($uid, $secuencia, $servicios->idServicioTraspasoSaldos1, $idPeriodo);
-            if($importeSaldo>0){
-                $pago = min($movimiento['importe'], $importeSaldo);
-                $restante = $movimiento['importe'] - $importeSaldo;
-                $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
-                                                            'secuencia' => $secuencia,
-                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
-                                                            'importe' => $pago,
-                                                            'idPeriodo' => $idPeriodo,
-                                                            'fechaMovto' => $fecha,
-                                                            'parcialidad' => 999,
-                                                            'folio' => $folio,
-                                                            'referencia'=> $this->obtieneReferenciaSdoAnterior($uid, $secuencia,$idPeriodo),
-                                                            'uidcajero' => $uidcajero
-                ]));
-                if($movimiento['idServicio'] == $servicios->idServicioNotaCredito)
-                     $movimiento['idServicio'] == $servicios->idServicioNotaCredito;
-                else $movimiento['idServicio'] = $servicios->idServicioInscripcion;
-                $movimiento['importe'] = $restante;
-            }else if($movimiento['idServicio'] == $servicios->idServicioNotaCredito)
-                     $movimiento['idServicio'] == $servicios->idServicioNotaCredito;
-               else $movimiento['idServicio'] = $servicios->idServicioInscripcion;
-        }          
-
-        if($movimiento['importe'] >0){
-        if ($movimiento['idServicio'] == $servicios->idServicioInscripcion ||  $movimiento['idServicio'] == $servicios->idServicioNotaCredito) {
-            $importeInscripcion = $this->calcularImporteInscripcion($uid, $secuencia, $servicios->idServicioInscripcion,$idPeriodo);
-            $restante = $movimiento['importe'];
-
-            if($importeInscripcion>0){
-                $pagoInscripcion = min($movimiento['importe'], $importeInscripcion);
-                $restante = $movimiento['importe'] - $pagoInscripcion;
-
-                $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
-                                                            'secuencia' => $secuencia,
-                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $secuencia,$idPeriodo),
-                                                            'importe' => $pagoInscripcion,
-                                                            'idPeriodo' => $idPeriodo,
-                                                            'referencia' =>  $this->obtieneReferenciaInscripcion($uid, $secuencia,$idPeriodo),
-                                                            'fechaMovto' => $fecha,
-                                                            'parcialidad' => 0,
-                                                            'folio' => $folio,
-                                                            'uidcajero' => $uidcajero
-                    ]));
-                }
-
-                 if ($restante > 0 ) {
-                    $adeudosServicio58 = DB::table('edocta')
-                        ->select([
-                            'referencia',
-                            'parcialidad',
-                            DB::raw("SUM(CASE WHEN tipomovto = 'C' THEN importe ELSE -importe END) AS saldo"),
-                        ])
-                        ->where('uid', $uid)
-                        ->where('secuencia', $secuencia)
-                        ->where('idPeriodo', $idPeriodo)
-                        ->where('idServicio', 58)
-                        ->groupBy('referencia', 'parcialidad')
-                        ->havingRaw("SUM(CASE WHEN tipomovto = 'C' THEN importe ELSE -importe END) > 0")
-                        ->orderBy('parcialidad')
-                        ->get();
-
-                    foreach ($adeudosServicio58 as $adeudoServicio58) {
-                        if ($restante <= 0) {
-                            break;
-                        }
-
-                        $pagoServicio58 = min($restante, (float) $adeudoServicio58->saldo);
-
-                        $this->crearMovimiento(array_merge($movimiento, [
-                            'uid' => $uid,
-                            'secuencia' => $secuencia,
-                            'idServicio' => 58,
-                            'importe' => $pagoServicio58,
-                            'idPeriodo' => $idPeriodo,
-                            'referencia' => $adeudoServicio58->referencia,
-                            'fechaMovto' => $fecha,
-                            'parcialidad' => $adeudoServicio58->parcialidad,
-                            'folio' => $folio,
-                            'uidcajero' => $uidcajero,
-                        ]));
-
-                        $restante -= $pagoServicio58;
-                    }
-
-                    if ($restante > 0) {
-                        $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero, $servicios->idServicioColegiatura);
-                    }
-              
-                 }
-                else if($restante > 0)
-                    $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $restante, $fecha, $folio, $uidcajero,0);
-              } 
-            else if($movimiento['idServicio'] == $servicios->idServicioRecargo)
-                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
-            else if($movimiento['idServicio'] == $servicios->idServicioColegiatura)
-                $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero,0);
-            else if($movimiento['idServicio'] == $servicios->idServicioNotaCredito) 
-               $this->prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $movimiento['importe'], $fecha, $folio, $uidcajero, $servicios->idServicioNotaCredito);
-            else $this->procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios);
+        if (!$servicio) {
+            throw new \InvalidArgumentException(
+                'El servicio indicado en el movimiento no existe.'
+            );
         }
 
-        //Validar si ya no tiene saldo entonces desbloquear 
-        $matricula = DB::table('alumno')
-                    ->where('uid', $uid)
-                    ->where('secuencia', $secuencia)
-                    ->value('matricula'); // devuelve directamente string o int
+        $esCobroEspecifico =
+            strtoupper(trim((string) $servicio->tipoCobro)) === 'ESPECIFICO';
 
-        DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
+        if ($esCobroEspecifico) {
+            $aplicacionEspecifica = $this->procesarMovimientoPorSaldos(
+                $movimiento,
+                $servicios,
+                $uid,
+                $secuencia,
+                $idPeriodo,
+                $uidcajero,
+                $fecha,
+                $folio,
+                $tipoOrigen,
+                $identificadorOrigen,
+                $idServicio,
+                false
+            );
 
-        $saldoResult = DB::select("SELECT @vencido AS vencido, @total AS total");
-  
-       if ($saldoResult[0]->vencido > 0) {
-                    // Verificamos si ya existe el registro
-                    $existe = DB::table('bloqueoPersonas')
-                        ->where('uid', $uid)
-                        ->where('secuencia', $secuencia)
-                        ->where('idBloqueo', 1)
-                        ->exists();
+            if ($aplicacionEspecifica['importeRestante'] <= 0) {
+                return $aplicacionEspecifica;
+            }
 
-                    // Si no existe, insertamos
-                    if (!$existe) {
-                        DB::table('bloqueoPersonas')->insert([
-                            'uid' => $uid,
-                            'secuencia' => $secuencia,
-                            'idBloqueo' => 1,
-                            'uidBloqueador' => $uidcajero,
-                            'secuenciaBloq' => 1,
-                            'BloqueoActivo' => '1', // S o N, dependiendo de tu convención
-                            'fechaBloqueo' => now(), // o date('Y-m-d')
-                            'descripcion' => 'Adeudo'
-                        ]);
-                    }
-        }
-        else{
-             DB::table('bloqueoPersonas')
-                    ->where('uid', $uid)
-                    ->where('secuencia', $secuencia)
-                    ->where('idBloqueo', 1)
-                    ->delete();
-
+            $movimiento['importe'] = $aplicacionEspecifica['importeRestante'];
         }
 
+        return $this->procesarMovimientoPorSaldos(
+            $movimiento,
+            $servicios,
+            $uid,
+            $secuencia,
+            $idPeriodo,
+            $uidcajero,
+            $fecha,
+            $folio,
+            $tipoOrigen,
+            $identificadorOrigen
+        );
 
-    }
-
-    private function obtenerPendientes( $uid,  $secuencia, $idPeriodo){                        
-
-     $abonosCole = DB::table('edocta')
-                        ->select([
-                            'parcialidad',
-                            'referencia',
-                            'idPeriodo',
-                            DB::raw('SUM(importe) AS total'),
-                        ])
-                        ->where('tipomovto', 'A')
-                        ->where('uid', $uid)
-                        ->groupBy('parcialidad', 'referencia', 'idPeriodo');
-
-            $abonosCargo = DB::table('edocta')
-                            ->select([
-                                'parcialidad',
-                                'referencia',
-                                'idPeriodo',
-                                'idServicio',
-                                DB::raw('SUM(importe) AS total'),
-                            ])
-                            ->where('tipomovto', 'A')
-                            ->where('uid', $uid)
-                            ->groupBy('parcialidad', 'referencia', 'idPeriodo', 'idServicio');
-
-            return  DB::table('configuracionTesoreria as ct')
-                        ->join('alumno as al', function ($join) use ($uid, $secuencia) {
-                            $join->on('ct.idNivel', '=', 'al.idNivel')
-                                ->where('al.uid', $uid)
-                                ->where('al.secuencia', $secuencia);
-                        })
-                        ->join('periodo as per', function ($join)use ($idPeriodo) {
-                            $join->on('per.idNivel', '=', 'al.idNivel')
-                                ->where('per.idPeriodo', '=', $idPeriodo);
-                        })
-                        ->join('edocta as cta', function ($join) use ($uid, $secuencia) {
-                            $join->on('cta.idServicio', '=', 'ct.idServicioColegiatura')
-                                ->where('cta.uid', $uid)
-                                ->where('cta.secuencia', $secuencia)
-                                ->where('cta.tipomovto', 'C')
-                                ->whereColumn('cta.idPeriodo', 'per.idPeriodo');
-                        })
-                        ->leftJoinSub($abonosCole, 'abonosCole', function ($join) {
-                            $join->on('abonosCole.parcialidad', '=', 'cta.parcialidad')
-                                ->on('abonosCole.referencia', '=', 'cta.referencia')
-                                ->on('abonosCole.idPeriodo', '=', 'per.idPeriodo');
-                        })
-                        ->leftJoin('edocta as cargos', function ($join) use ($uid, $secuencia) {
-                            $join->on('cargos.idServicio', '=', 'ct.idServicioRecargo')
-                                ->on('cargos.parcialidad', '=', 'cta.parcialidad')
-                                ->where('cargos.uid', $uid)
-                                ->where('cargos.secuencia', $secuencia)
-                                ->where('cargos.tipomovto', 'C')
-                                ->whereColumn('cargos.idPeriodo', 'per.idPeriodo');
-                        })
-                        ->leftJoinSub($abonosCargo, 'abonosCargo', function ($join) {
-                            $join->on('abonosCargo.parcialidad', '=', 'cta.parcialidad')
-                                ->on('abonosCargo.referencia', '=', 'cargos.referencia')
-                                ->on('abonosCargo.idPeriodo', '=', 'per.idPeriodo')
-                                ->on('abonosCargo.idServicio', '=', 'ct.idServicioRecargo');
-                        })
-                        ->whereRaw('(cta.importe - IFNULL(abonosCole.total, 0)) > 0')
-                        ->orderBy('cta.parcialidad')
-                        ->select([
-                            'cta.parcialidad', 'cta.referencia',
-                            'cta.referencia AS referenciaCole',
-                            'cargos.referencia AS referenciaCargos',
-                            DB::raw('(cta.importe - IFNULL(abonosCole.total, 0)) AS monto'),
-                            'cargos.idServicio AS idServicioCargo',
-                            'ct.idServicioColegiatura',
-                            DB::raw('(cargos.importe - IFNULL(abonosCargo.total, 0)) AS cargos'),
-                        ])
-                ->get();
     }
 
     private function siguienteConsecutivo($uid, $secuencia, $idPeriodo){
         return (int) DB::table('edocta')
-            ->where('uid', $uid)
-            ->where('secuencia', $secuencia)
-            ->where('idPeriodo', $idPeriodo)
-            ->max('consecutivo') + 1;
+                        ->where('uid', $uid)
+                        ->where('secuencia', $secuencia)
+                        ->where('idPeriodo', $idPeriodo)
+                        ->max('consecutivo') + 1;
     }
 
         private function crearMovimiento($data) {
@@ -764,7 +590,32 @@ class EstadoCuentaController extends Controller{
                             'folio'       => $data['folio'] ?? null,
                             'uidcajero'   => $data['uidcajero'] ?? null,
                             'transaccion' => $data['transaccion'] ?? null,
+                            'tipoOrigen'  => $data['tipoOrigen'] ?? null,
+                            'identificadorOrigen' => $data['identificadorOrigen'] ?? null
         ];
+
+        /*
+         * Protección final para movimientos importados:
+         * el servicio siempre corresponde a los tres primeros dígitos
+         * de la referencia, sin importar el valor recibido en idServicio.
+         */
+        if (($movimiento['tipoOrigen'] ?? null) === 'ARCHIVO') {
+            if (empty($movimiento['identificadorOrigen'])) {
+                throw new \RuntimeException(
+                    'El identificadorOrigen es obligatorio para movimientos de archivo.'
+                );
+            }
+
+            $referencia = trim((string) ($movimiento['referencia'] ?? ''));
+
+            if (!preg_match('/^[0-9]{3}/', $referencia)) {
+                throw new \RuntimeException(
+                    'La referencia del movimiento de archivo debe comenzar con tres dígitos de servicio.'
+                );
+            }
+
+            $movimiento['idServicio'] = (int) substr($referencia, 0, 3);
+        }
 
         // Consecutivo automático
         DB::statement("SET @origen = 'LARAVEL'");
@@ -772,163 +623,6 @@ class EstadoCuentaController extends Controller{
             $this->siguienteConsecutivo($data['uid'], $data['secuencia'], $data['idPeriodo']);
 
         return EstadoCuenta::create($movimiento);
-    }
-
-
-    private function prorratearColegiaturaYCargos($uid, $secuencia, $idPeriodo, $servicios, $movimiento, $importeRestante, $fecha, $folio, $uidcajero,$idServicioNotaCredito){
-       
-        if($movimiento['importe']>0){
-            $pendientes = $this->obtenerPendientes($uid, $secuencia, $idPeriodo, $servicios);
-       
-        $fecha1 = Carbon::parse(str_replace('-', '/', $fecha));
-       foreach ($pendientes as $registro) {
-           Log::info('entra aqui '.$registro->cargos.' $importeRestante '.$importeRestante); 
-            if ($registro->cargos > 0 && $importeRestante > 0) {
-                 
-                $pago = min($importeRestante, $registro->cargos);
-                $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$servicios->idServicioRecargo;
-                //Validamos si ese recargo es mayor a la fecha con la que se pago para eliminarlo
-                //Validar primero si se cubre la colegiatura
-                if($importeRestante >= $registro->monto){
-                    //Si se cubre la colegiatura
-                    //Buscamos la fecha del recargo
-                   $fechaRecargo = DB::table('edocta as edo')
-                            ->join('alumno as al', function ($join) {
-                                $join->on('al.uid', '=', 'edo.uid')
-                                    ->on('al.secuencia', '=', 'edo.secuencia');
-                            })
-                            ->join('configuracionTesoreria as ct', function ($join) {
-                                $join->on('edo.idServicio', '=', 'ct.idServicioRecargo')
-                                     ->on('al.idNivel', '=', 'ct.idNivel');
-                            })                            
-                            ->join('periodo as per', function ($join) use ($idPeriodo) {
-                                $join->on('per.idNivel', '=', 'al.idNivel')
-                                    ->on('edo.idPeriodo', '=', 'per.idPeriodo')
-                                    ->where('per.idPeriodo', '=', $idPeriodo);
-                            })
-                            ->where('al.uid', $uid)
-                            ->where('al.secuencia', $secuencia)
-                            ->where('edo.parcialidad', $registro->parcialidad)
-                            ->value(DB::raw('DATE(edo.fechaMovto)'));
-                    
-                    $fecha2 = $fechaRecargo ? Carbon::parse($fechaRecargo) : null;  
-                    if ($fecha1->lt($fecha2)){
-                        //Eliminamos la parcialidad
-                          DB::statement("  DELETE edo 
-                                            FROM edocta AS edo
-                                            INNER JOIN configuracionTesoreria AS ct ON edo.idServicio = ct.idServicioRecargo
-                                            INNER JOIN alumno AS al ON al.uid = edo.uid AND al.secuencia = edo.secuencia AND al.idNivel = ct.idNivel
-                                            INNER JOIN periodo AS per ON per.idNivel = al.idNivel AND edo.idPeriodo = per.idPeriodo AND per.idPeriodo = ?
-                                            WHERE al.uid = ? AND al.secuencia = ? AND edo.parcialidad = ?
-                                        ", [$idPeriodo, $uid, $secuencia, $registro->parcialidad]);
-
-                         $pago =0;
-                    }
-                }
-
-                if($pago>0){
-               
-                    $this->crearMovimiento(['uid' => $uid,
-                                            'secuencia' => $secuencia,
-                                            'idServicio' => $idServicioNota,
-                                            'importe' => $pago,
-                                            'idPeriodo' => $idPeriodo,
-                                            'fechaMovto' => $fecha1,
-                                            'idformaPago' => $movimiento['idformaPago'],
-                                            'cuatrodigitos' => $movimiento['cuatrodigitos'],
-                                            'transaccion' => $movimiento['transaccion']?? null,
-                                            'tipomovto' => $movimiento['tipomovto'],
-                                            'FechaPago' => $fecha1,
-                                            'folio' => $folio,
-                                            'referencia' => $registro->referenciaCargos,
-                                            'parcialidad' => $registro->parcialidad,
-                                            'uidcajero' => $uidcajero
-                    ]);
-                    $importeRestante -= $pago;
-                }
-            }
-
-            // 2️⃣ Pagar colegiatura
-            if ($registro->monto > 0 && $importeRestante > 0) {
-                $idServicioNota = $idServicioNotaCredito >0?$idServicioNotaCredito:$registro->idServicioColegiatura;
-              //  //Log::info('$importeRestante:'.$importeRestante); 
-                $pago = min($importeRestante, $registro->monto);
-                $this->crearMovimiento([
-                                        'uid' => $uid,
-                                        'secuencia' => $secuencia,
-                                        'idServicio' => $idServicioNota,
-                                         'importe' => $pago,
-                                        'idPeriodo' => $idPeriodo,
-                                        'fechaMovto' => $fecha1,
-                                        'idformaPago' => $movimiento['idformaPago'],
-                                        'cuatrodigitos' => $movimiento['cuatrodigitos'],
-                                        'tipomovto' => $movimiento['tipomovto'],
-                                        'FechaPago' => $fecha1,
-                                        'folio' => $folio,
-                                        'transaccion' => $movimiento['transaccion']?? null,
-                                        'referencia' => $registro->referenciaCole,
-                                        'parcialidad' => $registro->parcialidad,
-                                        'uidcajero' => $uidcajero
-                ]);
-                $importeRestante -= $pago;
-            }
-
-            if ($importeRestante <= 0) break;
-        }
-
-        // 3️⃣ Sobrante: aplicarlo como pago adelantado
-        if ($importeRestante > 0) {
-            $this->crearMovimiento(array_merge($movimiento, [
-                'uid' => $uid,
-                'idServicio' => $servicios->idServicioNotaCredito,
-                'secuencia' => $secuencia,
-                 'importe' => $importeRestante,
-                'idPeriodo' => $idPeriodo,
-                'fechaMovto' => $fecha1,
-                'folio' => $folio,
-                'transaccion' => $movimiento['transaccion']?? null,
-                'uidcajero' => $uidcajero
-            ]));
-            }
-        }
-    }
-
-    private function procesarOtrosServicios($movimiento, $uid, $secuencia, $idPeriodo, $fecha, $folio, $uidcajero, $servicios){
-        //Validamos si es un movimiento de cargo y abono
-        $servicio = DB::table('servicio as s')
-                        ->where('s.idServicio',$movimiento['idServicio'])
-                        ->where('s.cargoAutomatico', 1)
-                        ->get();
-
-        //Validamos en que parcialidad va para que se ordene de manera correcta
-        $parcialidad = DB::table('edocta as edo')
-                        ->select(DB::raw('IFNULL(MAX(edo.parcialidad), 0) + 1 AS parcialidad'))
-                        ->where('edo.idServicio', $movimiento['idServicio'])
-                        ->where('edo.uid', $uid)
-                        ->where('edo.idPeriodo', $idPeriodo)
-                        ->first();
-
-        $parcialidad = $parcialidad->parcialidad;        
-
-        $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
-                                                        'secuencia' => $secuencia,
-                                                        'idPeriodo' => $idPeriodo,
-                                                        'fechaMovto' => $fecha,
-                                                        'folio' => $folio,
-                                                        'uidcajero' => $uidcajero,
-                                                        'parcialidad' => $parcialidad
-        ]));
-        
-        if (!$servicio->isEmpty()) {
-            $movimiento['tipomovto'] ='C';
-            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
-                                                        'secuencia' => $secuencia,
-                                                        'idPeriodo' => $idPeriodo,
-                                                        'fechaMovto' => $fecha,
-                                                        'uidcajero' => $uidcajero,
-                                                        'parcialidad' => $parcialidad
-                                                        ]));
-        }
     }
 
 
@@ -1072,154 +766,6 @@ class EstadoCuentaController extends Controller{
    
     }
 
-
-    public function guardarMovtosServicios(Request $request){
-
-        $movimientos = $request->all();
-        $registrosMal = [];
-        $importe = 0;
-        $importeTotal = 0;
-        $noRegistros =0;
-
-        if (!is_array($movimientos)) 
-            return response()->json(['error' => 'Datos inválidos, se espera un arreglo'], 400);        
-
-        foreach ($movimientos as $index => $mov) {
-            if (!isset($mov['dia'], $mov['concepto'], $mov['abono'], $mov['transaccion'])) {
-                return response()->json([
-                    'error' => "Falta campo en elemento $index",
-                ], 400);
-            }
-
-            $transaccion = $mov['transaccion'];
-            $abono = floatval($mov['abono']);
-            $matricula = (int) substr($mov['concepto'], 0, 7);
-            $importeTotal = $importeTotal + $abono;
-
-            $result = DB::table('alumno')  
-                            ->where('alumno.matricula', $matricula)
-                            ->select('alumno.uid','alumno.secuencia')
-                            ->first();
-
-            if (!$result) {
-                $registrosMal[] = [
-                    'matricula' => $matricula,
-                    'mensaje'   => 'No existe la matricula en el sistema',
-                    'uid'   => null,
-                    'importe'   => $abono
-                ];
-                continue;
-            } 
-        
-            $periodo = DB::table('periodo as p')
-                        ->join('alumno', 'p.idNivel', '=', 'alumno.idNivel')
-                        ->where('p.activo', 1)
-                        ->where('alumno.matricula', $matricula)
-                        ->select('p.idPeriodo')
-                        ->first();
-
-            $idPeriodo = $mov['idPeriodo'] ?? $periodo->idPeriodo;
-  
-            $result = DB::table('periodo')  
-                            ->join('alumno', 'periodo.idNivel', '=', 'alumno.idNivel')
-                            ->leftJoin('edocta', function ($join) use ($transaccion) {
-                                $join->on('edocta.idPeriodo', '=', 'periodo.idPeriodo')
-                                    ->where('edocta.transaccion', '=',$transaccion);
-                            })
-                            ->where('periodo.idPeriodo', $idPeriodo)
-                            ->where('alumno.matricula', $matricula)
-                            ->select('alumno.uid','alumno.secuencia', 'periodo.idPeriodo','edocta.transaccion')
-                            ->first();
-         
-            if (isset($result->transaccion)) {
-                    $registrosMal[] = [
-                            'matricula' => $matricula,
-                            'mensaje'   => 'La transaccion ya se encuentra dada de alta en el periodo',
-                            'importe'   => $abono,
-                            'uid'   => $result->uid,
-                            ];
-                    continue;
-            }
-
-           $importe = $importe + $abono;
-           $noRegistros = $noRegistros + 1;
-          
-           $servicios = $this->obtenerServiciosTesoreria($result->uid, $result->secuencia,$idPeriodo);
-           $movimiento = ['importe'        => $abono,
-                          'idformaPago'    => $mov['idFormaPago'],
-                          'idServicio'     => $servicios->idServicioTraspasoSaldos1,
-                          'cuatrodigitos'  => null,
-                          'tipomovto'      => 'A',
-                          'cargoAut'       => 0,
-                          'transaccion' => $transaccion,
-                        ];
-            //Validamos si se generò un recargo previo a la carga se elimina
-            $fecha = Carbon::createFromFormat('d/m/Y', str_replace('-', '/', $mov['dia']));
-            $folio = (EstadoCuenta::max('folio') ?? 0) + 1;
-
-            $this->crearMovimiento(array_merge($movimiento, ['uid' => $uid,
-                                                            'secuencia' => $result->secuencia,
-                                                            'consecutivo' => $this->siguienteConsecutivo($uid, $result->secuencia,$idPeriodo),
-                                                            'importe' => $abono,
-                                                            'idPeriodo' => $idPeriodo,
-                                                            'fechaMovto' => $fecha,
-                                                            'parcialidad' => null,
-                                                            'folio' => $folio,
-                                                            'referencia'=> $this->obtieneReferenciaSdoAnterior($uid, $secuencia,$idPeriodo),
-                                                            'uidcajero' => $mov['uidcajero']
-                ]));
-           
-        }
-
-        if(isset($registrosMal)){        
-            $imagePathEnc = public_path('images/encPag.png');
-            $imagePathPie = public_path('images/piePag.png');  
-            $columnWidths = [50, 50,50,50,300];
-            $pdf = new CustomTCPDF('P', PDF_UNIT, 'letter', true, 'UTF-8', false);
-            $pdf->setHeaders(null, $columnWidths, 'MOVIMIENTOS NO PROCESADOS');
-            $pdf->setImagePaths($imagePathEnc, $imagePathPie,'P');
-            $pdf->SetFont('helvetica', '', 14);
-            $pdf->SetCreator(PDF_CREATOR);
-            $pdf->SetAuthor('SIAWEB');
-            $pdf->SetMargins(15, 30, 15);
-            $pdf->SetAutoPageBreak(TRUE, 25);
-            $pdf->AddPage();
-            $pdf->SetFont('helvetica', '', 8);
-
-            $html2 = '<br><br><br><table border="0" cellpadding="1">';
-            $html2 .= '<tr><td style="font-size: 9px;" width="80"><b>MATRICULA</b></td><td style="font-size: 9px;" width="80"><b>UID</b></td><td style="font-size: 9px;" width="80"><b>IMPORTE</b></td><td style="font-size: 9px;" width="400"><b>MENSAJE DE ERROR</b></td></tr>';
-        
-            foreach ($registrosMal as $registro) 
-                $html2 .='<tr><td width="80">'.$registro['matricula'].'</td><td width="80">'.$registro['uid'].'</td><td width="80">'.number_format($registro['importe'], 2, '.', ',').'</td><td width=400>'.$registro['mensaje'].'</td></tr>';
-                
-            $html2 .= '</table>';
-            
-            // Escribir la tabla en el PDF
-            $pdf->writeHTML($html2, true, false, true, false, '');
-
-            $nameReport= 'validacion'.rand(1, 100).'.pdf';
-            $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo       
-            $pdf->Output($filePath, 'F');  
-
-            if (file_exists($filePath)) 
-                        return response()->json([
-                            'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
-                            'error'   => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport ,
-                            'status'  => 200
-                        ], 200);
- 
-        } else{    
-            return response()->json([
-                            'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
-                            'error'   => null ,
-                            'status'  => 200
-                        ], 200);
-
-        }
-   
-    }
-
-
     public function actualizaColegiatura(Request $request){
           
        $servicios = $this->obtenerServiciosTesoreria($request->uid, $request->secuencia,$request->idPeriodo);
@@ -1321,6 +867,7 @@ class EstadoCuentaController extends Controller{
         DB::statement("SET @origen = 'LARAVEL'");
         DB::statement("SET @uidcajero = ?", [$uidcajero]);
 
+        /* Eliminar los abonos desde el consecutivo solicitado. */
         EstadoCuenta::where('uid', $uid)
             ->where('secuencia', $secuencia)
             ->whereIn('idServicio', [
@@ -1333,6 +880,13 @@ class EstadoCuentaController extends Controller{
             ->where('idPeriodo', $idPeriodo)
             ->where('consecutivo', '>=', $consecutivo)
             ->delete();
+
+        DB::select('CALL GeneraRecargosIndividual(?, ?, ?, ?)', [
+            (int) $servicios->idNivel,
+            (int) $idPeriodo,
+            (int) $uid,
+            (int) $secuencia,
+        ]);
         });        
 
          $matricula = DB::table('alumno')
@@ -1434,8 +988,1053 @@ class EstadoCuentaController extends Controller{
                                 $servicios->idServicioTraspasoSaldos1
                             ])
                             ->orderBy('edo.consecutivo', 'asc')
+                            ->limit(1)
                             ->get();
+
+            $serviciosBase = collect([
+                $servicios->idServicioInscripcion,
+                $servicios->idServicioColegiatura,
+                $servicios->idServicioRecargo,
+                $servicios->idServicioTraspasoSaldos1,
+            ])->filter()->map(fn ($idServicio) => (int) $idServicio)->all();
+
+            /*
+             * Incluir todos los abonos de servicios adicionales
+             * tipoEdoCta = 1. Este bloque nunca devuelve cargos.
+             */
+            $abonosServiciosAdicionales = DB::table('edocta as edo')
+                ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
+                ->where('edo.uid', $uid)
+                ->where('edo.secuencia', $secuencia)
+                ->where('edo.idPeriodo', $servicios->idPeriodo)
+                ->where('s.tipoEdoCta', 1)
+                ->where('edo.tipomovto', 'A')
+                ->when(!empty($serviciosBase), function ($query) use ($serviciosBase) {
+                    $query->whereNotIn('edo.idServicio', $serviciosBase);
+                })
+                ->select([
+                    'edo.importe',
+                    'edo.consecutivo',
+                    'edo.uid',
+                    's.descripcion as servicio',
+                ])
+                ->orderBy('edo.consecutivo')
+                ->get();
+
+            $resultados = $resultados
+                ->concat($abonosServiciosAdicionales)
+                ->sortBy('consecutivo', SORT_NATURAL)
+                ->values();
 
             return $this->returnData('abonos',$resultados,200);
     }
+
+
+    public function guardarMovtosServicios(Request $request) {
+        $movimientos = $this->validarMovimientosImportados($request);
+        $catalogos = $this->precargarDatosDelLote($movimientos);
+        $identificadorArchivo = sprintf('ARCHIVO-%s-%s', now('America/Mexico_City')->format('Ymd-His'),Str::uuid()->toString());
+
+        $resultado = DB::transaction(function () use ($movimientos, $catalogos, $identificadorArchivo) {
+                return $this->procesarLoteDeServicios(
+                    $movimientos,
+                    $catalogos,
+                    $identificadorArchivo
+                );
+        });
+        $reporte = $this->generarReporteRechazados(
+            $resultado['rechazados'] ?? [],
+            $identificadorArchivo
+        );
+        return $this->respuestaImportacion($resultado, $reporte);
+    }   
+
+    private function validarMovimientosImportados(Request $request): array {
+
+        $movimientos = $request->all();
+
+        if (!is_array($movimientos) ||  empty($movimientos) || !array_is_list($movimientos)) {
+            throw ValidationException::withMessages([
+                'movimientos' => ['Se espera un arreglo JSON de movimientos.'],]);
+        }
+
+        /*   
+        * Normalizar fechas antes de aplicar date_format.
+        * Permite tanto dd/mm/aaaa como dd-mm-aaaa.
+        */
+        foreach ($movimientos as $indice => $movimiento) {
+            if ( is_array($movimiento) &&isset($movimiento['dia'])) {
+                $movimientos[$indice]['dia'] = str_replace('-', '/',trim((string) $movimiento['dia']));
+            }
+        }
+
+        $validator = Validator::make(
+            ['movimientos' => $movimientos],
+            [
+                'movimientos' => [ 'required', 'array', 'min:1',],
+                'movimientos.*' => [ 'required','array',],
+                'movimientos.*.dia' => ['required','date_format:d/m/Y',],
+                'movimientos.*.concepto' => ['required','string','min:10','regex:/^[0-9]{10}/',],
+                'movimientos.*.abono' => ['required','numeric','gt:0',],
+                'movimientos.*.transaccion' => ['required','string','max:255',],
+                'movimientos.*.idFormaPago' => ['required', 'integer',],
+                'movimientos.*.uidcajero' => ['required', 'integer',],
+                'movimientos.*.idPeriodo' => ['nullable','integer',],],
+            [
+                'movimientos.*.dia.required' =>'La fecha del movimiento es obligatoria.',
+                'movimientos.*.dia.date_format' =>'La fecha debe tener el formato dd/mm/aaaa.',
+                'movimientos.*.concepto.required' =>'El concepto es obligatorio.',
+                'movimientos.*.concepto.min' =>'El concepto debe comenzar con siete dígitos de matrícula y tres dígitos de servicio.',
+                'movimientos.*.concepto.regex' =>'El concepto debe comenzar con diez dígitos: siete de matrícula y tres de servicio.',
+                'movimientos.*.abono.required' =>'El importe del abono es obligatorio.',
+                'movimientos.*.abono.numeric' =>'El importe del abono debe ser numérico.',
+                'movimientos.*.abono.gt' =>'El importe del abono debe ser mayor que cero.',
+                'movimientos.*.transaccion.required' =>'La transacción es obligatoria.',
+                'movimientos.*.idFormaPago.required' =>'La forma de pago es obligatoria.',
+                'movimientos.*.uidcajero.required' =>'El usuario cajero es obligatorio.',
+            ]
+        );
+
+        $data = $validator->validate();
+
+        return collect($data['movimientos']) ->map(function (array $movimiento) {
+                return ['dia' => $movimiento['dia'],'concepto' => trim($movimiento['concepto']),
+                    'abono' => round( (float) $movimiento['abono'], 2), 'transaccion' => trim( $movimiento['transaccion'] ),
+                    'idFormaPago' => (int) $movimiento['idFormaPago'],
+                    'uidcajero' => (int) $movimiento['uidcajero'],
+                    'idPeriodo' => isset($movimiento['idPeriodo']) ? (int) $movimiento['idPeriodo'] : null,
+                    'matricula' => (int) substr($movimiento['concepto'], 0, 7),
+                    'idServicio' => (int) substr($movimiento['concepto'], 7, 3),
+                ];
+            })
+            ->all();
+    }
+
+    private function precargarDatosDelLote( array $movimientos): array {
+        $coleccion = collect($movimientos);
+
+        $matriculas = $coleccion
+            ->pluck('matricula')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $transacciones = $coleccion
+            ->pluck('transaccion')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $periodosSolicitados = $coleccion
+            ->pluck('idPeriodo')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $idsServicios = $coleccion
+            ->pluck('idServicio')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $alumnos = DB::table('alumno')
+            ->whereIn('matricula', $matriculas)
+            ->select('matricula','uid','secuencia','idNivel')
+            ->get()
+            ->keyBy(fn ($alumno) => (string) $alumno->matricula);
+
+        $niveles = $alumnos
+            ->pluck('idNivel')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $periodosActivos = DB::table('periodo')
+            ->whereIn('idNivel', $niveles)
+            ->where('activo', 1)
+            ->select('idPeriodo','idNivel')
+            ->get()
+            ->keyBy(fn ($periodo) => (string) $periodo->idNivel);
+        
+        $periodos = empty($periodosSolicitados->all())
+            ? collect()
+            : DB::table('periodo')
+                ->whereIn('idPeriodo', $periodosSolicitados)
+                ->select('idPeriodo', 'idNivel','activo')
+                ->get()
+                ->keyBy(fn ($periodo) => (string) $periodo->idPeriodo);
+
+        $servicios = DB::table('configuracionTesoreria')
+            ->whereIn('idNivel', $niveles)
+            ->select('idNivel','idServicioColegiatura','idServicioInscripcion',
+                'idServicioRecargo', 'idServicioNotaCredito','idServicioTraspasoSaldos1'
+            )
+            ->get()
+            ->keyBy(fn ($servicio) => (string) $servicio->idNivel);
+
+        $serviciosPorId = DB::table('servicio')
+            ->whereIn('idServicio', $idsServicios)
+            ->select('idServicio', 'descripcion', 'tipoCobro')
+            ->get()
+            ->keyBy(fn ($servicio) => (string) $servicio->idServicio);
+        
+        $idsPeriodos = $periodosSolicitados
+            ->merge($periodosActivos->pluck('idPeriodo'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $transaccionesExistentes = collect();
+
+        if ($transacciones->isNotEmpty() && $idsPeriodos->isNotEmpty() ) {
+            $transaccionesExistentes = DB::table('edocta')
+                ->whereIn('transaccion', $transacciones)
+                ->whereIn('idPeriodo', $idsPeriodos)
+                ->select( 'idPeriodo','transaccion','uid', 'secuencia')
+                ->get()
+                ->keyBy( fn ($registro) => $registro->idPeriodo .'|' .$registro->transaccion);
+        }
+
+        return [
+            'alumnos' => $alumnos,
+            'periodosActivos' => $periodosActivos,
+            'periodos' => $periodos,
+            'servicios' => $servicios,
+            'serviciosPorId' => $serviciosPorId,
+            'transaccionesExistentes' => $transaccionesExistentes,
+        ];
+    }
+
+    private function generarReporteRechazados(
+        array $registros,
+        string $identificadorArchivo
+    ): string {
+
+        $concentrado = DB::table('edocta as edo')
+            ->join('servicio as ser', 'ser.idServicio', '=', 'edo.idServicio')
+            ->where('edo.tipoOrigen', 'ARCHIVO')
+            ->where('edo.identificadorOrigen', $identificadorArchivo)
+            ->where('edo.tipomovto', 'A')
+            ->select([
+                'edo.idServicio',
+                'ser.descripcion as servicio',
+                DB::raw('SUM(edo.importe) AS total'),
+            ])
+            ->groupBy('edo.idServicio', 'ser.descripcion')
+            ->orderBy('edo.idServicio')
+            ->get();
+
+        $totalGeneral = round((float) $concentrado->sum('total'), 2);
+
+        $imagePathEnc = public_path('images/encPag.png');
+        $imagePathPie = public_path('images/piePag.png');
+        $columnWidths = [40, 70, 60, 70, 110, 260];
+        $pdf = new CustomTCPDF( 'P',PDF_UNIT,'letter', true,'UTF-8', false);
+        $pdf->setHeaders(null, $columnWidths, 'REPORTE DE IMPORTACION');
+        $pdf->setImagePaths( $imagePathEnc, $imagePathPie,'P');
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('SIAWEB');
+        $pdf->SetTitle('Reporte de importacion de movimientos');
+        $pdf->SetMargins(15, 30, 15);
+        $pdf->SetAutoPageBreak(true, 25);
+        $pdf->AddPage();
+        $pdf->SetFont('helvetica', '', 7);
+        $html = '<br><br><br>
+                    <p><b>IDENTIFICADOR:</b> '.htmlspecialchars($identificadorArchivo, ENT_QUOTES, 'UTF-8').'</p>
+                    <h3>MOVIMIENTOS NO PROCESADOS</h3>
+                    <table border="0" cellpadding="2">
+                        <thead>
+                            <tr style="font-weight:bold;">
+                                <th width="40">#</th>
+                                <th width="70">MATRÍCULA</th>
+                                <th width="60">UID</th>
+                                <th width="70">IMPORTE</th>
+                                <th width="110">TRANSACCIÓN</th>
+                                <th width="260">MOTIVO</th>
+                            </tr>
+                        </thead>
+                        <tbody>';
+
+        if (empty($registros)) {
+            $html .= '<tr><td colspan="6">No existen movimientos rechazados.</td></tr>';
+        }
+
+        foreach ($registros as $registro) {
+            $indice = isset($registro['indice']) ? ((int) $registro['indice'] + 1) : '';
+            $matricula = htmlspecialchars((string) ($registro['matricula'] ?? ''), ENT_QUOTES, 'UTF-8');
+            $uid = htmlspecialchars((string) ($registro['uid'] ?? ''),ENT_QUOTES,'UTF-8');
+            $importe = number_format((float) ($registro['importe'] ?? 0), 2,'.',',');
+            $transaccion = htmlspecialchars((string) ($registro['transaccion'] ?? ''),ENT_QUOTES,'UTF-8');
+            $mensaje = htmlspecialchars((string) ($registro['mensaje'] ?? ''),ENT_QUOTES,'UTF-8');
+
+            $html .= '
+                <tr>
+                    <td width="40">'.$indice.'</td>
+                    <td width="70">'.$matricula.'</td>
+                    <td width="60">'.$uid.'</td>
+                    <td width="70">$'.$importe.'</td>
+                    <td width="110">'.$transaccion.'</td>
+                    <td width="260">'.$mensaje.'</td>
+                </tr>
+            ';
+        }
+        $html .= '</tbody></table>
+            <br><br>
+            <h3>CONCENTRADO DE MOVIMIENTOS INGRESADOS</h3>
+            <table border="0" cellpadding="3">
+                <thead>
+                    <tr style="font-weight:bold;">
+                        <th width="75">ID SERVICIO</th>
+                        <th width="200">DESCRIPCION DEL SERVICIO</th>
+                        <th width="85" align="right">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>';
+
+        if ($concentrado->isEmpty()) {
+            $html .= '<tr><td colspan="3">No se ingresaron movimientos.</td></tr>';
+        } else {
+            foreach ($concentrado as $servicio) {
+                $descripcion = htmlspecialchars(
+                    (string) $servicio->servicio,
+                    ENT_QUOTES,
+                    'UTF-8'
+                );
+
+                $html .= '<tr>
+                    <td width="75">'.(int) $servicio->idServicio.'</td>
+                    <td width="200">'.$descripcion.'</td>
+                    <td width="85" align="right">$'.number_format((float) $servicio->total, 2, '.', ',').'</td>
+                </tr>';
+            }
+        }
+
+        $html .= '<tr style="font-weight:bold;">
+                    <td width="275" colspan="2" align="right">TOTAL GENERAL</td>
+                    <td width="85" align="right">$'.number_format($totalGeneral, 2, '.', ',').'</td>
+                </tr>
+                </tbody>
+            </table>';
+        $pdf->writeHTML( $html, true,false, true, false, '' );        
+        $nombreArchivo = 'validacion-'.Str::uuid().'.pdf';
+        $rutaAbsoluta = Storage::disk('public')->path( $nombreArchivo);
+        $pdf->Output($rutaAbsoluta, 'F');
+
+        if (!is_file($rutaAbsoluta)) {
+            throw new \RuntimeException('No fue posible generar el reporte de movimientos rechazados.');
+        }    
+        return Storage::disk('public')->url($nombreArchivo);
+    }
+
+    private function procesarLoteDeServicios(array $movimientos, array $catalogos, string $identificadorArchivo): array {
+
+            $rechazados = [];
+            $guardados = 0;
+            $importeGuardado = 0.0;
+            $importeTotal = 0.0;
+            $alumnosParaDesbloqueo = [];
+
+            $ultimoFolio = EstadoCuenta::query()
+                            ->whereNotNull('folio')
+                            ->orderByDesc('folio')
+                            ->lockForUpdate()
+                            ->value('folio');
+
+            $siguienteFolio = ((int) $ultimoFolio) + 1;
+
+            $transaccionesProcesadas = collect(
+                $catalogos['transaccionesExistentes']->all()
+            );
+
+            foreach ($movimientos as $indice => $movimiento) {
+                $matricula = (int) $movimiento['matricula'];
+                $abono = round((float) $movimiento['abono'], 2);
+                $transaccion = trim($movimiento['transaccion']);
+                $importeTotal += $abono;
+                $alumno = $catalogos['alumnos']->get((string) $matricula);
+
+                if (!$alumno) {
+                    $rechazados[] = $this->crearRegistroRechazado(
+                        $matricula, null, $abono, 'No existe la matrícula en el sistema',  $indice, $transaccion );
+                    continue;
+                }
+
+                $idPeriodo = $this->resolverPeriodoMovimiento( $movimiento, $alumno, $catalogos);
+
+                if (!$idPeriodo) {
+                    $rechazados[] = $this->crearRegistroRechazado(
+                        $matricula, (int) $alumno->uid, $abono,'No existe un periodo válido para el alumno', $indice, $transaccion
+                    );
+                    continue;
+                }
+
+                $idServicioArchivo = (int) $movimiento['idServicio'];
+                $servicioArchivo = $catalogos['serviciosPorId']->get(
+                    (string) $idServicioArchivo
+                );
+
+                if (!$servicioArchivo) {
+                    $rechazados[] = $this->crearRegistroRechazado(
+                                           $matricula, (int) $alumno->uid, $abono,
+                                           'El servicio indicado en el concepto no existe',
+                                           $indice,$transaccion
+                    );
+                    continue;
+                }
+
+                $esCobroEspecifico = strtoupper(trim((string) $servicioArchivo->tipoCobro)) === 'ESPECIFICO';
+                $servicios = $catalogos['servicios']->get((string) $alumno->idNivel);
+
+                if (!$servicios) {
+                        $rechazados[] = $this->crearRegistroRechazado(
+                        $matricula, (int) $alumno->uid, $abono,'No existe configuración de Tesorería para el nivel del alumno',
+                        $indice, $transaccion);
+                    continue;
+                }               
+
+                $claveTransaccion = $idPeriodo.'|'.$transaccion;
+
+                if ($transaccionesProcesadas->has($claveTransaccion)) {
+                    $rechazados[] = $this->crearRegistroRechazado(
+                        $matricula, (int) $alumno->uid, $abono,'La transacción ya se encuentra dada de alta en el periodo',
+                        $indice, $transaccion );
+                    continue;
+                }
+
+                $fechaPago = Carbon::createFromFormat('d/m/Y',$movimiento['dia'])->startOfDay();
+                $folio = $siguienteFolio;
+
+                if ($esCobroEspecifico) {
+                    /*
+                     * Primero se cubre únicamente el saldo pendiente del
+                     * servicio indicado en el archivo. Si existe un excedente,
+                     * se distribuye con el orden secuencial del nivel.
+                     */
+                    $datosMovimientoEspecifico = [
+                        'importe' => $abono,
+                        'idformaPago' => (int) $movimiento['idFormaPago'],
+                        'cuatrodigitos' => null,
+                        'transaccion' => $transaccion,
+                    ];
+
+                    $aplicacionEspecifica = $this->procesarMovimientoPorSaldos(
+                        $datosMovimientoEspecifico,
+                        $servicios,
+                        (int) $alumno->uid,
+                        (int) $alumno->secuencia,
+                        $idPeriodo,
+                        (int) $movimiento['uidcajero'],
+                        $fechaPago,
+                        $folio,
+                        'ARCHIVO',
+                        $identificadorArchivo,
+                        $idServicioArchivo,
+                        false
+                    );
+
+                    if ($aplicacionEspecifica['importeRestante'] > 0) {
+                        $datosMovimientoSecuencial = $datosMovimientoEspecifico;
+                        $datosMovimientoSecuencial['importe'] =
+                            $aplicacionEspecifica['importeRestante'];
+
+                        $this->procesarMovimientoPorSaldos(
+                            $datosMovimientoSecuencial,
+                            $servicios,
+                            (int) $alumno->uid,
+                            (int) $alumno->secuencia,
+                            $idPeriodo,
+                            (int) $movimiento['uidcajero'],
+                            $fechaPago,
+                            $folio,
+                            'ARCHIVO',
+                            $identificadorArchivo
+                        );
+                    }
+                } else {
+                /*
+                * Estructura esperada por procesarMovimiento().
+                */
+                $datosMovimiento = [
+                                    'importe' => $abono,
+                                    'idformaPago' => (int) $movimiento['idFormaPago'],
+                                    'idServicio' => (int)$servicios->idServicioTraspasoSaldos1,
+                                    'cuatrodigitos' => null,
+                                    'tipomovto' => 'A',
+                                    'cargoAut' => 0,
+                                    'transaccion' => $transaccion,
+                ];
+                /*
+                * Este método distribuye el pago entre los conceptos
+                * pendientes y contiene la regla de recargos posteriores
+                * a la fecha efectiva del pago.
+                */
+                $distribucion = $this->procesarMovimientoPorSaldos(
+                                $datosMovimiento,
+                                $servicios,
+                                (int) $alumno->uid,
+                                (int) $alumno->secuencia,
+                                $idPeriodo,
+                                (int) $movimiento['uidcajero'],
+                                $fechaPago,
+                                $folio,
+                                'ARCHIVO',
+                                $identificadorArchivo 
+                                );
+                }
+
+                $guardados++;
+                $importeGuardado += $abono;
+                $siguienteFolio++;
+
+                $transaccionesProcesadas->put($claveTransaccion,(object) [
+                        'idPeriodo' => $idPeriodo,
+                        'transaccion' => $transaccion,
+                        'uid' => (int) $alumno->uid,
+                        'secuencia' => (int) $alumno->secuencia,
+                    ]
+                );
+
+                $claveAlumnoPeriodo = $alumno->uid.'|'.$alumno->secuencia.'|'.$idPeriodo;
+                $alumnosParaDesbloqueo[$claveAlumnoPeriodo] = [
+                    'uid' => (int) $alumno->uid,
+                    'secuencia' => (int) $alumno->secuencia,
+                    'matricula' => (int) $matricula,
+                    'idPeriodo' => (int) $idPeriodo,
+                ];
+            }
+
+            $this->desbloquearAlumnosProcesados($alumnosParaDesbloqueo);
+
+            return [
+                'totalRegistros' => count($movimientos),
+                'guardados' => $guardados,
+                'rechazados' => $rechazados,
+                'importeGuardado' => round($importeGuardado, 2),
+                'importeTotal' => round($importeTotal, 2),
+                'tipoOrigen' => 'ARCHIVO',
+                'identificadorOrigen' => $identificadorArchivo,
+            ];
+    }
+
+    private function desbloquearAlumnosProcesados(array $alumnos): void {
+        if (empty($alumnos)) {
+            return;
+        }
+
+        $alumnosSinSaldoVencido = [];
+
+        foreach ($alumnos as $alumno) {
+            DB::statement(
+                'CALL saldo(?, ?, ?, @vencido, @total)',
+                [
+                    $alumno['uid'],
+                    $alumno['matricula'],
+                    $alumno['idPeriodo'],
+                ]
+            );
+
+            $saldo = DB::selectOne(
+                'SELECT @vencido AS vencido, @total AS total'
+            );
+
+            if ((float) ($saldo->vencido ?? 0) <= 0) {
+                $claveAlumno = $alumno['uid'].'|'.$alumno['secuencia'];
+                $alumnosSinSaldoVencido[$claveAlumno] = [
+                    'uid' => $alumno['uid'],
+                    'secuencia' => $alumno['secuencia'],
+                ];
+            }
+        }
+
+        if (empty($alumnosSinSaldoVencido)) {
+            return;
+        }
+
+        DB::table('bloqueoPersonas')
+            ->where('idBloqueo', 1)
+            ->where(function ($query) use ($alumnosSinSaldoVencido) {
+                foreach ($alumnosSinSaldoVencido as $alumno) {
+                    $query->orWhere(function ($alumnoQuery) use ($alumno) {
+                        $alumnoQuery
+                            ->where('uid', $alumno['uid'])
+                            ->where('secuencia', $alumno['secuencia']);
+                    });
+                }
+            })
+            ->delete();
+    }
+
+    private function procesarMovimientoPorSaldos(array $movimiento,object $servicios, int $uid, int $secuencia,
+                                            int $idPeriodo,  int $uidcajero,Carbon $fechaPago, int $folio,
+                                            $tipoOrigen, $identificadorOrigen,
+                                            ?int $idServicioObjetivo = null,
+                                            bool $registrarExcedente = true): array {
+            $importeOriginal = round((float) $movimiento['importe'], 2 );
+
+            $importeRestante = $importeOriginal;
+            $aplicaciones = [];
+
+            if ($importeOriginal <= 0) {
+                throw new \InvalidArgumentException(
+                    'El importe del movimiento debe ser mayor que cero.'
+                );
+            }
+
+            DB::statement("SET @origen = 'LARAVEL'");
+            DB::statement('SET @uidcajero = ?', [$uidcajero]);
+
+            /*
+            * Los saldos ya vienen ordenados por:
+            *
+            * 1. ordenCobroServicio.orden por nivel del alumno
+            * 2. parcialidad
+            * 3. referencia
+            */
+            do {
+                $recalcularSaldos = false;
+                $saldos = $this->consultarSaldosPorServicio(
+                    $uid,
+                    $secuencia,
+                    $idPeriodo
+                );
+
+    foreach ($saldos as $saldo) {
+        if ($importeRestante <= 0) {
+            break;
+        }
+
+        $referenciaSaldo = trim((string) $saldo->referencia);
+
+        if (!preg_match('/^[0-9]{3}/', $referenciaSaldo)) {
+            throw new \RuntimeException(
+                'La referencia del saldo debe comenzar con tres dígitos de servicio.'
+            );
+        }
+
+        /*
+         * El servicio aplicado siempre se obtiene de los tres primeros
+         * dígitos de la referencia, independientemente de edocta.idServicio.
+         */
+        $idServicioSaldo = (int) substr($referenciaSaldo, 0, 3);
+        $saldo->idServicio = $idServicioSaldo;
+
+        if ($idServicioObjetivo !== null && $idServicioSaldo !== $idServicioObjetivo) {
+            continue;
+        }
+
+        /*
+         * Regla de recargos:
+                *
+                * Si el recargo fue generado después de la fecha
+                * efectiva del pago, se elimina y no se le aplica abono.
+                */
+        if (
+            $idServicioSaldo === (int) $servicios->idServicioRecargo
+            && $saldo->fechaPagoRecargo
+            && $fechaPago->lt(Carbon::parse($saldo->fechaPagoRecargo))
+        ) {
+                    $recargosEliminados = $this->eliminarRecargoPosteriorAlPago(
+                        $uid,
+                        $secuencia,
+                        $idPeriodo,
+                        $saldo,
+                        $uidcajero,
+                        $fechaPago
+                    );
+                    $aplicaciones[] = [
+                                'idServicio' => $idServicioSaldo,
+                                        'servicio' => $saldo->servicio,
+                                        'referencia' => $saldo->referencia,
+                                        'parcialidad' => $saldo->parcialidad,
+                                        'accion' => 'recargo_eliminado',
+                                        'importe' => 0,
+                                        'registrosEliminados' => $recargosEliminados,
+                    ];
+
+                    if ($recargosEliminados > 0) {
+                        $recalcularSaldos = true;
+                        break;
+                    }
+
+                    continue;
+                }
+
+                $saldoPendiente = round((float) $saldo->saldo, 2);
+
+                if ($saldoPendiente <= 0) {
+                    continue;
+                }
+                
+                $importeAplicado = min( $importeRestante, $saldoPendiente);
+                $importeAplicado = round( $importeAplicado, 2);
+
+                if ($importeAplicado <= 0) {
+                    continue;
+                }
+                
+                $this->crearMovimiento([
+                                        'uid' => $uid,
+                                        'secuencia' => $secuencia,
+                                        'idServicio' => $idServicioSaldo,
+                                        'importe' => $importeAplicado,
+                                        'idPeriodo' => $idPeriodo,
+                                        'fechaMovto' => $fechaPago,
+                                        'FechaPago' => $fechaPago,
+                                        'idformaPago' => $movimiento['idformaPago'] ?? null,
+                                        'cuatrodigitos' => $movimiento['cuatrodigitos'] ?? null,
+                                        'tipomovto' => 'A',
+                                        'folio' => $folio,
+                                        'referencia' => $saldo->referencia,
+                                        'parcialidad' => $saldo->parcialidad,
+                                        'uidcajero' => $uidcajero,
+                                        'transaccion' => $movimiento['transaccion'] ?? null,
+                                        'tipoOrigen' => $tipoOrigen,
+                                        'identificadorOrigen' => $identificadorOrigen,
+                ]);
+
+                $importeRestante = round($importeRestante - $importeAplicado, 2 );
+                $aplicaciones[] = [
+                                    'idServicio' => $idServicioSaldo,
+                                    'servicio' => $saldo->servicio,
+                                    'referencia' => $saldo->referencia,
+                                    'parcialidad' => $saldo->parcialidad,
+                                    'saldoAnterior' => $saldoPendiente,
+                                    'importeAplicado' => $importeAplicado,
+                                    'saldoPosterior' => round($saldoPendiente - $importeAplicado, 2),
+                                    'accion' => 'abono_aplicado',
+                ];
+            }
+            } while ($recalcularSaldos && $importeRestante > 0);
+            /*
+            * Si después de pagar todos los adeudos queda dinero,
+            * se registra como saldo a favor.
+            */
+            if ($importeRestante > 0 && $registrarExcedente) {
+                $idServicioSaldoFavor =
+                    $servicios->idServicioNotaCredito
+                    ?? $servicios->idServicioTraspasoSaldos1;
+
+                if (!$idServicioSaldoFavor) {
+                    throw new \RuntimeException(
+                        'No existe un servicio configurado para registrar el saldo a favor.'
+                    );
+                }
+
+                $referenciaSaldoFavor = $this->generarReferenciaSaldoFavor(
+                    (int) $idServicioSaldoFavor,
+                    $fechaPago
+                );
+
+                $this->crearMovimiento([
+                                'uid' => $uid,
+                                'secuencia' => $secuencia,
+                                'idServicio' => (int) $idServicioSaldoFavor,
+                                'importe' => $importeRestante,
+                                'idPeriodo' => $idPeriodo,
+                                'fechaMovto' => $fechaPago,
+                                'FechaPago' => $fechaPago,
+                                'idformaPago' => $movimiento['idformaPago'] ?? null,
+                                'cuatrodigitos' => $movimiento['cuatrodigitos'] ?? null,
+                                'tipomovto' => 'A',
+                                'folio' => $folio,
+                                'referencia' => $referenciaSaldoFavor,
+                                'parcialidad' => 999,
+                                'uidcajero' => $uidcajero,
+                                'transaccion' => $movimiento['transaccion'] ?? null,
+                                'tipoOrigen' => $tipoOrigen,
+                                'identificadorOrigen' => $identificadorOrigen,
+                ]);
+
+                $aplicaciones[] = [
+                                    'idServicio' => (int) $idServicioSaldoFavor,
+                                    'servicio' => 'Saldo a favor',
+                                    'referencia' => $referenciaSaldoFavor,
+                                    'parcialidad' => 999,
+                                    'importeAplicado' => $importeRestante,
+                                    'accion' => 'saldo_a_favor',];
+
+                $importeRestante = 0.0;
+            }
+
+            return [
+                'importeOriginal' => $importeOriginal,
+                'importeAplicado' => round($importeOriginal - $importeRestante, 2 ),
+                'importeRestante' => $importeRestante,
+                'aplicaciones' => $aplicaciones,
+            ];
+        }
+
+    private function eliminarRecargoPosteriorAlPago(int $uid, int $secuencia,int $idPeriodo, object $saldo, int $uidcajero, Carbon $fechaPago): int {
+        
+        DB::statement("SET @origen = 'LARAVEL'");
+        DB::statement('SET @uidcajero = ?', [$uidcajero]);
+
+        $query = DB::table('edocta')
+                        ->where('uid', $uid)
+                        ->where('secuencia', $secuencia)
+                        ->where('idPeriodo', $idPeriodo)
+                        ->where('tipomovto', 'C')
+                        ->where('FechaPago', '>', $fechaPago->toDateString());
+
+        if ($saldo->referencia === null) {
+            $query->whereNull('referencia');
+        } else {
+            $query->where( 'referencia', $saldo->referencia);
+        }
+
+        if ($saldo->parcialidad === null) {
+            $query->whereNull('parcialidad');
+        } else {
+            $query->where('parcialidad', $saldo->parcialidad);
+        }
+        return $query->delete();
+    }
+
+    private function generarReferenciaSaldoFavor(int $idServicio, Carbon $fechaPago): string {
+        if ($idServicio < 0 || $idServicio > 999) {
+            throw new \InvalidArgumentException(
+                'El identificador del servicio debe tener como máximo tres dígitos.'
+            );
+        }
+        return sprintf('%03d000%02d', $idServicio,(int) $fechaPago->format('m')
+        );
+    }
+
+    private function consultarSaldosPorServicio(int $uid, int $secuencia, int $idPeriodo) {
+        return DB::table('edocta as edo')
+            ->join('alumno as al', function ($join) {
+                $join->on('al.uid', '=', 'edo.uid')
+                    ->on('al.secuencia', '=', 'edo.secuencia');
+            })
+            ->join(
+                'servicio as ser',
+                'ser.idServicio',
+                '=',
+                DB::raw('CAST(LEFT(edo.referencia, 3) AS UNSIGNED)')
+            )
+            ->leftJoin('ordenCobroServicio as ocs', function ($join) {
+                $join->on('ocs.idNivel', '=', 'al.idNivel')
+                    ->on(
+                        'ocs.idServicio',
+                        '=',
+                        DB::raw('CAST(LEFT(edo.referencia, 3) AS UNSIGNED)')
+                    );
+            })
+            ->where('edo.uid', $uid)
+            ->where('edo.secuencia', $secuencia)
+            ->where('edo.idPeriodo', $idPeriodo)
+            ->select([
+                DB::raw('CAST(LEFT(edo.referencia, 3) AS UNSIGNED) AS idServicio'),
+                'ser.descripcion as servicio',
+                'ocs.orden as ordenCobro',
+                'edo.referencia',
+                'edo.parcialidad',
+                DB::raw("
+                    MAX(
+                        CASE
+                            WHEN edo.tipomovto = 'C'
+                            THEN edo.FechaPago
+                            ELSE NULL
+                        END
+                    ) AS fechaPagoRecargo
+                "),
+                DB::raw("
+                    SUM(
+                        CASE
+                            WHEN edo.tipomovto = 'C'
+                            THEN edo.importe
+                            ELSE 0
+                        END
+                    ) AS cargos
+                "),
+                DB::raw("
+                    SUM(
+                        CASE
+                            WHEN edo.tipomovto = 'A'
+                            THEN edo.importe
+                            ELSE 0
+                        END
+                    ) AS abonos
+                "),
+                DB::raw("
+                    SUM(
+                        CASE
+                            WHEN edo.tipomovto = 'C'
+                            THEN edo.importe
+                            WHEN edo.tipomovto = 'A'
+                            THEN -edo.importe
+                            ELSE 0
+                        END
+                    ) AS saldo
+                "),
+            ])
+            ->groupBy([
+                'ser.descripcion',
+                'ocs.orden',
+                'edo.referencia',
+                'edo.parcialidad',
+            ])
+            ->havingRaw("
+                SUM( CASE WHEN edo.tipomovto = 'C'
+                        THEN edo.importe
+                        WHEN edo.tipomovto = 'A'
+                        THEN -edo.importe
+                        ELSE 0
+                    END
+                ) > 0
+            ")
+            ->orderByRaw('COALESCE(ocs.orden, 999999) ASC' )            
+            ->orderByRaw( 'COALESCE(edo.parcialidad, 999999) ASC' )
+            ->orderBy('edo.referencia')
+            ->orderByRaw('CAST(LEFT(edo.referencia, 3) AS UNSIGNED) ASC')
+            ->lockForUpdate()
+            ->get();
+    }
+    
+    private function resolverPeriodoMovimiento( array $movimiento,  object $alumno,  array $catalogos): ?int {
+    
+        if (!empty($movimiento['idPeriodo'])) {
+            $periodo = $catalogos['periodos']->get(
+                (string) $movimiento['idPeriodo']
+            );
+
+            if (!$periodo) {
+                return null;
+            }
+            
+            if ((int) $periodo->idNivel !== (int) $alumno->idNivel) {
+                return null;
+            }
+
+        return (int) $periodo->idPeriodo;
+    }
+
+    /*
+     * Cuando el movimiento no proporciona periodo,
+     * utilizar el periodo activo del nivel.
+     */
+    $periodoActivo = $catalogos['periodosActivos']->get((string) $alumno->idNivel);
+
+    if (!$periodoActivo) {
+        return null;
+    }
+    return (int) $periodoActivo->idPeriodo;
+    }
+
+    private function crearRegistroRechazado(int $matricula, ?int $uid, float $importe, string $mensaje, int $indice, string $transaccion): array {
+        return [
+            'indice' => $indice,
+            'matricula' => $matricula,
+            'uid' => $uid,
+            'importe' => round( $importe, 2),
+            'transaccion' => $transaccion,
+            'mensaje' => $mensaje,
+        ];
+    }
+
+    private function respuestaImportacion(array $resultado, ?string $reporte) {
+        $totalRegistros = (int) ( $resultado['totalRegistros'] ?? 0 );
+        $guardados = (int) ($resultado['guardados'] ?? 0 );
+        $rechazados = $resultado['rechazados'] ?? [];
+        $importeGuardado = round((float) ($resultado['importeGuardado'] ?? 0), 2 );
+        $importeTotal = round((float) ($resultado['importeTotal'] ?? 0), 2);
+        $mensaje = sprintf(
+            'Registros guardados (%d de %d) con un importe total de ($%s de $%s)',
+            $guardados,  $totalRegistros, number_format($importeGuardado,2, '.', ',' ), number_format(
+                $importeTotal, 2, '.', ',' )
+        );
+
+        return response()->json([
+            'message' => $mensaje,
+            'data' => [
+                'totalRegistros' => $totalRegistros,
+                'guardados' => $guardados,
+                'rechazados' => count($rechazados),
+                'importeGuardado' => $importeGuardado,
+                'importeTotal' => $importeTotal,
+                'tipoOrigen' => $resultado['tipoOrigen'] ?? 'ARCHIVO',
+                'identificadorOrigen' =>
+                    $resultado['identificadorOrigen']
+                    ?? null,
+                'reporteRechazados' => $reporte,
+            ],
+            'error' => null,
+            'status' => 200,
+        ], 200);
+    }
+
+    public function obtenerSaldosPorServicio(int $uid, int $secuencia, int $idPeriodo) {
+        $saldos = DB::table('edocta as edo')
+        ->join('alumno as al', function ($join) {
+            $join->on('al.uid', '=', 'edo.uid')
+                ->on('al.secuencia', '=', 'edo.secuencia');
+        })
+        ->join('servicio as ser','ser.idServicio', '=', 'edo.idServicio')
+        ->leftJoin('ordenCobroServicio as ocs', function ($join) {
+            $join->on('ocs.idNivel', '=', 'al.idNivel')
+                ->on('ocs.idServicio', '=', 'edo.idServicio');
+        })
+        ->where('edo.uid', $uid)
+        ->where('edo.secuencia', $secuencia)
+        ->where('edo.idPeriodo', $idPeriodo)
+        ->select([
+                    'edo.uid',
+                    'edo.secuencia',
+                    'edo.idPeriodo',
+                    'edo.idServicio',
+                    'ser.descripcion as servicio',
+                    'ocs.orden as ordenCobro',
+                    'edo.referencia',
+                    'edo.parcialidad',
+            DB::raw(" SUM( CASE WHEN edo.tipomovto = 'C'
+                        THEN edo.importe
+                        ELSE 0
+                    END
+                ) AS cargos
+            "),
+            DB::raw(" SUM( CASE WHEN edo.tipomovto = 'A'
+                        THEN edo.importe
+                        ELSE 0
+                    END
+                ) AS abonos
+            "),
+            DB::raw(" SUM(
+                      CASE
+                        WHEN edo.tipomovto = 'C'
+                        THEN edo.importe
+                        WHEN edo.tipomovto = 'A'
+                        THEN -edo.importe
+                        ELSE 0
+                    END
+                ) AS saldo
+            "),
+        ])
+        ->groupBy([
+            'edo.uid', 'edo.secuencia', 'edo.idPeriodo','edo.idServicio', 'ser.descripcion',
+            'ocs.orden','edo.referencia', 'edo.parcialidad',])
+        ->havingRaw("
+            SUM(
+                CASE
+                    WHEN edo.tipomovto = 'C'
+                    THEN edo.importe
+                    WHEN edo.tipomovto = 'A'
+                    THEN -edo.importe
+                    ELSE 0
+                END
+            ) > 0
+        ")
+        ->orderByRaw( 'COALESCE(ocs.orden, 999999) ASC' )
+        ->orderByRaw( 'COALESCE(edo.parcialidad, 999999) ASC' )
+        ->orderBy('edo.referencia')
+        ->orderBy('edo.idServicio')
+        ->get();
+
+        return response()->json([
+            'message' => 'Saldos pendientes por servicio',
+            'data' => $saldos,
+            'error' => null,
+            'status' => 200,
+        ], 200);
+    }
+
 }

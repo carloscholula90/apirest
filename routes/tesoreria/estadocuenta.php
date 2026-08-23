@@ -53,7 +53,7 @@ Route::group([], function () {
 
     Route::post(
         '/abonos',
-        [EstadoCuentaController::class, 'guardarMovtos']
+        [EstadoCuentaController::class, 'guardarMovtosServicios']
     );
 
     Route::post(

@@ -81,9 +81,59 @@ public function index($uid, $matricula, $tipoEdoCta,$idPeriodo)
                                 DB::raw('IFNULL(s.cargoAutomatico, 0) as cargoAut')
                         ])
                         ->get();
-        if($tipoEdoCta == 2)
+    if($tipoEdoCta == 2)
             return $data;
-    return $data->first();
+
+    if ($data->isEmpty()) {
+        return $data;
+    }
+
+    /*
+     * De los servicios principales se devuelve solamente el primero,
+     * respetando el orden aplicado por condonacion():
+     *
+     * 1. Traspaso de saldos
+     * 2. Inscripcion
+     * 3. Recargo
+     * 4. Colegiatura
+     *
+     * Los servicios que no pertenecen a ninguno de esos cuatro grupos
+     * se devuelven completos.
+     */
+    $configuracion = DB::table('configuracionTesoreria')
+        ->where('idNivel', (int) $data->first()->idNivel)
+        ->select([
+            'idServicioTraspasoSaldos1',
+            'idServicioInscripcion',
+            'idServicioRecargo',
+            'idServicioColegiatura',
+        ])
+        ->first();
+
+    $idsServiciosPrincipales = collect([
+        $configuracion->idServicioTraspasoSaldos1 ?? null,
+        $configuracion->idServicioInscripcion ?? null,
+        $configuracion->idServicioRecargo ?? null,
+        $configuracion->idServicioColegiatura ?? null,
+    ])
+        ->filter(fn ($idServicio) => $idServicio !== null)
+        ->map(fn ($idServicio) => (int) $idServicio)
+        ->unique()
+        ->values();
+
+    $primerServicioPrincipal = $data->first(function ($servicio) use ($idsServiciosPrincipales) {
+        return $idsServiciosPrincipales->contains((int) $servicio->idServicio);
+    });
+
+    $serviciosAdicionales = $data
+        ->reject(function ($servicio) use ($idsServiciosPrincipales) {
+            return $idsServiciosPrincipales->contains((int) $servicio->idServicio);
+        })
+        ->values();
+
+    return collect($primerServicioPrincipal ? [$primerServicioPrincipal] : [])
+        ->concat($serviciosAdicionales)
+        ->values();
 }
 
 public function condonacion($uid, $matricula, $tipoEdoCta, $idPeriodo) {

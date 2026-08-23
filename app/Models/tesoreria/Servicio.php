@@ -20,6 +20,10 @@ class Servicio extends Model
                         'efectivo',
                         'tarjeta',
                         'cargoAutomatico',
-                        'tipoEdoCta'
+                        'tipoEdoCta',
+                        'orden',
+                        'tipoCobro',
+                        'usuarioModifica',
+                        'mostrarFichaPago'
     ];
 }
