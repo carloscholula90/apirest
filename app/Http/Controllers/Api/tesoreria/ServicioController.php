@@ -110,6 +110,92 @@ public function index($uid, $matricula, $tipoEdoCta,$idPeriodo)
         ])
         ->first();
 
+    /*
+     * Aplicación virtual del saldo anterior negativo.
+     *
+     * No se crea ni modifica ningún movimiento. El crédito únicamente reduce
+     * los saldos disponibles para pagar, respetando el orden configurado para
+     * el nivel y, para órdenes iguales, la parcialidad del cargo.
+     */
+    $idNivel = (int) $data->first()->idNivel;
+    $secuencia = (int) $data->first()->secuencia;
+    $idServicioSaldoAnterior =
+        (int) ($configuracion->idServicioTraspasoSaldos1 ?? 0);
+
+    $ordenesCobro = DB::table('ordenCobroServicio')
+        ->where('idNivel', $idNivel)
+        ->pluck('orden', 'idServicio');
+
+    $data = $data
+        ->sort(function ($a, $b) use ($ordenesCobro) {
+            $ordenA = (int) ($ordenesCobro->get((int) $a->idServicio) ?? 999999);
+            $ordenB = (int) ($ordenesCobro->get((int) $b->idServicio) ?? 999999);
+
+            if ($ordenA !== $ordenB) {
+                return $ordenA <=> $ordenB;
+            }
+
+            $parcialidadA = $a->parcialidad === null
+                ? 999999
+                : (int) $a->parcialidad;
+            $parcialidadB = $b->parcialidad === null
+                ? 999999
+                : (int) $b->parcialidad;
+
+            if ($parcialidadA !== $parcialidadB) {
+                return $parcialidadA <=> $parcialidadB;
+            }
+
+            return (int) $a->idServicio <=> (int) $b->idServicio;
+        })
+        ->values();
+
+    $creditoSaldoAnterior = 0.0;
+
+    if ($idServicioSaldoAnterior > 0) {
+        $saldoAnterior = DB::table('edocta')
+            ->where('uid', (int) $uid)
+            ->where('secuencia', $secuencia)
+            ->where('idPeriodo', (int) $idPeriodo)
+            ->where('idServicio', $idServicioSaldoAnterior)
+            ->selectRaw("\n                SUM(\n                    CASE\n                        WHEN tipomovto = 'C' THEN importe\n                        WHEN tipomovto = 'A' THEN -importe\n                        ELSE 0\n                    END\n                ) AS saldo\n            ")
+            ->value('saldo');
+
+        $saldoAnterior = round((float) ($saldoAnterior ?? 0), 2);
+        $creditoSaldoAnterior = $saldoAnterior < 0
+            ? abs($saldoAnterior)
+            : 0.0;
+    }
+
+    if ($creditoSaldoAnterior > 0) {
+        foreach ($data as $servicio) {
+            if ((int) $servicio->idServicio === $idServicioSaldoAnterior) {
+                continue;
+            }
+
+            $saldoServicio = round((float) $servicio->monto, 2);
+            $creditoAplicado = min($creditoSaldoAnterior, $saldoServicio);
+
+            $servicio->monto = round($saldoServicio - $creditoAplicado, 2);
+            $creditoSaldoAnterior = round(
+                $creditoSaldoAnterior - $creditoAplicado,
+                2
+            );
+
+            if ($creditoSaldoAnterior <= 0) {
+                break;
+            }
+        }
+
+        $data = $data
+            ->filter(fn ($servicio) => round((float) $servicio->monto, 2) > 0)
+            ->values();
+    }
+
+    if ($data->isEmpty()) {
+        return $data;
+    }
+
     $idsServiciosPrincipales = collect([
         $configuracion->idServicioTraspasoSaldos1 ?? null,
         $configuracion->idServicioInscripcion ?? null,

@@ -88,6 +88,29 @@ class EstadoCuentaController extends Controller{
 
     public function obtenerEstadoCuenta($uid, $idPeriodo, $matricula, $tipoEdoCta, $qr = null)
 {
+    /*
+     * Antes de calcular y mostrar el estado de cuenta, actualizar los
+     * recargos del alumno para el periodo solicitado. La consulta por QR no
+     * cuenta con periodo ni matrícula, por lo que no ejecuta este proceso.
+     */
+    if (is_null($qr) && !is_null($idPeriodo) && !is_null($matricula)) {
+        $alumno = DB::table('alumno')
+            ->where('uid', $uid)
+            ->where('matricula', $matricula)
+            ->select('idNivel', 'secuencia')
+            ->first();
+
+        if ($alumno) {
+            DB::statement("SET @origen = 'LARAVEL'");
+            DB::select('CALL GeneraRecargosIndividual(?, ?, ?, ?)', [
+                (int) $alumno->idNivel,
+                (int) $idPeriodo,
+                (int) $uid,
+                (int) $alumno->secuencia,
+            ]);
+        }
+    }
+
     // Ejecutar procedimiento almacenado
     if($tipoEdoCta==1)
         DB::statement("CALL saldo(?, ?, ?, @vencido, @total)", [$uid, $matricula, $idPeriodo]);
@@ -390,7 +413,7 @@ class EstadoCuentaController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -515,7 +538,7 @@ class EstadoCuentaController extends Controller{
 
         $idServicio = (int) ($movimiento['idServicio'] ?? 0);
         $servicio = DB::table('servicio')
-            ->select('idServicio', 'tipoCobro')
+            ->select('idServicio', 'tipoCobro', 'cargoAutomatico')
             ->where('idServicio', $idServicio)
             ->first();
 
@@ -525,13 +548,12 @@ class EstadoCuentaController extends Controller{
             );
         }
 
-        $esCobroEspecifico =
-            strtoupper(trim((string) $servicio->tipoCobro)) === 'ESPECIFICO';
+        $tipoCobro = strtoupper(trim((string) $servicio->tipoCobro));
 
-        if ($esCobroEspecifico) {
-            $aplicacionEspecifica = $this->procesarMovimientoPorSaldos(
+        if ($tipoCobro === 'ESPECIFICO') {
+            return $this->procesarServicioEspecifico(
                 $movimiento,
-                $servicios,
+                $servicio,
                 $uid,
                 $secuencia,
                 $idPeriodo,
@@ -539,16 +561,8 @@ class EstadoCuentaController extends Controller{
                 $fecha,
                 $folio,
                 $tipoOrigen,
-                $identificadorOrigen,
-                $idServicio,
-                false
+                $identificadorOrigen
             );
-
-            if ($aplicacionEspecifica['importeRestante'] <= 0) {
-                return $aplicacionEspecifica;
-            }
-
-            $movimiento['importe'] = $aplicacionEspecifica['importeRestante'];
         }
 
         return $this->procesarMovimientoPorSaldos(
@@ -564,6 +578,85 @@ class EstadoCuentaController extends Controller{
             $identificadorOrigen
         );
 
+    }
+
+    private function procesarServicioEspecifico(
+        array $movimiento,
+        object $servicio,
+        int $uid,
+        int $secuencia,
+        int $idPeriodo,
+        int $uidcajero,
+        Carbon $fechaPago,
+        int $folio,
+        string $tipoOrigen,
+        string $identificadorOrigen
+    ): array {
+        $importe = round((float) ($movimiento['importe'] ?? 0), 2);
+
+        if ($importe <= 0) {
+            throw new \InvalidArgumentException(
+                'El importe del servicio específico debe ser mayor a cero.'
+            );
+        }
+
+        $idServicio = (int) $servicio->idServicio;
+        $referencia = $this->generarReferenciaSaldoFavor(
+            $idServicio,
+            $fechaPago
+        );
+
+        $datosBase = [
+            'uid' => $uid,
+            'secuencia' => $secuencia,
+            'idServicio' => $idServicio,
+            'importe' => $importe,
+            'idPeriodo' => $idPeriodo,
+            'fechaMovto' => $fechaPago,
+            'FechaPago' => $fechaPago,
+            'idformaPago' => $movimiento['idformaPago'] ?? null,
+            'cuatrodigitos' => $movimiento['cuatrodigitos'] ?? null,
+            'folio' => $folio,
+            'referencia' => $referencia,
+            'parcialidad' => 1,
+            'uidcajero' => $uidcajero,
+            'transaccion' => $movimiento['transaccion'] ?? null,
+            'tipoOrigen' => $tipoOrigen,
+            'identificadorOrigen' => $identificadorOrigen,
+        ];
+
+        $aplicaciones = [];
+
+        if ((int) ($servicio->cargoAutomatico ?? 0) === 1) {
+            $this->crearMovimiento(array_merge($datosBase, [
+                'tipomovto' => 'C',
+            ]));
+
+            $aplicaciones[] = [
+                'idServicio' => $idServicio,
+                'referencia' => $referencia,
+                'importe' => $importe,
+                'accion' => 'cargo_automatico',
+            ];
+        }
+
+        $this->crearMovimiento(array_merge($datosBase, [
+            'tipomovto' => 'A',
+        ]));
+
+        $aplicaciones[] = [
+            'idServicio' => $idServicio,
+            'referencia' => $referencia,
+            'importeAplicado' => $importe,
+            'accion' => 'abono_aplicado',
+        ];
+
+        return [
+            'importeOriginal' => $importe,
+            'importeAplicado' => $importe,
+            'importeRestante' => 0.0,
+            'aplicaciones' => $aplicaciones,
+        ];
     }
 
     private function siguienteConsecutivo($uid, $secuencia, $idPeriodo){
@@ -751,7 +844,7 @@ class EstadoCuentaController extends Controller{
             if (file_exists($filePath)) 
                         return response()->json([
                             'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
-                            'error'   => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport ,
+                            'error'   => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport ,
                             'status'  => 200
                         ], 200);
 
@@ -867,15 +960,9 @@ class EstadoCuentaController extends Controller{
         DB::statement("SET @origen = 'LARAVEL'");
         DB::statement("SET @uidcajero = ?", [$uidcajero]);
 
-        /* Eliminar los abonos desde el consecutivo solicitado. */
+        /* Eliminar el abono solicitado y todos los abonos posteriores. */
         EstadoCuenta::where('uid', $uid)
             ->where('secuencia', $secuencia)
-            ->whereIn('idServicio', [
-                                $servicios->idServicioInscripcion,
-                                $servicios->idServicioColegiatura,
-                                $servicios->idServicioRecargo,
-                                $servicios->idServicioTraspasoSaldos1
-                            ])
             ->where('tipomovto', "A")
             ->where('idPeriodo', $idPeriodo)
             ->where('consecutivo', '>=', $consecutivo)
@@ -981,50 +1068,8 @@ class EstadoCuentaController extends Controller{
                             ->where('edo.secuencia', $secuencia)
                             ->where('edo.idPeriodo', $servicios->idPeriodo)
                             ->where('edo.tipomovto', 'A')
-                            ->whereIn('edo.idServicio', [
-                                $servicios->idServicioInscripcion,
-                                $servicios->idServicioColegiatura,
-                                $servicios->idServicioRecargo,
-                                $servicios->idServicioTraspasoSaldos1
-                            ])
                             ->orderBy('edo.consecutivo', 'asc')
-                            ->limit(1)
                             ->get();
-
-            $serviciosBase = collect([
-                $servicios->idServicioInscripcion,
-                $servicios->idServicioColegiatura,
-                $servicios->idServicioRecargo,
-                $servicios->idServicioTraspasoSaldos1,
-            ])->filter()->map(fn ($idServicio) => (int) $idServicio)->all();
-
-            /*
-             * Incluir todos los abonos de servicios adicionales
-             * tipoEdoCta = 1. Este bloque nunca devuelve cargos.
-             */
-            $abonosServiciosAdicionales = DB::table('edocta as edo')
-                ->join('servicio as s', 's.idServicio', '=', 'edo.idServicio')
-                ->where('edo.uid', $uid)
-                ->where('edo.secuencia', $secuencia)
-                ->where('edo.idPeriodo', $servicios->idPeriodo)
-                ->where('s.tipoEdoCta', 1)
-                ->where('edo.tipomovto', 'A')
-                ->when(!empty($serviciosBase), function ($query) use ($serviciosBase) {
-                    $query->whereNotIn('edo.idServicio', $serviciosBase);
-                })
-                ->select([
-                    'edo.importe',
-                    'edo.consecutivo',
-                    'edo.uid',
-                    's.descripcion as servicio',
-                ])
-                ->orderBy('edo.consecutivo')
-                ->get();
-
-            $resultados = $resultados
-                ->concat($abonosServiciosAdicionales)
-                ->sortBy('consecutivo', SORT_NATURAL)
-                ->values();
 
             return $this->returnData('abonos',$resultados,200);
     }
@@ -1174,7 +1219,7 @@ class EstadoCuentaController extends Controller{
 
         $serviciosPorId = DB::table('servicio')
             ->whereIn('idServicio', $idsServicios)
-            ->select('idServicio', 'descripcion', 'tipoCobro')
+            ->select('idServicio', 'descripcion', 'tipoCobro', 'cargoAutomatico')
             ->get()
             ->keyBy(fn ($servicio) => (string) $servicio->idServicio);
         
@@ -1326,6 +1371,168 @@ class EstadoCuentaController extends Controller{
         return Storage::disk('public')->url($nombreArchivo);
     }
 
+    /**
+     * Genera un reporte independiente con el concentrado de los abonos
+     * agrupados por servicio dentro de un rango de FechaPago.
+     *
+     * Este proceso no modifica el reporte generado durante la importacion.
+     */
+    public function generarReporteConcentradoMovimientos(Request $request) {
+        $data = $request->validate([
+            'fechaInicio' => ['required', 'date_format:Y-m-d'],
+            'fechaFin' => [
+                'required',
+                'date_format:Y-m-d',
+                'after_or_equal:fechaInicio',
+            ],
+        ], [
+            'fechaInicio.required' => 'La fecha inicial es obligatoria.',
+            'fechaInicio.date_format' => 'La fecha inicial debe tener el formato Y-m-d.',
+            'fechaFin.required' => 'La fecha final es obligatoria.',
+            'fechaFin.date_format' => 'La fecha final debe tener el formato Y-m-d.',
+            'fechaFin.after_or_equal' => 'La fecha final debe ser igual o posterior a la fecha inicial.',
+        ]);
+
+        $fechaInicio = Carbon::createFromFormat(
+            'Y-m-d',
+            $data['fechaInicio'],
+            'America/Mexico_City'
+        )->startOfDay();
+
+        $fechaFin = Carbon::createFromFormat(
+            'Y-m-d',
+            $data['fechaFin'],
+            'America/Mexico_City'
+        )->endOfDay();
+
+        $concentrado = DB::table('edocta as edo')
+            ->join('servicio as ser', 'ser.idServicio', '=', 'edo.idServicio')
+            ->where('edo.tipomovto', 'A')
+            ->whereBetween(DB::raw('COALESCE(edo.FechaPago, edo.fechaMovto)'), [
+                $fechaInicio->toDateString(),
+                $fechaFin->toDateString(),
+            ])
+            ->select([
+                'edo.idServicio',
+                'ser.descripcion as servicio',
+                DB::raw('COUNT(*) AS movimientos'),
+                DB::raw('SUM(edo.importe) AS total'),
+            ])
+            ->groupBy('edo.idServicio', 'ser.descripcion')
+            ->orderBy('edo.idServicio')
+            ->get();
+
+        $totalMovimientos = (int) $concentrado->sum('movimientos');
+        $totalGeneral = round((float) $concentrado->sum('total'), 2);
+
+        $imagePathEnc = public_path('images/encPag.png');
+        $imagePathPie = public_path('images/piePag.png');
+        $columnWidths = [65, 230, 70, 90];
+
+        $pdf = new CustomTCPDF('P', PDF_UNIT, 'letter', true, 'UTF-8', false);
+        $pdf->setHeaders(
+            null,
+            $columnWidths,
+            'CONCENTRADO DE MOVIMIENTOS INGRESADOS'
+        );
+        $pdf->setImagePaths($imagePathEnc, $imagePathPie, 'P');
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('SIAWEB');
+        $pdf->SetTitle('Concentrado de movimientos ingresados');
+        $pdf->SetMargins(15, 30, 15);
+        $pdf->SetAutoPageBreak(true, 25);
+        $pdf->AddPage();
+        $pdf->SetFont('helvetica', '', 8);
+
+        $html = '<br><br><br>
+            <p><b>FECHA INICIAL:</b> '.$fechaInicio->format('d/m/Y').'</p>
+            <p><b>FECHA FINAL:</b> '.$fechaFin->format('d/m/Y').'</p>';
+
+        $html .= '<br><h3>MOVIMIENTOS POR SERVICIO</h3>
+                <table border="0" cellpadding="3">
+                    <thead>
+                        <tr style="font-weight:bold;">
+                            <th width="65">ID SERVICIO</th>
+                            <th width="230">DESCRIPCION DEL SERVICIO</th>
+                            <th width="70" align="right">MOVIMIENTOS</th>
+                            <th width="90" align="right">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>';
+
+            if ($concentrado->isEmpty()) {
+                $html .= '<tr><td colspan="4">No existen movimientos en el rango solicitado.</td></tr>';
+            } else {
+                foreach ($concentrado as $servicio) {
+                    $descripcion = htmlspecialchars(
+                        (string) $servicio->servicio,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    );
+
+                    $html .= '<tr>
+                        <td width="65">'.(int) $servicio->idServicio.'</td>
+                        <td width="230">'.$descripcion.'</td>
+                        <td width="70" align="right">'.(int) $servicio->movimientos.'</td>
+                        <td width="90" align="right">$'.number_format((float) $servicio->total, 2, '.', ',').'</td>
+                    </tr>';
+                }
+            }
+
+            $html .= '<tr style="font-weight:bold;">
+                        <td width="295" colspan="2" align="right">TOTAL GENERAL</td>
+                        <td width="70" align="right">'.$totalMovimientos.'</td>
+                        <td width="90" align="right">$'.number_format($totalGeneral, 2, '.', ',').'</td>
+                    </tr>
+                    </tbody>
+                </table>';
+
+        $pdf->writeHTML($html, true, false, true, false, '');
+
+        $nombreArchivo = 'concentrado-movimientos-'.Str::uuid().'.pdf';
+        $rutaAbsoluta = Storage::disk('public')->path($nombreArchivo);
+        $pdf->Output($rutaAbsoluta, 'F');
+
+        if (!is_file($rutaAbsoluta)) {
+            throw new \RuntimeException(
+                'No fue posible generar el concentrado de movimientos ingresados.'
+            );
+        }
+
+        return response()->json([
+            'message' => route(
+                'estadoscuenta.reporte-concentrado.archivo',
+                ['archivo' => $nombreArchivo]
+            ),
+            'data' => [
+                'fechaInicio' => $fechaInicio->toDateString(),
+                'fechaFin' => $fechaFin->toDateString(),
+                'servicios' => $concentrado->count(),
+                'movimientos' => $totalMovimientos,
+                'totalGeneral' => $totalGeneral,
+            ],
+            'error' => null,
+            'status' => 200,
+        ], 200);
+    }
+
+    public function descargarReporteConcentradoMovimientos(string $archivo) {
+        if (!preg_match('/\Aconcentrado-movimientos-[0-9a-fA-F-]+\.pdf\z/', $archivo)) {
+            abort(404);
+        }
+
+        $rutaAbsoluta = Storage::disk('public')->path($archivo);
+
+        if (!is_file($rutaAbsoluta)) {
+            abort(404);
+        }
+
+        return response()->file($rutaAbsoluta, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('inline; filename="%s"', $archivo),
+        ]);
+    }
+
     private function procesarLoteDeServicios(array $movimientos, array $catalogos, string $identificadorArchivo): array {
 
             $rechazados = [];
@@ -1382,7 +1589,8 @@ class EstadoCuentaController extends Controller{
                     continue;
                 }
 
-                $esCobroEspecifico = strtoupper(trim((string) $servicioArchivo->tipoCobro)) === 'ESPECIFICO';
+                $tipoCobro = strtoupper(trim((string) $servicioArchivo->tipoCobro));
+                $esCobroEspecifico = $tipoCobro === 'ESPECIFICO';
                 $servicios = $catalogos['servicios']->get((string) $alumno->idNivel);
 
                 if (!$servicios) {
@@ -1405,21 +1613,14 @@ class EstadoCuentaController extends Controller{
                 $folio = $siguienteFolio;
 
                 if ($esCobroEspecifico) {
-                    /*
-                     * Primero se cubre únicamente el saldo pendiente del
-                     * servicio indicado en el archivo. Si existe un excedente,
-                     * se distribuye con el orden secuencial del nivel.
-                     */
-                    $datosMovimientoEspecifico = [
-                        'importe' => $abono,
-                        'idformaPago' => (int) $movimiento['idFormaPago'],
-                        'cuatrodigitos' => null,
-                        'transaccion' => $transaccion,
-                    ];
-
-                    $aplicacionEspecifica = $this->procesarMovimientoPorSaldos(
-                        $datosMovimientoEspecifico,
-                        $servicios,
+                    $this->procesarServicioEspecifico(
+                        [
+                            'importe' => $abono,
+                            'idformaPago' => (int) $movimiento['idFormaPago'],
+                            'cuatrodigitos' => null,
+                            'transaccion' => $transaccion,
+                        ],
+                        $servicioArchivo,
                         (int) $alumno->uid,
                         (int) $alumno->secuencia,
                         $idPeriodo,
@@ -1427,29 +1628,8 @@ class EstadoCuentaController extends Controller{
                         $fechaPago,
                         $folio,
                         'ARCHIVO',
-                        $identificadorArchivo,
-                        $idServicioArchivo,
-                        false
+                        $identificadorArchivo
                     );
-
-                    if ($aplicacionEspecifica['importeRestante'] > 0) {
-                        $datosMovimientoSecuencial = $datosMovimientoEspecifico;
-                        $datosMovimientoSecuencial['importe'] =
-                            $aplicacionEspecifica['importeRestante'];
-
-                        $this->procesarMovimientoPorSaldos(
-                            $datosMovimientoSecuencial,
-                            $servicios,
-                            (int) $alumno->uid,
-                            (int) $alumno->secuencia,
-                            $idPeriodo,
-                            (int) $movimiento['uidcajero'],
-                            $fechaPago,
-                            $folio,
-                            'ARCHIVO',
-                            $identificadorArchivo
-                        );
-                    }
                 } else {
                 /*
                 * Estructura esperada por procesarMovimiento().
@@ -1598,6 +1778,18 @@ class EstadoCuentaController extends Controller{
                     $idPeriodo
                 );
 
+                /*
+                 * El saldo anterior negativo funciona como crédito virtual.
+                 * No genera movimientos: reduce, en el orden de cobro del
+                 * nivel, el importe que realmente debe pagarse.
+                 */
+                $creditoSaldoAnterior = $this->obtenerCreditoSaldoAnterior(
+                    $uid,
+                    $secuencia,
+                    $idPeriodo,
+                    (int) $servicios->idServicioTraspasoSaldos1
+                );
+
     foreach ($saldos as $saldo) {
         if ($importeRestante <= 0) {
             break;
@@ -1618,9 +1810,11 @@ class EstadoCuentaController extends Controller{
         $idServicioSaldo = (int) substr($referenciaSaldo, 0, 3);
         $saldo->idServicio = $idServicioSaldo;
 
-        if ($idServicioObjetivo !== null && $idServicioSaldo !== $idServicioObjetivo) {
-            continue;
-        }
+        /*
+         * Un saldo anterior negativo se consume como credito virtual mediante
+         * $creditoSaldoAnterior. Si el saldo es positivo, debe permanecer en
+         * esta lista y recibir el pago conforme al orden de cobro configurado.
+         */
 
         /*
          * Regla de recargos:
@@ -1662,6 +1856,38 @@ class EstadoCuentaController extends Controller{
                 $saldoPendiente = round((float) $saldo->saldo, 2);
 
                 if ($saldoPendiente <= 0) {
+                    continue;
+                }
+
+                /*
+                 * Consume primero el crédito virtual. Se realiza antes de
+                 * filtrar un servicio específico para respetar siempre el
+                 * orden general de cobro del nivel.
+                 */
+                if ($creditoSaldoAnterior > 0) {
+                    $creditoAplicado = min(
+                        $creditoSaldoAnterior,
+                        $saldoPendiente
+                    );
+
+                    $saldoPendiente = round(
+                        $saldoPendiente - $creditoAplicado,
+                        2
+                    );
+                    $creditoSaldoAnterior = round(
+                        $creditoSaldoAnterior - $creditoAplicado,
+                        2
+                    );
+                }
+
+                if ($saldoPendiente <= 0) {
+                    continue;
+                }
+
+                if (
+                    $idServicioObjetivo !== null
+                    && $idServicioSaldo !== $idServicioObjetivo
+                ) {
                     continue;
                 }
                 
@@ -1889,6 +2115,30 @@ class EstadoCuentaController extends Controller{
             ->orderByRaw('CAST(LEFT(edo.referencia, 3) AS UNSIGNED) ASC')
             ->lockForUpdate()
             ->get();
+    }
+
+    private function obtenerCreditoSaldoAnterior(
+        int $uid,
+        int $secuencia,
+        int $idPeriodo,
+        int $idServicioSaldoAnterior
+    ): float {
+        if ($idServicioSaldoAnterior <= 0) {
+            return 0.0;
+        }
+
+        $saldo = DB::table('edocta')
+            ->where('uid', $uid)
+            ->where('secuencia', $secuencia)
+            ->where('idPeriodo', $idPeriodo)
+            ->where('idServicio', $idServicioSaldoAnterior)
+            ->selectRaw("\n                SUM(\n                    CASE\n                        WHEN tipomovto = 'C' THEN importe\n                        WHEN tipomovto = 'A' THEN -importe\n                        ELSE 0\n                    END\n                ) AS saldo\n            ")
+            ->lockForUpdate()
+            ->value('saldo');
+
+        $saldo = round((float) ($saldo ?? 0), 2);
+
+        return $saldo < 0 ? abs($saldo) : 0.0;
     }
     
     private function resolverPeriodoMovimiento( array $movimiento,  object $alumno,  array $catalogos): ?int {

@@ -57,6 +57,18 @@ Route::group([], function () {
     );
 
     Route::post(
+        '/reporteConcentradoMovimientos',
+        [EstadoCuentaController::class, 'generarReporteConcentradoMovimientos']
+    );
+
+    Route::get(
+        '/reporteConcentradoMovimientos/archivo/{archivo}',
+        [EstadoCuentaController::class, 'descargarReporteConcentradoMovimientos']
+    )
+    ->where('archivo', 'concentrado-movimientos-[0-9a-fA-F-]+\.pdf')
+    ->name('estadoscuenta.reporte-concentrado.archivo');
+
+    Route::post(
         '/actualizaColegiatura',
         [EstadoCuentaController::class, 'actualizaColegiatura']
     );
@@ -83,7 +95,8 @@ Route::group([], function () {
     ->whereNumber('uid')
     ->whereNumber('secuencia')
     ->whereNumber('idPeriodo')
-    ->whereNumber('consecutivo');
+    ->whereNumber('consecutivo')
+    ->whereNumber('uidcajero');
 
     Route::get(
         '/{uid}/{idPeriodo}/{matricula}/{tipoEdoCta}',

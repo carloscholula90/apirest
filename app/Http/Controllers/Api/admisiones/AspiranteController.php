@@ -24,36 +24,47 @@ class AspiranteController extends Controller{
     * Show the form for creating a new resource.
    */
     public function store(Request $request){  
-        $validator = Validator::make($request->all(), [
-                            'idNivel' => 'required|numeric',
-                            'idPeriodo' => 'required|numeric',
-                            'idCarrera' => 'required|numeric',
-                            'idTurno' => 'required|numeric',
-                            'fechaSolicitud' => 'required|max:255',
-                            'primerApellido' => 'required|max:255',
-                            'segundoApellido' => 'required|max:255',
-                            'nombre' => 'required|max:255',
-                            'fechaNacimiento' => 'required|date',  
-                            'sexo' => 'required|max:255',
-                            'rfc' => 'required|max:255',
-                            'curp' => 'required|max:255',
-                            'idPais' => 'required|numeric',
-                            'idEstado' => 'required|numeric',
-                            'idCiudad' => 'required|numeric',
-                            'idCp' => 'required|numeric',
-                            'idAsentamiento' => 'required|numeric',
-                            'noExterior' => 'required|max:255',
-                            'calle' => 'required|max:255',
-                            'contactos' => 'required|array',
-                            'familias' => 'required|array',
-                            'idNivelAnterior' =>'required|numeric',
-                            'paisCursoGradoAnterior' =>'required|numeric',
-                            'estadoCursoGradoAnterior' =>'required|numeric',
-                            'escuelaProcedencia' => 'required|max:255',
-                            'publica' =>'required|numeric|max:1',  
-                            'uidEmpleado' =>'required|numeric',
-                            'medios' =>  'required|array' 
-        ]);   
+        $reglas = [
+                                'idNivel' => 'required|numeric',
+                                'idPeriodo' => 'required|numeric',
+                                'idCarrera' => 'required|numeric',
+                                'idTurno' => 'required|numeric',
+                                'primerApellido' => 'required|max:255',
+                                'segundoApellido' => 'nullable|max:255',
+                                'nombre' => 'required|max:255',
+                                'curp' => 'required|max:255' 
+        ];
+
+        if (!$request->filled('sexo')) {
+            $reglas['semestre'] = 'required|numeric';
+            $reglas['uidMatricula'] = 'required|max:255';
+            $reglas['grupo'] = 'required|max:255';
+        } else {
+            $reglas = array_merge($reglas, [
+                'fechaSolicitud' => 'required|max:255',
+                'fechaNacimiento' => 'required|date',
+                'sexo' => 'required|max:255',
+                'rfc' => 'required|max:255',
+                'idPais' => 'required|numeric',
+                'idEstado' => 'required|numeric',
+                'idCiudad' => 'required|numeric',
+                'idCp' => 'required|numeric',
+                'idAsentamiento' => 'required|numeric',
+                'noExterior' => 'required|max:255',
+                'calle' => 'required|max:255',
+                'contactos' => 'required|array',
+                'familias' => 'required|array',
+                'idNivelAnterior' => 'required|numeric',
+                'paisCursoGradoAnterior' => 'required|numeric',
+                'estadoCursoGradoAnterior' => 'required|numeric',
+                'escuelaProcedencia' => 'required|max:255',
+                'publica' => 'required|numeric|in:0,1',
+                'uidEmpleado' => 'required|numeric',
+                'medios' => 'required|array'
+            ]);
+        }
+
+        $validator = Validator::make($request->all(), $reglas);   
         
         if ($validator->fails()) 
             return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
@@ -62,18 +73,30 @@ class AspiranteController extends Controller{
         //Agregamos el registro de integra
         $maxId = Persona::max('uid');  
         $newId = $maxId ? $maxId + 1 : 1;  
-        $persona = Persona::create([
+
+        $datosPersona = [
                                 'uid' => $newId,
                                 'curp' => strtoupper(trim($request->curp)),
                                 'nombre' => strtoupper(trim($request->nombre)),
                                 'primerApellido' => strtoupper(trim($request->primerApellido)),
-                                'segundoApellido' => strtoupper(trim($request->segundoApellido)),
+                                'segundoApellido' => $request->filled('segundoApellido')
+                                    ? strtoupper(trim($request->segundoApellido))
+                                    : null
+                ];
+
+        // Si viene sexo conservamos la creacion completa actual. En caso
+        // contrario, solamente guardamos los campos obligatorios validados.
+        if ($request->filled('sexo')) {
+            $datosPersona = array_merge($datosPersona, [
                                 'fechaNacimiento' => $request->fechaNacimiento,
                                 'sexo' => strtoupper(trim($request->sexo)),
                                 'idPais' =>$request->idPais,
                                 'idEstado' => $request->idEstado,
                                 'idCiudad' => $request->idCiudad
-                ]);
+            ]);
+        }
+
+        $persona = Persona::create($datosPersona);
 
                 if (!$persona) 
                     return $this->returnEstatus('Error al crear a la persona',500,null);         
@@ -82,32 +105,19 @@ class AspiranteController extends Controller{
                         $maxSeq= Integra::where('uid', $newId)->where('idRol',3)->max('secuencia');
                         $secuencialPers = isset($maxSeq) ? $maxSeq + 1: 1;    
                         $integra = Integra::create(['uid' => $newId,'secuencia' =>$secuencialPers,'idRol'=> 3]);
-                        
-                        /*//Log::info('uid:'.$newId);  
-                        //Log::info('secuencia:'.$maxSeq);
-                        //Log::info('idPeriodo:'.$request->idPeriodo);
-                        //Log::info('idCarrera:'.$request->idCarrera);
-                        //Log::info('adeudoAsignaturas:'.$request->adeudoAsignaturas);
-                        //Log::info('idNivel:'.$request->idNivel);
-                        //Log::info('idMedio:'.$request->idMedio);
-                        //Log::info('publica:'.$request->publica);
-                        //Log::info('paisCursoGradoAnterior:'.$request->paisCursoGradoAnterior);
-                        //Log::info('estadoCursoGradoAnterior:'.$request->estadoCursoGradoAnterior);
-                        //Log::info('uidEmpleado:'.$request->uidEmpleado);
-                        //Log::info('fechaSolicitud:'.$request->fechaSolicitud);
-                        //Log::info('matReprobada:'.$request->matReprobada);        
-                        //Log::info('mesReprobada:'.$request->mesReprobada);        
-                        //Log::info('idNivelAnterior:'.$request->idNivelAnterior);        
-                        //Log::info('escuelaProcedencia:'.$request->escuelaProcedencia); */       
-
-                        $aspirante = Aspirante::create([
+                      
+                        $datosAspirante = [
                                                 'uid' => $newId,
                                                 'secuencia' => $secuencialPers,
                                                 'idPeriodo' => $request->idPeriodo,
                                                 'idCarrera' => $request->idCarrera,
-                                                'adeudoAsignaturas' => $request->adeudoAsignaturas,
                                                 'idNivel' => $request->idNivel,
-                                                'idTurno' => $request->idTurno,
+                                                'idTurno' => $request->idTurno
+                        ];
+
+                        if ($request->filled('sexo')) {
+                            $datosAspirante = array_merge($datosAspirante, [
+                                                'adeudoAsignaturas' => $request->adeudoAsignaturas,
                                                 'idMedio' => $request->idMedio,
                                                 'publica' => $request->publica,
                                                 'paisCursoGradoAnterior' => $request->paisCursoGradoAnterior,
@@ -119,11 +129,45 @@ class AspiranteController extends Controller{
                                                 'idNivelAnterior' => $request->idNivelAnterior,
                                                 'escuelaProcedencia' => $request->escuelaProcedencia,
                                                 'semestreIngreso'=> $request->semestre,
-                                                'observaciones'=> '']);  
+                                                'observaciones'=> ''
+                            ]);
+                        }
+
+                        $aspirante = Aspirante::create($datosAspirante);  
 
                         if (!$aspirante) 
                             return $this->returnEstatus('Error al crear al aspirante',500,null);   
                         else {
+                            if (!$request->filled('sexo')) {
+                                DB::select('CALL convierteAlumnoExpres(?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+                                                                    $newId,
+                                                                    $request->idPeriodo,
+                                                                    $secuencialPers,
+                                                                    $request->idCarrera,
+                                                                    $request->idTurno,
+                                                                    $request->semestre,
+                                                                    $request->uidMatricula,
+                                                                    $request->idNivel,
+                                                                    $request->grupo
+                                ]);
+
+                                DB::select('CALL GeneraCargosInscrip(?, ?, ?, ?, ?, ?, ?)', [
+                                                $request->idNivel,
+                                                $request->idPeriodo,
+                                                $request->idCarrera,
+                                                $request->semestre,
+                                                $newId,
+                                                $secuencialPers,
+                                                $request->idTurno,]
+                                        );
+
+                                return response()->json([
+                                    'status' => 200,
+                                    'uid' => $newId,
+                                    'secuencia' => $secuencialPers
+                                ]);
+                            }
+
                             if(isset($request->alergias))
                             foreach ($request->alergias as $alergia) {
                                 $maxSeq = Alergia::where('uid', $newId)->max('consecutivo');
@@ -630,7 +674,7 @@ class AspiranteController extends Controller{
            if (file_exists($filePath)) {
                return response()->json([
                    'status' => 200,  
-                   'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/solicitudInscripcion.pdf'// Puedes devolver la ruta para fines de depuración
+                   'message' => 'https://reportes.siaweb.com.mx/storage/app/public/solicitudInscripcion.pdf'// Puedes devolver la ruta para fines de depuración
                ]);
            } else {
                return response()->json([

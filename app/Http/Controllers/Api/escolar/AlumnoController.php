@@ -70,7 +70,7 @@ class AlumnoController extends Controller
                                     ->distinct()
                                     ->select(
                                         'p.uid',
-                                         DB::raw('CONCAT(p.primerApellido, " ", p.segundoApellido, " ", p.nombre) AS nombre'),
+                                     DB::raw("CONCAT_WS(' ', p.primerApellido, NULLIF(p.segundoApellido, ''), p.nombre) AS nombre"),
                                         'al.idCarrera',
                                         'c.descripcion',
                                         'cl.grupo',
@@ -87,7 +87,6 @@ class AlumnoController extends Controller
                                     })
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
-                                    ->whereNull('cl.fechaBaja')
                                     ->orderBy('al.idCarrera')
                                     ->orderBy('semestre')
                                     ->orderBy('cl.grupo')
@@ -202,7 +201,7 @@ class AlumnoController extends Controller
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -290,7 +289,7 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -302,7 +301,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
                                     ->distinct()
                                     ->select(
                                         'p.uid',
-                                        DB::raw('CONCAT(p.primerApellido, " ", p.segundoApellido, " ", p.nombre) AS nombre'),
+                                     DB::raw("CONCAT_WS(' ', p.primerApellido, NULLIF(p.segundoApellido, ''), p.nombre) AS nombre"),
                                         'al.idCarrera',
                                         'c.descripcion',
                                         'cl.grupo',
@@ -319,7 +318,6 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
                                     })
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
-                                    ->whereNull('cl.fechaBaja')
                                     ->orderBy('al.idCarrera')
                                     ->orderBy('semestre')
                                     ->orderBy('cl.grupo')
@@ -367,7 +365,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$name
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$name
             ]);
         }
 
@@ -382,7 +380,7 @@ public function obtenerDatosConcentrado($idNivel,$idPeriodo){
                                     ->select(
                                         'c.idCarrera',
                                         'c.descripcion AS escuela',
-                                        DB::raw('COUNT(DISTINCT p.uid, p.primerApellido, p.segundoApellido, p.nombre, al.idCarrera, c.descripcion) as total')
+                                     DB::raw('COUNT(DISTINCT p.uid) as total')
                                     )
                                     ->join('persona as p', 'cl.uid', '=', 'p.uid')
                                     ->join('alumno as al', function ($join) {
@@ -395,7 +393,6 @@ public function obtenerDatosConcentrado($idNivel,$idPeriodo){
                                     })
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
-                                    ->whereNull('cl.fechaBaja')
                                     ->groupBy('c.idCarrera', 'c.descripcion')
                                     ->get();
 
@@ -414,7 +411,6 @@ public function obtenerTotalesPorSemestre($idNivel,$idPeriodo){
                                     )
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
-                                    ->whereNull('cl.fechaBaja')
                                     ->groupBy(DB::raw("SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 3 ELSE 4 END, 1)"))
                                     ->orderBy('semestre')
                                     ->get();
@@ -445,7 +441,7 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $fileName
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
             
         ]);
     } else {
@@ -489,7 +485,7 @@ public function getAvance($uid,$secuencia){
                 $join->on('p.uid', '=', 'a.uid')
                     ->whereRaw("
                         (
-                            CONCAT(p.primerApellido, ' ', p.segundoApellido,' ',p.nombre) LIKE ?                            
+                            CONCAT_WS(' ', p.primerApellido, NULLIF(p.segundoApellido, ''), p.nombre) LIKE ?                            
                             OR p.uid LIKE ?
                             OR a.matricula LIKE ?
                         )
@@ -540,7 +536,7 @@ public function getAvance($uid,$secuencia){
                     'c.descripcion as nombreCarrera',
 
                     'p.curp',
-                    DB::raw("CONCAT(p.primerApellido, ' ', p.segundoApellido, ' ', p.nombre) AS nombre"),
+                    DB::raw("CONCAT_WS(' ', p.primerApellido, NULLIF(p.segundoApellido, ''), p.nombre) AS nombre"),
 
                     'p.primerApellido',
                     'p.segundoApellido',

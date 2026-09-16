@@ -23,6 +23,11 @@ Route::group([], function () {
         'gruposSemestre'
     ]);
 
+    Route::get('/semestres/{idNivel}/{idPeriodo}/{idCarrera}/{idTurno}', [
+        GrupoController::class,
+        'gruposSemestrePorTurno'
+    ]);
+
     Route::get('/alumnos/{idNivel}/{idPeriodo}/{grupo}', [
         GrupoController::class,
         'alumnosInscritosGrupo'

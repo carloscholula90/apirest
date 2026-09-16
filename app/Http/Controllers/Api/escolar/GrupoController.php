@@ -53,6 +53,26 @@ class GrupoController extends Controller
        return $this->returnData('grupos',$grupos,200);
     }
 
+    public function gruposSemestrePorTurno($idNivel, $idPeriodo, $idCarrera, $idTurno)
+    {
+       $carreraFormatted = str_pad($idCarrera, 2, '0', STR_PAD_LEFT);
+       $grupos = DB::table('grupos')
+                                ->distinct()
+                                ->select(
+                                   DB::raw("SUBSTRING(grupo, CASE WHEN LENGTH(grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre"),
+                                   'grupo'
+                                )
+                                ->where('idNivel', $idNivel)
+                                ->where('idPeriodo', $idPeriodo)
+                                ->where('idTurno', $idTurno)
+                                ->where('grupo', 'like', $carreraFormatted.'%')
+                                ->orderBy('semestre')
+                                ->orderBy('grupo')
+                                ->get();
+
+       return $this->returnData('grupos', $grupos, 200);
+    }
+
     public function alumnosInscritosGrupo($idNivel,$idPeriodo,$grupo)
     {
        $alumnos = DB::table('ciclos as c')
@@ -720,7 +740,7 @@ public function obtenerAsignaturas($grupo){
 
         return response()->json([
             'status'  => 200,
-            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
         ]);
 
     } else {
