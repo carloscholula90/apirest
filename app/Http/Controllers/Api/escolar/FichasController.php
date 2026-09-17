@@ -56,6 +56,12 @@ class FichasController extends Controller{
                     ELSE NULL
                 END
             ) AS fechaVencimiento"),
+            DB::raw("MAX(
+                CASE
+                    WHEN tipomovto = 'C' THEN FechaPago
+                    ELSE NULL
+                END
+            ) AS fechaPago"),
         ])
         ->where('idPeriodo', (int) $idPeriodo)
         ->when((int) $uid > 0, function ($query) use ($uid) {
@@ -85,6 +91,10 @@ class FichasController extends Controller{
         })
         ->join('persona', 'persona.uid', '=', 'al.uid')
         ->join('servicio as s', 's.idServicio', '=', 'cta.idServicio')
+        ->leftJoin('ordenCobroServicio as ocs', function ($join) {
+            $join->on('ocs.idNivel', '=', 'al.idNivel')
+                ->on('ocs.idServicio', '=', 'cta.idServicio');
+        })
         ->where('al.idCarrera', (int) $idCarrera)
         ->where('al.idNivel', (int) $idNivel)
         ->where('s.mostrarFichaPago', 1)
@@ -118,9 +128,8 @@ class FichasController extends Controller{
                 END
             ) AS servicios,cta.parcialidad,
             cta.saldo AS total,
+            DATE_FORMAT(cta.fechaPago, '%Y-%m-%d') AS fechaPago,
             DATE_FORMAT(cta.fechaVencimiento, '%Y-%m-%d') AS fechaVencimiento,
-            DATE_FORMAT(cta.FechaPago, '%Y-%m-%d') AS fechaPago,
-           
             Algoritmo45Fun(
                 CONCAT(
                     LPAD(al.matricula, 7, '0'),
@@ -131,7 +140,9 @@ class FichasController extends Controller{
             ) AS lineaPago
         ")
         ->orderBy('matricula','asc')
-        ->orderBy('fechaVencimiento','asc')
+        ->orderByRaw('COALESCE(ocs.orden, 999999) ASC')
+        ->orderByRaw('COALESCE(YEAR(cta.fechaPago), 9999) ASC')
+        ->orderByRaw('COALESCE(cta.parcialidad, 999999) ASC')
         ->get();
 
 
@@ -200,16 +211,16 @@ class FichasController extends Controller{
         $name=$fila->nombre;
         Carbon::setLocale('es'); // Establece el idioma a español
         $fecha = Carbon::parse($fila->fechaVencimiento)->translatedFormat('d/F/Y');
-        $mes = Carbon::parse($fila->fechaPago)->translatedFormat('F Y');
+        $mes = Carbon::parse($fila->fechaVencimiento)->translatedFormat('F Y');
         $total = number_format($fila->total, 2, '.', ',');
         if (Str::contains($fila->servicios, 'COLEGIATURA'))
-            $html .= '<tr>
-                <td style="width: 150px; font-size: 8pt;">'.mb_strtoupper($mes,'UTF-8').'</td>
+            $html .='<tr>
+                <td style="width: 150px; font-size: 8t;">'.$fila->servicios.'</td>
                 <td style="font-size: 12pt;">' .$fila->lineaPago. '</td>
-                </tr>';
+                </tr>'; 
         else
             $html .='<tr>
-                <td style="width: 150px; font-size: 8t;">'.$fila->servicios.' '.mb_strtoupper($mes,'UTF-8').'</td>
+                <td style="width: 150px; font-size: 8t;">'.$fila->servicios.'</td>
                 <td style="font-size: 12pt;">' .$fila->lineaPago. '</td>
                 </tr>';        
         

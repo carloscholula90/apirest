@@ -73,7 +73,7 @@ class AlumnoController extends Controller
                                         'p.uid',
                                      DB::raw("CONCAT_WS(' ', p.primerApellido, NULLIF(p.segundoApellido, ''), p.nombre) AS nombre"),
                                         'al.idCarrera',
-                                        'c.descripcion',
+                                        'c.descripcion as escuela',
                                         'cl.grupo',
                                         DB::raw("SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre")
                                     )
@@ -101,7 +101,7 @@ class AlumnoController extends Controller
 
         $carreras = $resultado
             ->map(function ($item) {
-                return $item->idCarrera . ' - ' . $item->descripcion;
+                return $item->idCarrera . ' - ' . $item->escuela;
             })
             ->unique()
             ->values()
@@ -121,9 +121,9 @@ class AlumnoController extends Controller
  
          return $this->generateReportDtl($idNivel,$idPeriodo,
                                         $dataArray,
-                                        ['UID', 'NOMBRE','GRUPO'],
-                                        [60, 480,80],
-                                        ['uid', 'nombre','grupo'],
+                                        ['UID', 'ESCUELA', 'NOMBRE', 'GRUPO'],
+                                        [60, 180, 300, 80],
+                                        ['uid', 'escuela', 'nombre', 'grupo'],
                                         $carreras,
                                         $totalesSemestre,
                                         'DETALLADO DE INSCRITOS POR ESCUELA',
@@ -308,7 +308,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
                                         'p.uid',
                                      DB::raw("CONCAT_WS(' ', p.primerApellido, NULLIF(p.segundoApellido, ''), p.nombre) AS nombre"),
                                         'al.idCarrera',
-                                        'c.descripcion',
+                                        'c.descripcion as escuela',
                                         'cl.grupo',
                                         DB::raw("SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre")
                                     )
@@ -342,7 +342,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
 
         $carreras = $resultado
             ->map(function ($item) {
-                return $item->idCarrera . ' - ' . $item->descripcion;
+                return $item->idCarrera . ' - ' . $item->escuela;
             })
             ->unique()
             ->values()

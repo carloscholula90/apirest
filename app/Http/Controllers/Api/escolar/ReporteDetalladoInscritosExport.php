@@ -27,11 +27,12 @@ class ReporteDetalladoInscritosExport implements FromCollection, ShouldAutoSize
         $rows[] = ['PERIODO ' . $this->periodo];
         $rows[] = ['CARRERA(S): ' . implode(', ', $this->carreras)];
         $rows[] = [];
-        $rows[] = ['UID', 'NOMBRE', 'GRUPO'];
+        $rows[] = ['UID', 'ESCUELA', 'NOMBRE', 'GRUPO'];
 
         foreach ($this->data as $row) {
             $rows[] = [
                 $row['uid'] ?? '',
+                $row['escuela'] ?? '',
                 $row['nombre'] ?? '',
                 $row['grupo'] ?? '',
             ];
