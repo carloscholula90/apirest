@@ -116,9 +116,11 @@ class FichasController extends Controller{
                         ELSE ''
                     END
                 END
-            ) AS servicios,
+            ) AS servicios,cta.parcialidad,
             cta.saldo AS total,
             DATE_FORMAT(cta.fechaVencimiento, '%Y-%m-%d') AS fechaVencimiento,
+            DATE_FORMAT(cta.FechaPago, '%Y-%m-%d') AS fechaPago,
+           
             Algoritmo45Fun(
                 CONCAT(
                     LPAD(al.matricula, 7, '0'),
@@ -198,7 +200,7 @@ class FichasController extends Controller{
         $name=$fila->nombre;
         Carbon::setLocale('es'); // Establece el idioma a español
         $fecha = Carbon::parse($fila->fechaVencimiento)->translatedFormat('d/F/Y');
-        $mes = Carbon::parse($fila->fechaVencimiento)->translatedFormat('F Y');
+        $mes = Carbon::parse($fila->fechaPago)->translatedFormat('F Y');
         $total = number_format($fila->total, 2, '.', ',');
         if (Str::contains($fila->servicios, 'COLEGIATURA'))
             $html .= '<tr>

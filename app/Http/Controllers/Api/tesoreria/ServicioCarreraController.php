@@ -138,6 +138,14 @@ return $final;
         'fechaModificacion'=> Carbon::now()
     ]);
 
+    $this->alumnosPorGrupo(
+        $request->idNivel,
+        $request->idPeriodo,
+        $request->idCarrera,
+        $request->idTurno,
+        $request->semestre
+    );
+
     return $this->returnData('servicios', null, 200);
 }
 
@@ -201,6 +209,17 @@ return $final;
     }
     public function destroy($idNivel,$idPeriodo,$idServicio,$idCarrera,$idTurno)
     {
+        // El semestre no viene en la ruta; se toma de los registros que se van
+        // a borrar para poder recalcular sus grupos correspondientes después.
+        $semestres = DB::table('servicioCarrera')
+                            ->where('idNivel', $idNivel)
+                            ->where('idPeriodo', $idPeriodo)
+                            ->where('idServicio', $idServicio)
+                            ->where('idCarrera', $idCarrera)
+                            ->where('idTurno', $idTurno)
+                            ->pluck('semestre')
+                            ->unique();
+
         $destroy = DB::table('servicioCarrera')
                             ->where('idNivel', $idNivel  )
                             ->where('idPeriodo', $idPeriodo)
@@ -209,14 +228,18 @@ return $final;
                             ->where('idTurno', $idTurno)
                             ->delete();
 
-        if ($destroy == 0) 
+        if ($destroy == 0)
             return $this->returnEstatus('Error en la eliminacion', 404, null);
-                
-        return $this->returnEstatus('Registro eliminado',200,null); 
+
+        foreach ($semestres as $semestre) {
+            $this->alumnosPorGrupo($idNivel, $idPeriodo, $idCarrera, $idTurno, $semestre);
+        }
+
+        return $this->returnEstatus('Registro eliminado',200,null);
     }
 
      public function update(Request $request) {
-        
+
         $validator = Validator::make($request->all(), [
                                    'idServicio' => 'required|numeric',
                                     'idNivel' => 'required|numeric',
@@ -229,9 +252,9 @@ return $final;
                                     'aplicaIns' => 'required|numeric'
         ]);
 
-       
-        if ($validator->fails()) 
-            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+
+        if ($validator->fails())
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
 
         $validacionRegla = $this->validarReglaNegocio($request, $request->secuencia);
 
@@ -251,11 +274,17 @@ return $final;
                             'semestre' => $request->semestre,
                             'aplicaIns' => $request->aplicaIns
                                 ]);
-        if ($filas > 0) 
-            return $this->returnData('datos actualizados',null,200);
-        else 
-            return $this->returnData('No se actualizo informacion',null,200);
+        
+            $this->alumnosPorGrupo(
+                $request->idNivel,
+                $request->idPeriodo,
+                $request->idCarrera,
+                $request->idTurno,
+                $request->semestre
+            );
 
+            return $this->returnData('datos actualizados',null,200);
+       
     }
 
     // Función para generar el reporte de personas
@@ -413,6 +442,130 @@ return $final;
                     ]);
     }
 }
+
+    /**
+     * Método interno (ya no es un endpoint): se invoca desde store(), update()
+     * y destroy() para regenerar, vía GeneraCargosInscrip, los cargos de los
+     * alumnos activos de "ciclos" que coincidan con nivel, periodo, carrera,
+     * turno y semestre de la regla de servicioCarrera que se acaba de
+     * guardar/actualizar/borrar.
+     *
+     * "ciclos" no tiene columna de turno: va codificado en la posición 3 del
+     * campo "grupo" (ej. 06D2B -> 06 carrera, D turno, 2 semestre, B letra de
+     * grupo). Igual que en servicioCarrera, idTurno = 0 y semestre = 0
+     * significan "todos" (no se filtra por ese campo).
+     *
+     * Devuelve un arreglo con el resultado (no una respuesta HTTP), ya que
+     * ahora solo se llama internamente.
+     */
+    public function alumnosPorGrupo($idNivel, $idPeriodo, $idCarrera, $idTurno, $semestre)
+    {
+        $idNivel   = (int) $idNivel;
+        $idPeriodo = (int) $idPeriodo;
+        $idCarrera = (int) $idCarrera;
+        $idTurno   = (int) $idTurno;
+        $semestre  = (int) $semestre;
+
+        $letraTurno = null;
+
+        if ($idTurno !== 0) {
+            $letraTurno = DB::table('turno')
+                ->where('idTurno', $idTurno)
+                ->value('letra');
+
+            if (!$letraTurno) {
+                return [
+                    'error' => 'El turno indicado no existe o no tiene letra configurada',
+                    'alumnos' => [],
+                    'cargosGenerados' => 0,
+                    'omitidos' => [],
+                ];
+            }
+        }
+
+        $query = DB::table('ciclos as cl')
+            ->join('alumno as al', function ($j) {
+                $j->on('al.uid', '=', 'cl.uid')
+                  ->on('al.secuencia', '=', 'cl.secuencia');
+            })
+            ->join('persona as per', 'per.uid', '=', 'al.uid')
+            ->join('carrera as ca', function ($j) {
+                $j->on('ca.idNivel', '=', 'cl.idNivel')
+                  ->on('ca.idCarrera', '=', 'al.idCarrera');
+            })
+            // Resuelve el turno REAL de cada alumno a partir de la letra en la
+            // posición 3 de cl.grupo (necesario para GeneraCargosInscrip, sobre
+            // todo cuando no se filtró por un turno específico, es decir idTurno=0).
+            ->leftJoin('turno as tg', function ($j) {
+                $j->whereRaw('tg.letra = SUBSTRING(cl.grupo, 3, 1)');
+            })
+            ->where('cl.idNivel', $idNivel)
+            ->where('cl.idPeriodo', $idPeriodo)
+            ->where('al.idCarrera', $idCarrera)
+            ->where('al.activo', 1)
+            ->select([   
+                'al.uid',
+                'al.matricula',
+                'cl.secuencia',
+                DB::raw("CONCAT(per.nombre,' ',per.primerApellido,' ',per.segundoApellido) AS nombre"),
+                'ca.idCarrera',
+                'ca.descripcion as carrera',
+                'cl.grupo',
+                'cl.semestre',
+                'tg.idTurno as idTurnoAlumno',
+            ]);
+
+        if ($idTurno !== 0) {
+            $query->whereRaw('SUBSTRING(cl.grupo, 3, 1) = ?', [$letraTurno]);
+        }
+
+        if ($semestre !== 0) {
+            $query->where('cl.semestre', $semestre);
+        }
+
+        $alumnos = $query
+            ->orderBy('cl.grupo')
+            ->orderBy('per.primerApellido')
+            ->orderBy('per.segundoApellido')
+            ->get();
+
+        // Por cada alumno encontrado, ejecuta GeneraCargosInscrip con su turno y
+        // semestre reales (no $idTurno/$semestre de la petición, que pueden venir
+        // en 0 = "todos").
+        $cargosGenerados = 0;
+        $omitidos = [];
+
+        foreach ($alumnos as $alumno) {
+
+            if (!$alumno->idTurnoAlumno) {
+                $omitidos[] = [
+                    'uid' => $alumno->uid,
+                    'matricula' => $alumno->matricula,
+                    'grupo' => $alumno->grupo,
+                    'motivo' => 'No se encontró un turno cuya letra coincida con la posición 3 de "' . $alumno->grupo . '"',
+                ];
+                continue;
+            }
+
+            DB::statement("CALL GeneraCargosInscrip(?, ?, ?, ?, ?, ?, ?)", [
+                $idNivel,
+                $idPeriodo,
+                $idCarrera,
+                $alumno->semestre,
+                $alumno->uid,
+                $alumno->secuencia,
+                $alumno->idTurnoAlumno,
+            ]);
+
+            $cargosGenerados++;
+        }
+
+        return [
+            'alumnos' => $alumnos,
+            'cargosGenerados' => $cargosGenerados,
+            'omitidos' => $omitidos,
+        ];
+    }
 
 }
 

@@ -116,7 +116,18 @@ class CargosController extends Controller
                 })
                 ->where('cta.tipomovto', 'C')
                 ->where('p.idPeriodo', $idPeriodo)
-                ->where('ca.idNivel', $idNivel);
+                ->where('ca.idNivel', $idNivel)
+                ->where('al.activo', 1)
+                ->where('s.obligatorio', 1)
+                ->whereExists(function ($q) use ($idPeriodo, $idNivel) {
+                    $q->select(DB::raw(1))
+                      ->from('ciclos as cl')
+                      ->whereColumn('cl.uid', 'cta.uid')
+                      ->whereColumn('cl.secuencia', 'cta.secuencia')
+                      ->where('cl.idPeriodo', $idPeriodo)
+                      ->where('cl.idNivel', $idNivel)
+                      ->where('cl.inscrito', 1);
+                });
 
             if ($activo == 0) {
                 $query->where('s.tipoEdoCta', 1);
@@ -180,9 +191,13 @@ class CargosController extends Controller
             }
 
             $data = array_values($pivot);
+            foreach ($data as $index => &$row) {
+                $row = ['numero' => $index + 1] + $row;
+            }
+            unset($row);
 
-            $headers = array_merge(['UID','NOMBRE','ESCUELA'], array_values($meses), ['TOTAL']);
-            $keys    = array_merge(['uid','nombre','escuela'], array_values($meses), ['total']);
+            $headers = array_merge(['NO.','UID','NOMBRE','ESCUELA'], array_values($meses), ['TOTAL']);
+            $keys    = array_merge(['numero','uid','nombre','escuela'], array_values($meses), ['total']);
 
             // ---------------- EXCEL ----------------
             if ($excel == 1) {
@@ -198,6 +213,7 @@ class CargosController extends Controller
                             // Inserta total del servicio anterior
                             if ($servicioActual !== null) {
                                 $totalRow = [
+                                    'numero' => '',
                                     'uid' => '',
                                     'nombre' => 'TOTAL SERVICIO',
                                     'escuela' => '',
@@ -215,6 +231,7 @@ class CargosController extends Controller
 
                             // Fila título de servicio
                             $dataConCortes[] = [
+                                'numero' => '',
                                 'uid' => '',
                                 'nombre' => 'SERVICIO: ' . $row['servicio'],
                                 'escuela' => '',
@@ -235,6 +252,7 @@ class CargosController extends Controller
                     // Último total
                     if ($servicioActual !== null) {
                         $totalRow = [
+                            'numero' => '',
                             'uid' => '',
                             'nombre' => 'TOTAL SERVICIO',
                             'escuela' => '',
@@ -247,7 +265,7 @@ class CargosController extends Controller
 
                         $dataConCortes[] = $totalRow;
                     }
-                    Log::info('termino pivote 3:');
+                    
                   $dataFinal = $dataConCortes;
                   $path = storage_path('app/public/rptCargosAnalitico.xlsx');
                     $titleRowsExcel = [
@@ -277,11 +295,12 @@ class CargosController extends Controller
                 return $row;
             }, $data);
 
-            $headersPdf = array_merge(['UID / NOMBRE','ESCUELA'], array_values($meses), ['TOTAL']);
-            $keysPdf    = array_merge(['uidNombre','escuela'], array_values($meses), ['total']);
+            $headersPdf = array_merge(['NO.','UID / NOMBRE','ESCUELA'], array_values($meses), ['TOTAL']);
+            $keysPdf    = array_merge(['numero','uidNombre','escuela'], array_values($meses), ['total']);
 
             $columnWidthsAnalitico = array_fill(0, count($headersPdf), 70);
-            $columnWidthsAnalitico[0] = 250;
+            $columnWidthsAnalitico[0] = 35;
+            $columnWidthsAnalitico[1] = 250;
 
             return $this->generateReport(
                 $dataPdf,
@@ -321,7 +340,18 @@ class CargosController extends Controller
             })
             ->where('cta.tipomovto', 'C')
             ->where('p.idPeriodo', $idPeriodo)
-            ->where('ca.idNivel', $idNivel);
+            ->where('ca.idNivel', $idNivel)
+            ->where('al.activo', 1)
+            ->where('s.obligatorio', 1)
+            ->whereExists(function ($q) use ($idPeriodo, $idNivel) {
+                $q->select(DB::raw(1))
+                  ->from('ciclos as cl')
+                  ->whereColumn('cl.uid', 'cta.uid')
+                  ->whereColumn('cl.secuencia', 'cta.secuencia')
+                  ->where('cl.idPeriodo', $idPeriodo)
+                  ->where('cl.idNivel', $idNivel)
+                  ->where('cl.inscrito', 1);
+            });
 
         if ($activo == 0) {
             $query->where('s.tipoEdoCta', 1);
@@ -486,7 +516,18 @@ class CargosController extends Controller
             })
             ->where('cta.tipomovto', 'C')
             ->where('p.idPeriodo', $idPeriodo)
-            ->where('ca.idNivel', $idNivel);
+            ->where('ca.idNivel', $idNivel)
+            ->where('al.activo', 1)
+            ->where('s.obligatorio', 1)
+            ->whereExists(function ($q) use ($idPeriodo, $idNivel) {
+                $q->select(DB::raw(1))
+                  ->from('ciclos as cl')
+                  ->whereColumn('cl.uid', 'cta.uid')
+                  ->whereColumn('cl.secuencia', 'cta.secuencia')
+                  ->where('cl.idPeriodo', $idPeriodo)
+                  ->where('cl.idNivel', $idNivel)
+                  ->where('cl.inscrito', 1);
+            });
 
         if ($activo == 0) {
             $query->where('s.tipoEdoCta', 1);
@@ -536,7 +577,7 @@ public function generateReport(
     $pdf->AddPage();
     $pdf->SetFont('helvetica', '', 8);
 
-    $textKeys = ['uid', 'nombre', 'uidNombre'];
+    $textKeys = ['numero', 'uid', 'nombre', 'uidNombre'];
     $skipKeys = ['escuela', 'servicio'];
     $numericKeys = [];
 

@@ -618,7 +618,7 @@ class EstadoCuentaController extends Controller{
             'cuatrodigitos' => $movimiento['cuatrodigitos'] ?? null,
             'folio' => $folio,
             'referencia' => $referencia,
-            'parcialidad' => 1,
+            'parcialidad' => 99,
             'uidcajero' => $uidcajero,
             'transaccion' => $movimiento['transaccion'] ?? null,
             'tipoOrigen' => $tipoOrigen,
@@ -1119,7 +1119,9 @@ class EstadoCuentaController extends Controller{
                 'movimientos' => [ 'required', 'array', 'min:1',],
                 'movimientos.*' => [ 'required','array',],
                 'movimientos.*.dia' => ['required','date_format:d/m/Y',],
-                'movimientos.*.concepto' => ['required','string','min:10','regex:/^[0-9]{10}/',],
+                // El concepto se valida por registro para incluirlo en el reporte de rechazados.
+                'movimientos.*.concepto' => ['nullable'],
+
                 'movimientos.*.abono' => ['required','numeric','gt:0',],
                 'movimientos.*.transaccion' => ['required','string','max:255',],
                 'movimientos.*.idFormaPago' => ['required', 'integer',],
@@ -1129,8 +1131,8 @@ class EstadoCuentaController extends Controller{
                 'movimientos.*.dia.required' =>'La fecha del movimiento es obligatoria.',
                 'movimientos.*.dia.date_format' =>'La fecha debe tener el formato dd/mm/aaaa.',
                 'movimientos.*.concepto.required' =>'El concepto es obligatorio.',
-                'movimientos.*.concepto.min' =>'El concepto debe comenzar con siete dígitos de matrícula y tres dígitos de servicio.',
-                'movimientos.*.concepto.regex' =>'El concepto debe comenzar con diez dígitos: siete de matrícula y tres de servicio.',
+                'movimientos.*.concepto.string' =>'El concepto debe enviarse como texto de exactamente 10 dígitos.',
+                'movimientos.*.concepto.regex' =>'El concepto debe contener exactamente 10 dígitos: siete de matrícula y tres de servicio, sin letras ni otros caracteres.',
                 'movimientos.*.abono.required' =>'El importe del abono es obligatorio.',
                 'movimientos.*.abono.numeric' =>'El importe del abono debe ser numérico.',
                 'movimientos.*.abono.gt' =>'El importe del abono debe ser mayor que cero.',
@@ -1143,13 +1145,16 @@ class EstadoCuentaController extends Controller{
         $data = $validator->validate();
 
         return collect($data['movimientos']) ->map(function (array $movimiento) {
-                return ['dia' => $movimiento['dia'],'concepto' => trim($movimiento['concepto']),
+                $concepto = $movimiento['concepto'] ?? null;
+                $conceptoValido = is_string($concepto) && preg_match('/\A[0-9]{10}\z/', $concepto) === 1;
+                return ['dia' => $movimiento['dia'],'concepto' => is_string($concepto) ? $concepto : '',
+                    'errorConcepto' => $conceptoValido ? null : 'El concepto debe contener exactamente 10 dígitos: siete de matrícula y tres de servicio, sin letras ni otros caracteres.',
                     'abono' => round( (float) $movimiento['abono'], 2), 'transaccion' => trim( $movimiento['transaccion'] ),
                     'idFormaPago' => (int) $movimiento['idFormaPago'],
                     'uidcajero' => (int) $movimiento['uidcajero'],
                     'idPeriodo' => isset($movimiento['idPeriodo']) ? (int) $movimiento['idPeriodo'] : null,
-                    'matricula' => (int) substr($movimiento['concepto'], 0, 7),
-                    'idServicio' => (int) substr($movimiento['concepto'], 7, 3),
+                    'matricula' => $conceptoValido ? (int) substr($concepto, 0, 7) : 0,
+                    'idServicio' => $conceptoValido ? (int) substr($concepto, 7, 3) : 0,
                 ];
             })
             ->all();
@@ -1287,21 +1292,21 @@ class EstadoCuentaController extends Controller{
         $html = '<br><br><br>
                     <p><b>IDENTIFICADOR:</b> '.htmlspecialchars($identificadorArchivo, ENT_QUOTES, 'UTF-8').'</p>
                     <h3>MOVIMIENTOS NO PROCESADOS</h3>
-                    <table border="0" cellpadding="2">
+                    <table width="100%" border="0" cellpadding="3">
                         <thead>
                             <tr style="font-weight:bold;">
-                                <th width="40">#</th>
-                                <th width="70">MATRÍCULA</th>
-                                <th width="60">UID</th>
-                                <th width="70">IMPORTE</th>
-                                <th width="110">TRANSACCIÓN</th>
-                                <th width="260">MOTIVO</th>
+                                <th width="5%">#</th>
+                                <th width="12%">MATRÍCULA</th>
+                                <th width="10%">UID</th>
+                                <th width="12%">IMPORTE</th>
+                                <th width="25%">TRANSACCIÓN</th>
+                                <th width="36%">MOTIVO</th>
                             </tr>
                         </thead>
                         <tbody>';
 
         if (empty($registros)) {
-            $html .= '<tr><td colspan="6">No existen movimientos rechazados.</td></tr>';
+            $html .= '<tr nobr="true"><td colspan="6">No existen movimientos rechazados.</td></tr>';
         }
 
         foreach ($registros as $registro) {
@@ -1313,13 +1318,13 @@ class EstadoCuentaController extends Controller{
             $mensaje = htmlspecialchars((string) ($registro['mensaje'] ?? ''),ENT_QUOTES,'UTF-8');
 
             $html .= '
-                <tr>
-                    <td width="40">'.$indice.'</td>
-                    <td width="70">'.$matricula.'</td>
-                    <td width="60">'.$uid.'</td>
-                    <td width="70">$'.$importe.'</td>
-                    <td width="110">'.$transaccion.'</td>
-                    <td width="260">'.$mensaje.'</td>
+                <tr nobr="true">
+                    <td width="5%">'.$indice.'</td>
+                    <td width="12%">'.$matricula.'</td>
+                    <td width="10%">'.$uid.'</td>
+                    <td width="12%">$'.$importe.'</td>
+                    <td width="25%">'.$transaccion.'</td>
+                    <td width="36%">'.$mensaje.'</td>
                 </tr>
             ';
         }
@@ -1337,7 +1342,7 @@ class EstadoCuentaController extends Controller{
                 <tbody>';
 
         if ($concentrado->isEmpty()) {
-            $html .= '<tr><td colspan="3">No se ingresaron movimientos.</td></tr>';
+            $html .= '<tr nobr="true"><td colspan="3">No se ingresaron movimientos.</td></tr>';
         } else {
             foreach ($concentrado as $servicio) {
                 $descripcion = htmlspecialchars(
@@ -1346,7 +1351,7 @@ class EstadoCuentaController extends Controller{
                     'UTF-8'
                 );
 
-                $html .= '<tr>
+                $html .= '<tr nobr="true">
                     <td width="75">'.(int) $servicio->idServicio.'</td>
                     <td width="200">'.$descripcion.'</td>
                     <td width="85" align="right">$'.number_format((float) $servicio->total, 2, '.', ',').'</td>
@@ -1373,7 +1378,7 @@ class EstadoCuentaController extends Controller{
 
     /**
      * Genera un reporte independiente con el concentrado de los abonos
-     * agrupados por servicio dentro de un rango de FechaPago.
+     * agrupados por servicio dentro de cada nivel y forma de pago.
      *
      * Este proceso no modifica el reporte generado durante la importacion.
      */
@@ -1405,7 +1410,12 @@ class EstadoCuentaController extends Controller{
             'America/Mexico_City'
         )->endOfDay();
 
-        $concentrado = DB::table('edocta as edo')
+        $concentradoNivel = DB::table('edocta as edo')
+            ->join('alumno as al', function ($join) {
+                $join->on('al.uid', '=', 'edo.uid')
+                    ->on('al.secuencia', '=', 'edo.secuencia');
+            })
+            ->leftJoin('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
             ->join('servicio as ser', 'ser.idServicio', '=', 'edo.idServicio')
             ->where('edo.tipomovto', 'A')
             ->whereBetween(DB::raw('COALESCE(edo.FechaPago, edo.fechaMovto)'), [
@@ -1413,17 +1423,42 @@ class EstadoCuentaController extends Controller{
                 $fechaFin->toDateString(),
             ])
             ->select([
+                'al.idNivel',
+                DB::raw("COALESCE(niv.descripcion, 'SIN NIVEL') AS nivel"),
                 'edo.idServicio',
                 'ser.descripcion as servicio',
                 DB::raw('COUNT(*) AS movimientos'),
                 DB::raw('SUM(edo.importe) AS total'),
             ])
-            ->groupBy('edo.idServicio', 'ser.descripcion')
+            ->groupBy('al.idNivel', 'niv.descripcion', 'edo.idServicio', 'ser.descripcion')
+            ->orderBy('al.idNivel')
             ->orderBy('edo.idServicio')
             ->get();
 
-        $totalMovimientos = (int) $concentrado->sum('movimientos');
-        $totalGeneral = round((float) $concentrado->sum('total'), 2);
+        $concentradoFormaPago = DB::table('edocta as edo')
+            ->leftJoin('formaPago as fp', 'fp.idFormaPago', '=', 'edo.idformaPago')
+            ->join('servicio as ser', 'ser.idServicio', '=', 'edo.idServicio')
+            ->where('edo.tipomovto', 'A')
+            ->whereBetween(DB::raw('COALESCE(edo.FechaPago, edo.fechaMovto)'), [
+                $fechaInicio->toDateString(),
+                $fechaFin->toDateString(),
+            ])
+            ->select([
+                'edo.idformaPago',
+                DB::raw("COALESCE(fp.descripcion, 'SIN FORMA DE PAGO') AS formaPago"),
+                'edo.idServicio',
+                'ser.descripcion as servicio',
+                DB::raw('COUNT(*) AS movimientos'),
+                DB::raw('SUM(edo.importe) AS total'),
+            ])
+            ->groupBy('edo.idformaPago', 'fp.descripcion', 'edo.idServicio', 'ser.descripcion')
+            ->orderByRaw('edo.idformaPago IS NULL')
+            ->orderBy('edo.idformaPago')
+            ->orderBy('edo.idServicio')
+            ->get();
+
+        $totalMovimientos = (int) $concentradoNivel->sum('movimientos');
+        $totalGeneral = round((float) $concentradoNivel->sum('total'), 2);
 
         $imagePathEnc = public_path('images/encPag.png');
         $imagePathPie = public_path('images/piePag.png');
@@ -1448,44 +1483,73 @@ class EstadoCuentaController extends Controller{
             <p><b>FECHA INICIAL:</b> '.$fechaInicio->format('d/m/Y').'</p>
             <p><b>FECHA FINAL:</b> '.$fechaFin->format('d/m/Y').'</p>';
 
-        $html .= '<br><h3>MOVIMIENTOS POR SERVICIO</h3>
-                <table border="0" cellpadding="3">
-                    <thead>
-                        <tr style="font-weight:bold;">
-                            <th width="65">ID SERVICIO</th>
-                            <th width="230">DESCRIPCION DEL SERVICIO</th>
-                            <th width="70" align="right">MOVIMIENTOS</th>
-                            <th width="90" align="right">TOTAL</th>
-                        </tr>
-                    </thead>
-                    <tbody>';
+        $encabezadoServicios = '<table border="0" cellpadding="3">
+            <thead><tr style="font-weight:bold;">
+                <th width="65">ID SERVICIO</th>
+                <th width="230">DESCRIPCION DEL SERVICIO</th>
+                <th width="70" align="right">MOVIMIENTOS</th>
+                <th width="90" align="right">TOTAL</th>
+            </tr></thead><tbody>';
 
-            if ($concentrado->isEmpty()) {
-                $html .= '<tr><td colspan="4">No existen movimientos en el rango solicitado.</td></tr>';
-            } else {
-                foreach ($concentrado as $servicio) {
-                    $descripcion = htmlspecialchars(
-                        (string) $servicio->servicio,
-                        ENT_QUOTES,
-                        'UTF-8'
-                    );
-
+        $html .= '<br><h3>SERVICIOS AGRUPADOS POR NIVEL</h3>';
+        if ($concentradoNivel->isEmpty()) {
+            $html .= '<p>No existen movimientos en el rango solicitado.</p>';
+        } else {
+            foreach ($concentradoNivel->groupBy('idNivel') as $serviciosNivel) {
+                $nivel = $serviciosNivel->first();
+                $descripcionNivel = htmlspecialchars((string) $nivel->nivel, ENT_QUOTES, 'UTF-8');
+                $html .= '<br><h4>NIVEL '.(int) $nivel->idNivel.' - '.$descripcionNivel.'</h4>';
+                $html .= $encabezadoServicios;
+                foreach ($serviciosNivel as $servicio) {
+                    $descripcionServicio = htmlspecialchars((string) $servicio->servicio, ENT_QUOTES, 'UTF-8');
                     $html .= '<tr>
                         <td width="65">'.(int) $servicio->idServicio.'</td>
-                        <td width="230">'.$descripcion.'</td>
+                        <td width="230">'.$descripcionServicio.'</td>
                         <td width="70" align="right">'.(int) $servicio->movimientos.'</td>
                         <td width="90" align="right">$'.number_format((float) $servicio->total, 2, '.', ',').'</td>
                     </tr>';
                 }
+                $html .= '<tr style="font-weight:bold;">
+                    <td width="295" colspan="2" align="right">SUBTOTAL DEL NIVEL</td>
+                    <td width="70" align="right">'.(int) $serviciosNivel->sum('movimientos').'</td>
+                    <td width="90" align="right">$'.number_format((float) $serviciosNivel->sum('total'), 2, '.', ',').'</td>
+                </tr></tbody></table>';
             }
+        }
+        $html .= '<p style="font-weight:bold;" align="right">TOTAL GENERAL: '
+            .$totalMovimientos.' MOVIMIENTOS - $'.number_format($totalGeneral, 2, '.', ',').'</p>';
 
-            $html .= '<tr style="font-weight:bold;">
-                        <td width="295" colspan="2" align="right">TOTAL GENERAL</td>
-                        <td width="70" align="right">'.$totalMovimientos.'</td>
-                        <td width="90" align="right">$'.number_format($totalGeneral, 2, '.', ',').'</td>
-                    </tr>
-                    </tbody>
-                </table>';
+        $html .= '<br pagebreak="true" /><h3>SERVICIOS AGRUPADOS POR FORMA DE PAGO</h3>';
+        if ($concentradoFormaPago->isEmpty()) {
+            $html .= '<p>No existen movimientos en el rango solicitado.</p>';
+        } else {
+            foreach ($concentradoFormaPago->groupBy(function ($item) {
+                return is_null($item->idformaPago) ? 'SIN_FORMA' : (string) $item->idformaPago;
+            }) as $serviciosFormaPago) {
+                $formaPago = $serviciosFormaPago->first();
+                $idFormaPago = is_null($formaPago->idformaPago) ? '-' : (string) ((int) $formaPago->idformaPago);
+                $descripcionForma = htmlspecialchars((string) $formaPago->formaPago, ENT_QUOTES, 'UTF-8');
+                $html .= '<br><h4>FORMA DE PAGO '.$idFormaPago.' - '.$descripcionForma.'</h4>';
+                $html .= $encabezadoServicios;
+                foreach ($serviciosFormaPago as $servicio) {
+                    $descripcionServicio = htmlspecialchars((string) $servicio->servicio, ENT_QUOTES, 'UTF-8');
+                    $html .= '<tr>
+                        <td width="65">'.(int) $servicio->idServicio.'</td>
+                        <td width="230">'.$descripcionServicio.'</td>
+                        <td width="70" align="right">'.(int) $servicio->movimientos.'</td>
+                        <td width="90" align="right">$'.number_format((float) $servicio->total, 2, '.', ',').'</td>
+                    </tr>';
+                }
+                $html .= '<tr style="font-weight:bold;">
+                    <td width="295" colspan="2" align="right">SUBTOTAL DE FORMA DE PAGO</td>
+                    <td width="70" align="right">'.(int) $serviciosFormaPago->sum('movimientos').'</td>
+                    <td width="90" align="right">$'.number_format((float) $serviciosFormaPago->sum('total'), 2, '.', ',').'</td>
+                </tr></tbody></table>';
+            }
+        }
+        $html .= '<p style="font-weight:bold;" align="right">TOTAL GENERAL: '
+            .(int) $concentradoFormaPago->sum('movimientos').' MOVIMIENTOS - $'
+            .number_format((float) $concentradoFormaPago->sum('total'), 2, '.', ',').'</p>';
 
         $pdf->writeHTML($html, true, false, true, false, '');
 
@@ -1507,7 +1571,9 @@ class EstadoCuentaController extends Controller{
             'data' => [
                 'fechaInicio' => $fechaInicio->toDateString(),
                 'fechaFin' => $fechaFin->toDateString(),
-                'servicios' => $concentrado->count(),
+                'servicios' => $concentradoNivel->pluck('idServicio')->unique()->count(),
+                'niveles' => $concentradoNivel->pluck('idNivel')->unique()->count(),
+                'formasPago' => $concentradoFormaPago->pluck('idformaPago')->unique()->count(),
                 'movimientos' => $totalMovimientos,
                 'totalGeneral' => $totalGeneral,
             ],
@@ -1558,6 +1624,12 @@ class EstadoCuentaController extends Controller{
                 $abono = round((float) $movimiento['abono'], 2);
                 $transaccion = trim($movimiento['transaccion']);
                 $importeTotal += $abono;
+                if (!empty($movimiento['errorConcepto'])) {
+                    $rechazados[] = $this->crearRegistroRechazado(
+                        $matricula, null, $abono, $movimiento['errorConcepto'], $indice, $transaccion
+                    );
+                    continue;
+                }
                 $alumno = $catalogos['alumnos']->get((string) $matricula);
 
                 if (!$alumno) {
@@ -2193,10 +2265,15 @@ class EstadoCuentaController extends Controller{
             $guardados,  $totalRegistros, number_format($importeGuardado,2, '.', ',' ), number_format(
                 $importeTotal, 2, '.', ',' )
         );
+        $urlReporte = $reporte
+            ? 'https://reportes.siaweb.com.mx/storage/app/public/'
+                .basename($reporte)
+            : null;
 
         return response()->json([
-            'message' => $mensaje,
+            'message' => $urlReporte,
             'data' => [
+                'resumen' => $mensaje,
                 'totalRegistros' => $totalRegistros,
                 'guardados' => $guardados,
                 'rechazados' => count($rechazados),
@@ -2206,7 +2283,7 @@ class EstadoCuentaController extends Controller{
                 'identificadorOrigen' =>
                     $resultado['identificadorOrigen']
                     ?? null,
-                'reporteRechazados' => $reporte,
+                'reporteRechazados' => $urlReporte,
             ],
             'error' => null,
             'status' => 200,

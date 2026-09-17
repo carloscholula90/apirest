@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\escolar;  
 use App\Http\Controllers\Controller;  
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use App\Models\escolar\Alumno;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\serviciosGenerales\CustomTCPDF; 
@@ -87,6 +88,8 @@ class AlumnoController extends Controller
                                     })
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
+                                    ->where('al.activo', 1)
+                                    ->where('cl.inscrito', 1)
                                     ->orderBy('al.idCarrera')
                                     ->orderBy('semestre')
                                     ->orderBy('cl.grupo')
@@ -134,6 +137,8 @@ class AlumnoController extends Controller
     public function generateReportDtl($idNivel,$idPeriodo,$data, $headers,$columnWidths, $keys, $carreras, $totalesSemestre, $title, $orientation, $size, $nameReport){
     $imagePathEnc = public_path('images/encPag.png');
     $imagePathPie = public_path('images/piePag.png');
+    $headers = array_merge(['NO.'], $headers);
+    $columnWidths = array_merge([35], $columnWidths);
     $descripcionPeriodo = DB::table('periodo')
                         ->where('idNivel', $idNivel)
                         ->where('idPeriodo', $idPeriodo)
@@ -152,9 +157,6 @@ class AlumnoController extends Controller
     $html .= '<tr>';
     $html .= '<td align="right" style="font-size:11pt;"><b>PERIODO '.$idPeriodo.' - '.$descripcionPeriodo.'</b></td>';
     $html .= '</tr>';
-    $html .= '<tr>';
-    $html .= '<td align="right" style="font-size:10pt;"><b>CARRERA(S): '.htmlspecialchars(implode(', ', $carreras)).'</b></td>';
-    $html .= '</tr>';
     $html .= '</table>';
     $html = $html.'<br><br><br><table border="0" cellpadding="2">';
     $html .= '<tr style="font-weight:bold; font-size:10px;">';
@@ -164,12 +166,15 @@ class AlumnoController extends Controller
             
             $html .= '</tr>';
 
+    $numeroRegistro = 1;
     foreach ($data as $row) {
         $html .= '<tr>';
+        $html .= '<td width="'.$columnWidths[0].'" align="center">'.$numeroRegistro.'</td>';
         foreach ($keys as $i => $k) {          
-                $html .= '<td width="'.$columnWidths[$i].'" align="left">'.htmlspecialchars($row[$k]).'</td>';
+                $html .= '<td width="'.$columnWidths[$i + 1].'" align="left">'.htmlspecialchars($row[$k]).'</td>';
         }
         $html .= '</tr>';
+        $numeroRegistro++;
     }   
     $html .= '</table>';
 
@@ -318,6 +323,8 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
                                     })
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
+                                    ->where('al.activo', 1)
+                                    ->where('cl.inscrito', 1)
                                     ->orderBy('al.idCarrera')
                                     ->orderBy('semestre')
                                     ->orderBy('cl.grupo')
@@ -393,6 +400,8 @@ public function obtenerDatosConcentrado($idNivel,$idPeriodo){
                                     })
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
+                                    ->where('al.activo', 1)
+                                    ->where('cl.inscrito', 1)
                                     ->groupBy('c.idCarrera', 'c.descripcion')
                                     ->get();
 
@@ -409,8 +418,14 @@ public function obtenerTotalesPorSemestre($idNivel,$idPeriodo){
                                         DB::raw("SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre"),
                                         DB::raw('COUNT(DISTINCT cl.uid, cl.secuencia) as total')
                                     )
+                                    ->join('alumno as al', function ($join) {
+                                        $join->on('al.uid', '=', 'cl.uid')
+                                            ->on('al.secuencia', '=', 'cl.secuencia');
+                                    })
                                     ->where('cl.idNivel', $idNivel)
                                     ->where('cl.idPeriodo', $idPeriodo)
+                                    ->where('al.activo', 1)
+                                    ->where('cl.inscrito', 1)
                                     ->groupBy(DB::raw("SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 3 ELSE 4 END, 1)"))
                                     ->orderBy('semestre')
                                     ->get();
@@ -570,4 +585,47 @@ public function getAvance($uid,$secuencia){
 
     return response()->json($data, 200);
 }
+
+    /**
+     * Da de baja a un alumno llamando al procedimiento almacenado BajaAlumno.
+     *
+     * PROCEDURE BajaAlumno(
+     *     IN p_uid           INT,
+     *     IN p_matricula     INT,
+     *     IN p_idPeriodo     INT,
+     *     IN p_fechaBaja     DATE,
+     *     IN p_tipoBaja      INT,
+     *     IN p_fechaBajaSEP  DATE
+     * )
+     */
+    public function bajaAlumno(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'uid'          => 'required|integer',
+            'matricula'    => 'required|integer',
+            'idPeriodo'    => 'required|integer',
+            'fechaBaja'    => 'required|date',
+            'tipoBaja'     => 'required|integer',
+            'fechaBajaSEP' => 'required|date',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->returnEstatus(
+                'Error en la validación de los datos',
+                400,
+                $validator->errors()
+            );
+        }
+
+        DB::statement("CALL BajaAlumno(?, ?, ?, ?, ?, ?)", [
+            $request->uid,
+            $request->matricula,
+            $request->idPeriodo,
+            $request->fechaBaja,
+            $request->tipoBaja,
+            $request->fechaBajaSEP,
+        ]);
+
+        return $this->returnData('msj', 'Baja registrada correctamente', 200);
+    }
 }

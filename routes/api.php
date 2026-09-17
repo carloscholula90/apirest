@@ -341,6 +341,10 @@ Route::prefix('tipoasignatura')->group(function () {
     require base_path('routes/escolar/tipoasignatura.php');
 });
 
+Route::prefix('tipobaja')->group(function () {
+    require base_path('routes/escolar/tipobaja.php');
+});
+
 Route::prefix('tipobloque')->group(function () {
     require base_path('routes/escolar/tipobloque.php');
 });

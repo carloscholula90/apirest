@@ -15,74 +15,16 @@ class ServicioController extends Controller
 public function index($uid, $matricula, $tipoEdoCta,$idPeriodo)
 {
     // Validación básica de parámetros
-    if (!is_numeric($uid) || !is_numeric($matricula) || !is_numeric($tipoEdoCta)) {
+    if (
+        !ctype_digit((string) $uid)
+        || !ctype_digit((string) $matricula)
+        || !ctype_digit((string) $tipoEdoCta)
+        || !ctype_digit((string) $idPeriodo)
+    ) {
         abort(400, 'Parámetros inválidos');
     }
 
-    $data = $this->condonacion($uid,$matricula,$tipoEdoCta,$idPeriodo);
-
-    if($tipoEdoCta == 2 && isset($data))
-         $data = DB::table('servicio as s')
-                       ->join('alumno as al', function ($join) use ($uid, $matricula, $idPeriodo) {
-                            $join->where('al.uid', '=', $uid)
-                                ->where('al.matricula', '=', $matricula);
-                        })
-                        ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
-                        ->join('periodo as per', function ($join) use ($idPeriodo) {
-                            $join->on('per.idNivel', '=', 'al.idNivel')
-                                ->where('per.idPeriodo', $idPeriodo);                                
-                        })
-                        ->join('ciclos as cl', function ($join) {
-                            $join->on('cl.uid', '=', 'al.uid')
-                                ->on('cl.secuencia', '=', 'al.secuencia')
-                                ->on('cl.idPeriodo', '=', 'per.idPeriodo')
-                                ->whereRaw('cl.indexCiclo = (
-                                        SELECT MIN(c2.indexCiclo)
-                                        FROM ciclos c2
-                                        WHERE c2.uid = al.uid
-                                        AND c2.secuencia = al.secuencia
-                                        AND c2.idPeriodo = per.idPeriodo
-                                )');
-                        })
-                        ->join('servicioCarrera as sxp', function ($join) {
-                            $join->on('sxp.idNivel', '=', 'al.idNivel')
-                                ->on('sxp.idPeriodo', '=', 'per.idPeriodo')
-                                ->on('sxp.idServicio', '=', 's.idServicio');
-                        })
-                        ->join('turno as t', function($join) {
-                            $join->on('t.letra', '=', DB::raw(
-                                'SUBSTRING(cl.grupo, CASE WHEN LENGTH(cl.grupo) = 4 THEN 2 WHEN LENGTH(cl.grupo) = 5 THEN 3 ELSE 3 END, 1)'
-                            ));
-                        })
-                        ->where('s.tipoEdoCta', 2)
-                        // (sxp.idTurno = 0 OR sxp.idTurno = t.idTurno)
-                        ->where(function ($q) {
-                            $q->where('sxp.idTurno', 0)
-                            ->orWhereColumn('sxp.idTurno', 't.idTurno');
-                        })
-                        ->where(function ($q) {
-                            $q->whereColumn('sxp.semestre', 'cl.semestre')
-                            ->orWhere('sxp.semestre', 0);
-                        })
-                         ->where(function ($q) {
-                            $q->whereColumn('sxp.idCarrera', 'al.idCarrera')
-                            ->orWhere('sxp.idCarrera', 0);
-                        })
-                        ->select([
-                                'niv.idNivel',
-                                'niv.descripcion as nivel',
-                                's.descripcion as servicio',
-                                's.efectivo',
-                                's.tarjeta',
-                                'per.idPeriodo',
-                                's.idServicio',
-                                's.tipoEdoCta',
-                                DB::raw('IFNULL(sxp.monto, 0) as monto'),
-                                DB::raw('IFNULL(s.cargoAutomatico, 0) as cargoAut')
-                        ])
-                        ->get();
-    if($tipoEdoCta == 2)
-            return $data;
+    $data = $this->condonacion($uid, $matricula, $tipoEdoCta, $idPeriodo);
 
     if ($data->isEmpty()) {
         return $data;
@@ -222,137 +164,121 @@ public function index($uid, $matricula, $tipoEdoCta,$idPeriodo)
         ->values();
 }
 
-public function condonacion($uid, $matricula, $tipoEdoCta, $idPeriodo) {
-    // Validación básica de parámetros
-    if (!is_numeric($uid) || !is_numeric($matricula)|| !is_numeric($tipoEdoCta)) 
-        abort(400, 'Parámetros inválidos');
-    
-    $query = DB::table(DB::raw("(
-                SELECT 
-                    niv.idNivel,
-                    niv.descripcion as nivel,
-                    s.efectivo,
-                    s.tarjeta,
-                    per.idPeriodo,
-                    s.idServicio,
-                    s.tipoEdoCta,
-                    cta.uid,
-                    al.matricula,
-                    cta.parcialidad,
-                    cta.secuencia,
+public function condonacion($uid, $matricula, $tipoEdoCta, $idPeriodo)
+{
+    foreach ([$uid, $matricula, $tipoEdoCta, $idPeriodo] as $parametro) {
+        if (!ctype_digit((string) $parametro)) {
+            abort(400, 'Parámetros inválidos');
+        }
+    }
 
-                    GROUP_CONCAT(DISTINCT CONCAT(
-                        s.descripcion, ' ',
-                        CASE 
-                            WHEN s.descripcion LIKE '%INSCRIP%' THEN ''
-                            ELSE CASE CONVERT(SUBSTRING(cta.referencia, 4), UNSIGNED)
-                                WHEN 1 THEN 'ENERO'
-                                WHEN 2 THEN 'FEBRERO'
-                                WHEN 3 THEN 'MARZO'
-                                WHEN 4 THEN 'ABRIL'
-                                WHEN 5 THEN 'MAYO'
-                                WHEN 6 THEN 'JUNIO'
-                                WHEN 7 THEN 'JULIO'
-                                WHEN 8 THEN 'AGOSTO'
-                                WHEN 9 THEN 'SEPTIEMBRE'
-                                WHEN 10 THEN 'OCTUBRE'
-                                WHEN 11 THEN 'NOVIEMBRE'
-                                WHEN 12 THEN 'DICIEMBRE'
-                                ELSE ''
-                            END
-                        END
-                    ) ORDER BY s.descripcion SEPARATOR ' + ') AS servicios,
-                     GROUP_CONCAT(DISTINCT CONCAT(
-                        s.descripcion, ' ',
-                        CASE 
-                            WHEN s.descripcion LIKE '%INSCRIP%' THEN ''
-                            ELSE CASE CONVERT(SUBSTRING(cta.referencia, 4), UNSIGNED)
-                                WHEN 1 THEN 'ENERO'
-                                WHEN 2 THEN 'FEBRERO'
-                                WHEN 3 THEN 'MARZO'
-                                WHEN 4 THEN 'ABRIL'
-                                WHEN 5 THEN 'MAYO'
-                                WHEN 6 THEN 'JUNIO'
-                                WHEN 7 THEN 'JULIO'
-                                WHEN 8 THEN 'AGOSTO'
-                                WHEN 9 THEN 'SEPTIEMBRE'
-                                WHEN 10 THEN 'OCTUBRE'
-                                WHEN 11 THEN 'NOVIEMBRE'
-                                WHEN 12 THEN 'DICIEMBRE'
-                                ELSE ''
-                            END
-                        END
-                    ) ORDER BY s.descripcion SEPARATOR ' + ') AS servicio,
+    $descripcionServicio = "GROUP_CONCAT(DISTINCT CONCAT(
+        s.descripcion,
+        ' ',
+        CASE
+            WHEN ct.idServicioColegiatura = s.idServicio
+                OR ct.idServicioRecargo = s.idServicio
+            THEN CASE CONVERT(SUBSTRING(cta.referencia, 4), UNSIGNED)
+                WHEN 1 THEN 'ENERO'
+                WHEN 2 THEN 'FEBRERO'
+                WHEN 3 THEN 'MARZO'
+                WHEN 4 THEN 'ABRIL'
+                WHEN 5 THEN 'MAYO'
+                WHEN 6 THEN 'JUNIO'
+                WHEN 7 THEN 'JULIO'
+                WHEN 8 THEN 'AGOSTO'
+                WHEN 9 THEN 'SEPTIEMBRE'
+                WHEN 10 THEN 'OCTUBRE'
+                WHEN 11 THEN 'NOVIEMBRE'
+                WHEN 12 THEN 'DICIEMBRE'
+                ELSE ''
+            END
+            ELSE ''
+        END
+    ) ORDER BY s.descripcion SEPARATOR ' + ')";
 
-                    SUM(
-                        CASE 
-                            WHEN cta.tipomovto = 'C' THEN cta.importe
-                            WHEN cta.tipomovto = 'A' THEN -cta.importe
-                            ELSE 0
-                        END
-                    ) AS monto,
-
-                    MAX(CASE WHEN cta.tipomovto = 'C' THEN cta.fechaVencimiento END) AS fechaVencimiento,
-                    s.cargoAutomatico AS cargoAut,
-                    MAX(CASE WHEN cta.tipomovto = 'C' THEN cta.consecutivo END) AS consecutivo
-                  
-                FROM configuracionTesoreria ct
-                INNER JOIN alumno al ON ct.idNivel = al.idNivel
-                INNER JOIN periodo per ON per.idNivel = al.idNivel AND per.idPeriodo=".$idPeriodo."
-                INNER JOIN nivel niv ON niv.idNivel = al.idNivel
-                INNER JOIN servicio s ON s.tipoEdoCta = 1
-                INNER JOIN edocta cta 
-                    ON cta.idServicio = s.idServicio
-                    AND cta.uid = al.uid
-                    AND cta.secuencia = al.secuencia
-                    AND cta.idPeriodo = per.idPeriodo
-                WHERE al.uid =". $uid.
-                " AND al.matricula = ".$matricula.
-                " AND s.tipoEdoCta=".$tipoEdoCta.
-                " GROUP BY
-                    niv.idNivel,
-                    s.efectivo,
-                    s.tarjeta,
-                    per.idPeriodo,
-                    s.idServicio,
-                    s.tipoEdoCta,
-                    cta.uid,
-                    al.matricula,
-                    cta.parcialidad,
-                    cta.secuencia,
-                    s.cargoAutomatico,
-                    niv.descripcion
-            ) AS t"))   // 👈 alias obligatorio
-            ->leftJoin('configuracionTesoreria as saldoant', function ($join) {
-                $join->on('saldoant.idServicioTraspasoSaldos1', '=', 't.idServicio')
-                    ->on('saldoant.idNivel', '=', 't.idNivel');
-            })
-
-            ->leftJoin('configuracionTesoreria as inscripcion', function ($join) {
-                $join->on('inscripcion.idServicioInscripcion', '=', 't.idServicio')
-                    ->on('inscripcion.idNivel', '=', 't.idNivel');
-            })
-
-            ->leftJoin('configuracionTesoreria as recargo', function ($join) {
-                $join->on('recargo.idServicioRecargo', '=', 't.idServicio')
-                    ->on('recargo.idNivel', '=', 't.idNivel');
-            })
-
-            ->leftJoin('configuracionTesoreria as colegiatura', function ($join) {
-                $join->on('colegiatura.idServicioColegiatura', '=', 't.idServicio')
-                    ->on('colegiatura.idNivel', '=', 't.idNivel');
-            })
-
-            ->where('monto', '>', 0)
-            ->select('t.*')
-            ->orderBy('matricula')
-            ->orderByDesc('saldoant.idServicioTraspasoSaldos1')
-            ->orderByDesc('inscripcion.idServicioInscripcion')
-            ->orderByDesc('recargo.idServicioRecargo')
-            ->orderByDesc('colegiatura.idServicioColegiatura')
-            ->orderBy('fechaVencimiento')
-            ->get();
-        return $query;
+    return DB::table('edocta as cta')
+        ->join('alumno as al', function ($join) {
+            $join->on('al.uid', '=', 'cta.uid')
+                ->on('al.secuencia', '=', 'cta.secuencia');
+        })
+        ->join('periodo as per', function ($join) {
+            $join->on('per.idNivel', '=', 'al.idNivel')
+                ->on('per.idPeriodo', '=', 'cta.idPeriodo');
+        })
+        ->join('nivel as niv', 'niv.idNivel', '=', 'al.idNivel')
+        ->join('servicio as s', 's.idServicio', '=', 'cta.idServicio')
+        ->join('configuracionTesoreria as ct', 'ct.idNivel', '=', 'al.idNivel')
+        ->where('al.uid', (int) $uid)
+        ->where('al.matricula', $matricula)
+        ->where('s.tipoEdoCta', (int) $tipoEdoCta)
+        ->where('cta.idPeriodo', (int) $idPeriodo)
+        ->select([
+            'niv.idNivel',
+            'niv.descripcion as nivel',
+            's.efectivo',
+            's.tarjeta',
+            'per.idPeriodo',
+            's.idServicio',
+            's.tipoEdoCta',
+            'cta.uid',
+            'al.matricula',
+            'cta.parcialidad',
+            'cta.secuencia',
+            's.cargoAutomatico as cargoAut',
+        ])
+        ->selectRaw("{$descripcionServicio} AS servicios")
+        ->selectRaw("{$descripcionServicio} AS servicio")
+        ->selectRaw("SUM(
+            CASE
+                WHEN cta.tipomovto = 'C' THEN cta.importe
+                WHEN cta.tipomovto = 'A' THEN -cta.importe
+                ELSE 0
+            END
+        ) AS monto")
+        ->selectRaw("MAX(
+            CASE WHEN cta.tipomovto = 'C' THEN cta.fechaVencimiento END
+        ) AS fechaVencimiento")
+        ->selectRaw("MAX(
+            CASE WHEN cta.tipomovto = 'C' THEN cta.consecutivo END
+        ) AS consecutivo")
+        ->groupBy([
+            'niv.idNivel',
+            'niv.descripcion',
+            's.efectivo',
+            's.tarjeta',
+            'per.idPeriodo',
+            's.idServicio',
+            's.tipoEdoCta',
+            'cta.uid',
+            'al.matricula',
+            'cta.parcialidad',
+            'cta.secuencia',
+            's.cargoAutomatico',
+            'ct.idServicioTraspasoSaldos1',
+            'ct.idServicioInscripcion',
+            'ct.idServicioRecargo',
+            'ct.idServicioColegiatura',
+        ])
+        ->havingRaw("SUM(
+            CASE
+                WHEN cta.tipomovto = 'C' THEN cta.importe
+                WHEN cta.tipomovto = 'A' THEN -cta.importe
+                ELSE 0
+            END
+        ) > 0")
+        ->orderBy('al.matricula')
+        ->orderByRaw('CASE
+            WHEN s.idServicio = ct.idServicioTraspasoSaldos1 THEN 1
+            WHEN s.idServicio = ct.idServicioInscripcion THEN 2
+            WHEN s.idServicio = ct.idServicioRecargo THEN 3
+            WHEN s.idServicio = ct.idServicioColegiatura THEN 4
+            ELSE 5
+        END')
+        ->orderByRaw("MAX(
+            CASE WHEN cta.tipomovto = 'C' THEN cta.fechaVencimiento END
+        )")
+        ->get();
 }
 
 public function store(Request $request){

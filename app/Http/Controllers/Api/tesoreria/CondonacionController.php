@@ -20,7 +20,7 @@ class CondonacionController extends Controller
         $validator = Validator::make($request->all(), [
             'uid' => 'required|integer',
             'secuencia' => 'required|integer',
-            'idServicio' => 'nullable|integer',
+            'idServicio' => 'required|integer',
             'consecutivoEdocta' => 'required|integer',
             'idPeriodo' => 'required|integer',
             'idAutorizacion' => 'required|integer',
@@ -44,10 +44,10 @@ class CondonacionController extends Controller
                 $edocta = DB::table('edocta')
                     ->where('uid', $request->uid)
                     ->where('secuencia', $request->secuencia)
+                    ->where('idServicio', $request->idServicio)
                     ->where('consecutivo', $request->consecutivoEdocta)
-                    ->when($request->filled('idServicio'), function ($query) use ($request) {
-                        $query->where('idServicio', $request->idServicio);
-                    })
+                    ->where('idPeriodo', $request->idPeriodo)
+                    ->where('tipomovto', 'C')
                     ->lockForUpdate()
                     ->first();
 
@@ -91,7 +91,10 @@ class CondonacionController extends Controller
                 DB::table('edocta')
                     ->where('uid', $request->uid)
                     ->where('secuencia', $request->secuencia)
+                    ->where('idServicio', $idServicio)
                     ->where('consecutivo', $request->consecutivoEdocta)
+                    ->where('idPeriodo', $request->idPeriodo)
+                    ->where('tipomovto', 'C')
                     ->update(['importe' => $importeNuevo]);
 
                 $data['importeNuevo'] = $importeNuevo;
