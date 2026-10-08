@@ -189,6 +189,7 @@ return $final;
 
         if ((int) $request->semestre === 0) {
             $existenSemestresEspecificos = (clone $base)
+                ->where('idTurno', $request->idTurno)
                 ->where('semestre', '<>', 0)
                 ->exists();
 
@@ -197,6 +198,7 @@ return $final;
             }
         } else {
             $existeTodosSemestres = (clone $base)
+                ->where('idTurno', $request->idTurno)
                 ->where('semestre', 0)
                 ->exists();
 
@@ -568,4 +570,3 @@ return $final;
     }
 
 }
-

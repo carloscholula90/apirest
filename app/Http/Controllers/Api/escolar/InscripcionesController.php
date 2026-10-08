@@ -349,4 +349,223 @@ class InscripcionesController extends Controller
             return response()->json($finalResult, 200);       
         }
 
+
+    /**
+     * Registra a un alumno en el periodo activo (nuevo ingreso/reincorporación
+     * o continuidad) y dispara la generación de cargos.
+     *
+     * continuidad = true  -> el alumno ya tiene trayectoria (registro en
+     *                        'alumno') para ese idNivel+idCarrera; se reutiliza
+     *                        su secuencia más reciente, NO se crea integra ni
+     *                        alumno nuevos.
+     * continuidad = false -> se crea un registro nuevo en 'integra' (idRol=3,
+     *                        siguiente secuencia consecutiva del alumno) y su
+     *                        correspondiente registro en 'alumno'.
+     * En ambos casos se genera el registro de 'ciclos' en el periodo activo y
+     * se manda llamar el procedimiento GeneraCargosInscrip.
+     */
+    public function registrarInscripcion(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'idNivel' => 'required|integer',
+            'idCarrera' => 'required|integer',
+            'semestre' => 'required|integer|min:1',
+            'grupo' => 'required|string',
+            'continuidad' => 'required|boolean',
+            'uid' => 'required|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->returnEstatus('Error en la validación de los datos', 400, $validator->errors());
+        }
+
+        $idNivel = (int) $request->idNivel;
+        $idCarrera = (int) $request->idCarrera;
+        $semestre = (int) $request->semestre;
+        $uid = (int) $request->uid;
+        $continuidad = $request->boolean('continuidad');
+        $grupo = strtoupper(trim($request->grupo));
+
+        $nivel = DB::table('nivel')->where('idNivel', $idNivel)->first(['idNivel']);
+        if (!$nivel) {
+            return $this->returnEstatus('Nivel no encontrado.', 404, null);
+        }
+
+        $persona = DB::table('persona')->where('uid', $uid)->first(['uid']);
+        if (!$persona) {
+            return $this->returnEstatus('Alumno no encontrado.', 404, null);
+        }
+
+        $carrera = DB::table('carrera')->where('idNivel', $idNivel)->where('idCarrera', $idCarrera)->first(['idCarrera']);
+        if (!$carrera) {
+            return $this->returnEstatus('Carrera no encontrada para ese nivel.', 404, null);
+        }
+
+        // Formato de grupo (ej. 06D2B): 2 dígitos carrera, 1 letra turno,
+        // 1 dígito semestre, 1 letra de grupo. Mismo criterio que
+        // GrupoController::cambioGrupo y ServicioCarreraController.
+        $longitud = strlen($grupo);
+        if (!in_array($longitud, [4, 5], true)) {
+            return $this->returnEstatus("El grupo {$grupo} no tiene un formato válido.", 422, null);
+        }
+
+        $carreraFormateada = str_pad((string) $idCarrera, 2, '0', STR_PAD_LEFT);
+        if (!str_starts_with($grupo, $carreraFormateada)) {
+            return $this->returnEstatus("El grupo {$grupo} no corresponde a la carrera {$idCarrera}.", 422, null);
+        }
+
+        $posTurno = $longitud === 4 ? 1 : 2;
+        $posSemestre = $longitud === 4 ? 2 : 3;
+
+        $letraTurno = $grupo[$posTurno] ?? null;
+        $semestreGrupo = (isset($grupo[$posSemestre]) && ctype_digit($grupo[$posSemestre]))
+            ? (int) $grupo[$posSemestre]
+            : null;
+
+        if ($semestreGrupo === null || $semestreGrupo !== $semestre) {
+            return $this->returnEstatus("El semestre enviado no coincide con el grupo {$grupo}.", 422, null);
+        }
+
+        $turno = DB::table('turno')->where('letra', $letraTurno)->first(['idTurno']);
+        if (!$turno) {
+            return $this->returnEstatus("No existe un turno con letra '{$letraTurno}' (grupo {$grupo}).", 422, null);
+        }
+
+        $periodoActivo = DB::table('periodo')->where('idNivel', $idNivel)->where('activo', 1)->first(['idPeriodo']);
+        if (!$periodoActivo) {
+            return $this->returnEstatus('No hay un periodo activo para este nivel.', 404, null);
+        }
+
+        try {
+            $resultado = DB::transaction(function () use (
+                $idNivel, $idCarrera, $semestre, $grupo, $uid, $continuidad, $periodoActivo, $turno
+            ) {
+                $matricula = null;
+                $idPlan = null;
+
+                if ($continuidad) {
+                    // Continuidad: reutiliza la trayectoria (secuencia) más
+                    // reciente del alumno para esta carrera. No se toca 'integra'
+                    // ni 'alumno'.
+                    $alumno = DB::table('alumno')
+                        ->where('uid', $uid)
+                        ->where('idNivel', $idNivel)
+                        ->where('idCarrera', $idCarrera)
+                        ->orderByDesc('secuencia')
+                        ->first(['secuencia']);
+
+                    if (!$alumno) {
+                        throw new \RuntimeException(
+                            'El alumno no tiene una trayectoria previa en esta carrera; envía continuidad=false para darlo de alta.'
+                        );
+                    }
+
+                    $secuencia = (int) $alumno->secuencia;
+                } else {
+                    // Sin continuidad: nueva trayectoria. Siguiente consecutivo
+                    // en 'integra' para idRol=3 (alumno), igual que en
+                    // AspiranteController.
+                    $maxSecuencia = DB::table('integra')
+                        ->where('uid', $uid)
+                        ->where('idRol', 3)
+                        ->max('secuencia');
+
+                    $secuencia = $maxSecuencia ? ((int) $maxSecuencia + 1) : 1;
+
+                    DB::table('integra')->insert([
+                        'uid' => $uid,
+                        'secuencia' => $secuencia,
+                        'idRol' => 3,
+                    ]);
+
+                    $plan = DB::table('plan')
+                        ->where('idCarrera', $idCarrera)
+                        ->where('idNivel', $idNivel)
+                        ->where('vigente', 1)
+                        ->orderByDesc('fechainicio')
+                        ->first(['idPlan']);
+
+                    if (!$plan) {
+                        throw new \RuntimeException(
+                            "No hay un plan vigente para la carrera {$idCarrera} en el nivel {$idNivel}."
+                        );
+                    }
+
+                    $idPlan = $plan->idPlan;
+
+                    $maxMatricula = DB::table('alumno')->max('matricula');
+                    $matricula = $maxMatricula ? ((int) $maxMatricula + 1) : 1;
+
+                    DB::table('alumno')->insert([
+                        'uid' => $uid,
+                        'secuencia' => $secuencia,
+                        'idNivel' => $idNivel,
+                        'idCarrera' => $idCarrera,
+                        'idPlan' => (string) $idPlan,
+                        'matricula' => $matricula,
+                        'idPeriodoIng' => $periodoActivo->idPeriodo,
+                        'activo' => 1,
+                        'fechaMatricula' => now(),
+                        'fechaAlta' => now(),
+                        'fechaModificacion' => now(),
+                        'idRolIntegra' => 3,
+                    ]);
+                }
+
+                $existeCiclo = DB::table('ciclos')
+                    ->where('uid', $uid)
+                    ->where('secuencia', $secuencia)
+                    ->where('idPeriodo', $periodoActivo->idPeriodo)
+                    ->exists();
+
+                if ($existeCiclo) {
+                    throw new \RuntimeException('El alumno ya tiene un ciclo registrado en el periodo activo.');
+                }
+
+                $siguienteIndexCiclo = ((int) (DB::table('ciclos')->max('indexCiclo') ?? 0)) + 1;
+
+                DB::table('ciclos')->insert([
+                    'indexCiclo' => $siguienteIndexCiclo,
+                    'idNivel' => $idNivel,
+                    'idPeriodo' => $periodoActivo->idPeriodo,
+                    'uid' => $uid,
+                    'secuencia' => $secuencia,
+                    'grupo' => $grupo,
+                    'semestre' => $semestre,
+                    'inscrito' => 1,
+                    'fechaAlta' => now(),
+                    'fechaModificacion' => now(),
+                ]);
+
+                DB::statement('CALL GeneraCargosInscrip(?, ?, ?, ?, ?, ?, ?)', [
+                    $idNivel,
+                    $periodoActivo->idPeriodo,
+                    $idCarrera,
+                    $semestre,
+                    $uid,
+                    $secuencia,
+                    $turno->idTurno,
+                ]);
+
+                return [
+                    'uid' => $uid,
+                    'secuencia' => $secuencia,
+                    'idNivel' => $idNivel,
+                    'idCarrera' => $idCarrera,
+                    'idPeriodo' => (int) $periodoActivo->idPeriodo,
+                    'grupo' => $grupo,
+                    'semestre' => $semestre,
+                    'idTurno' => (int) $turno->idTurno,
+                    'continuidad' => $continuidad,
+                    'matricula' => $matricula,
+                    'idPlan' => $idPlan,
+                    'indexCiclo' => $siguienteIndexCiclo,
+                ];
+            });
+        } catch (\RuntimeException $e) {
+            return $this->returnEstatus($e->getMessage(), 422, null);
+        }
+
+        return $this->returnData('data', $resultado, 200);
+    }
 }

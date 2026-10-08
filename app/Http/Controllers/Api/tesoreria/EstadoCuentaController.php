@@ -262,7 +262,9 @@ class EstadoCuentaController extends Controller{
                 ->orderBy('edo.fechaMovto')
                 ->orderBy('edo.consecutivo')
                 ->distinct()
-                ->get()
+                ->get();
+
+            $edocuenta = $this->ordenarMensualidades($edocuenta)
                 ->each(function ($movimiento) {
                     unset(
                         $movimiento->_ordenCobro,
@@ -271,6 +273,46 @@ class EstadoCuentaController extends Controller{
                 });
 
             return $edocuenta;
+    }
+
+    /**
+     * Intercala recargos y colegiaturas por mes (recargo agosto, colegiatura agosto,
+     * recargo septiembre, colegiatura septiembre, ...). El bloque mensual ocupa la
+     * posicion del primero de esos servicios en ordenCobroServicio; el resto de los
+     * movimientos conserva el orden que trae la consulta.
+     */
+    private function ordenarMensualidades($movimientos)
+    {
+        $esMensual = fn ($m) => !is_null($m->idServicioColegiatura) || !is_null($m->idServicioRecargo);
+        $mes = fn ($m) => (int) substr((string) $m->referencia, 3);
+
+        // Fecha que ubica cada mes dentro del periodo (sirve aunque el periodo cruce de año):
+        // el vencimiento de la colegiatura de ese mes, o si no hay, el primer cargo del mes.
+        $fechaPorMes = [];
+        foreach ($movimientos as $m) {
+            if (!is_null($m->idServicioColegiatura) && $m->tipomovto === 'C' && $m->fechaLimite) {
+                $fechaPorMes[$mes($m)] = min($fechaPorMes[$mes($m)] ?? PHP_INT_MAX, strtotime($m->fechaLimite));
+            }
+        }
+        foreach ($movimientos as $m) {
+            if ($esMensual($m) && $m->tipomovto === 'C' && !isset($fechaPorMes[$mes($m)])) {
+                $fechaPorMes[$mes($m)] = strtotime($m->_fechaMovimientoOrden);
+            }
+        }
+
+        $ordenMensual = $movimientos->filter($esMensual)->min(fn ($m) => $m->_ordenCobro ?? 999999);
+
+        $claves = [];
+        foreach ($movimientos->values() as $i => $m) {
+            $claves[] = $esMensual($m)
+                ? [$ordenMensual, $fechaPorMes[$mes($m)] ?? PHP_INT_MAX, is_null($m->idServicioRecargo) ? 1 : 0, $i, $m]
+                : [$m->_ordenCobro ?? 999999, 0, 0, $i, $m];
+        }
+
+        // El indice $i conserva el orden de la consulta (cargo antes que abono, fecha, consecutivo)
+        usort($claves, fn ($a, $b) => array_slice($a, 0, 4) <=> array_slice($b, 0, 4));
+
+        return collect(array_column($claves, 4));
     }
 
     public function generaReporte($uid,$idPeriodo,$matricula,$tipoEdoCta){

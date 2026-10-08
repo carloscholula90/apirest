@@ -10,3 +10,5 @@ Route::put('/{idAsignatura}', [AsignaturaController::class, 'update']);
 Route::delete('/{idAsignatura}', [AsignaturaController::class, 'destroy']);
 Route::post('/generaReporte', [AsignaturaController::class, 'generaReporte']);
 Route::post('/imprimeXls', [AsignaturaController::class, 'exportaExcel']); 
+
+Route::get('/oferta/{idNivel}/{idPeriodo}/{idCarrera}/{grupo?}', [\App\Http\Controllers\Api\escolar\AsignaturasOfertaController::class, 'show']);

@@ -66,3 +66,5 @@ Route::group([], function () {
     ]);
 
 });
+
+Route::get('/consulta/{idNivel}/{idPeriodo}/{idCarrera}', [\App\Http\Controllers\Api\escolar\GruposConsultaController::class, 'show']);

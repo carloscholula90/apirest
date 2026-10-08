@@ -175,10 +175,11 @@ class FichasController extends Controller{
    
     $name=''; 
     foreach ($resultados as $fila) {
+        $total = number_format($fila->total, 2, '.', ',');
         if($name==''||$name!=$fila->nombre){
             if($name!=''){
                   $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edison en apoyo a la situación
-                    económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $1,200.00
+                    económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $'.$total.'
                     con fecha límite de pago los días 10 de cada mes. En caso contrario se aplicará un recargo del 20%
                 </td></tr><br><tr>
                 <td colspan="2" style="font-size: 10px;">NOTA: Las referencias son instransferibles e indivuales.</td></tr>';
@@ -212,7 +213,7 @@ class FichasController extends Controller{
         Carbon::setLocale('es'); // Establece el idioma a español
         $fecha = Carbon::parse($fila->fechaVencimiento)->translatedFormat('d/F/Y');
         $mes = Carbon::parse($fila->fechaVencimiento)->translatedFormat('F Y');
-        $total = number_format($fila->total, 2, '.', ',');
+        
         if (Str::contains($fila->servicios, 'COLEGIATURA'))
             $html .='<tr>
                 <td style="width: 150px; font-size: 8t;">'.$fila->servicios.'</td>

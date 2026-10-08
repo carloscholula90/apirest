@@ -12,3 +12,5 @@ Route::get('/alumnosInscritosExc/{idNivel}/{idPeriodo}', [AlumnoController::clas
 Route::get('/alumnosInscritosDtl/{idNivel}/{idPeriodo}', [AlumnoController::class, 'alumnosInscritosDetallado']);
 Route::get('/alumnosInscritosDtlExc/{idNivel}/{idPeriodo}', [AlumnoController::class, 'alumnosInscritosDetalladoExc']);  
 Route::get('/{uid}', [AlumnoController::class, 'getAlumno']);
+Route::get('/{uid}/reincorporacion', [\App\Http\Controllers\Api\escolar\ReincorporacionController::class, 'show']);
+Route::post('/reincorporacion', [\App\Http\Controllers\Api\escolar\ReincorporacionRegistroController::class, 'store']);

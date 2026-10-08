@@ -12,7 +12,7 @@ use Carbon\Carbon;
   
 class DocumentosController extends Controller{
 
-    public function obtenerDatosAlumnos($nivel,$carrera,$periodo,$asignatura,$grupo){
+    public function obtenerDatosAlumnos($nivel,$carrera,$periodo,$asignatura=null,$grupo=null){
         $resultsB = DB::table('grupos as g')
                         ->select(
                             'g.idNivel as NivelAcad',
@@ -61,24 +61,26 @@ class DocumentosController extends Controller{
                                              ->on('carrera.idNivel', '=', 'pl.idNivel');
                                 })  
                                 ->leftJoin('persona as p', 'p.uid', '=', 'g.uidProfesor')
-                                ->join('persona as Nsecre', 'Nsecre.uid', '=', 'g.uidSecretario')
-                                ->join('persona as Npresi', 'Npresi.uid', '=', 'g.uidPresidente')
-                                ->join('turno as turno', 'turno.idTurno', '=', 'g.idTurno')
-                                ->join('persona as NSup', 'NSup.uid', '=', 'g.uidSupervisor')
+                                ->leftJoin('persona as Nsecre', 'Nsecre.uid', '=', 'g.uidSecretario')
+                                ->leftJoin('persona as Npresi', 'Npresi.uid', '=', 'g.uidPresidente')
+                                ->leftJoin('turno as turno', 'turno.idTurno', '=', 'g.idTurno')
+                                ->leftJoin('persona as NSup', 'NSup.uid', '=', 'g.uidSupervisor')
                                 ->where('pl.idNivel', '=',$nivel)
                                 ->where('pl.idCarrera', '=',$carrera)                              
                                 ->where('g.idNivel', $nivel)
                                 ->where('g.idPeriodo', $periodo)
-                                ->where('g.idAsignatura', $asignatura)
-                                ->where('g.grupo', $grupo)
+                                ->when(!empty($asignatura), function ($query) use ($asignatura) {
+                                    $query->where('g.idAsignatura', $asignatura);
+                                })
+                                ->when(!empty($grupo), function ($query) use ($grupo) {
+                                    $query->where('g.grupo', $grupo);
+                                })
+                                ->orderBy('g.idAsignatura')
+                                ->orderBy('g.grupo')
                                 ->get();
 
-                             
-      
-            
-            if ($resultsB->isEmpty())
-                return $resultsB;   
-            
+        // Siempre arreglo: una Collection vacia no cuenta como empty() y provocaba
+        // "Undefined array key 0" en generatePaseLista cuando no habia alumnos.
         return $resultsB->toArray();
     }
     
@@ -370,8 +372,13 @@ class DocumentosController extends Controller{
                                         'nivel' => 'required|max:255',
                                         'carrera' => 'required|max:255',
                                         'periodo' => 'required|max:255',
-                                        'asignatura' => 'required|max:255',
-                                        'grupo' => 'required|max:255'
+                                        // 'asignatura' y 'grupo' ya no son obligatorios los dos a la vez:
+                                        // - si mandas asignatura y grupo: se muestra solo ese grupo+asignatura.
+                                        // - si mandas solo grupo: se muestran todas las asignaturas de ese grupo (salto de pagina entre asignaturas).
+                                        // - si mandas solo asignatura: se muestran todos los grupos de esa asignatura (salto de pagina entre grupos).
+                                        // Pero se debe mandar al menos uno de los dos.
+                                        'asignatura' => 'nullable|required_without:grupo|max:255',
+                                        'grupo' => 'nullable|required_without:asignatura|max:255'
         ]);
 
          if ($validator->fails()) 
@@ -382,150 +389,183 @@ class DocumentosController extends Controller{
         $nameReport='paseLista'.'_'.mt_rand(100, 999).'.pdf';
       
         $results = $this->obtenerDatosAlumnos($request->nivel,$request->carrera,$request->periodo,$request->asignatura,$request->grupo);
-        
-        // Crear una nueva instancia de CustomTCPDF (extendido de TCPDF)
-        $pdf = new CustomTCPDSFormat($orientation, PDF_UNIT, $size, true, 'UTF-8', false);       
+
+        // Rutas de las imágenes para el encabezado y pie
+        $imagePathEnc = public_path('images/encPag.png');
+        $imagePathPie = public_path('images/piePag.png');
+
+        // Crear una nueva instancia de CustomTCPDF (encabezado/pie con imagen y
+        // numeración de página "Página X de Y", igual que solicituDesfase() y
+        // autorizacionImagen()).
+        $pdf = new CustomTCPDF($orientation, PDF_UNIT, $size, true, 'UTF-8', false);
+
+        // Configurar las rutas de las imágenes del encabezado y pie
+        $pdf->setImagePaths($imagePathEnc, $imagePathPie, $orientation);
+
         $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor('SIAWEB');       
-      
+        $pdf->SetAuthor('SIAWEB');
+
         // Establecer márgenes y auto-rotura de página
-        $pdf->SetMargins(15, 20, 15); // Margenes 
+        $pdf->SetMargins(15, 20, 15); // Margenes
         $pdf->SetAutoPageBreak(FALSE, 0);
         $pdf->AddPage();
-        $imageUrl = 'https://pruebas.siaweb.com.mx/images/logos/LogoUAE.png';
-        $pdf->Image($imageUrl, 15, 15, 20);
-      
+        // (El logo UAE ya no se dibuja aquí a mano: encPag.png trae el
+        // escudo en la misma zona y se encimaba con él.)
+
         if (!empty($results)) {
-        $primerElemento = $results[0];
-         // Generar la tabla HTML para los datos
-        $html2 = '<table border="0" cellpadding="1" style ="font-family: Arial; font-size: 9pt; font-weight: bold; text-align: center; vertical-align: middle;">    
-            <tr>
-                <td style="width: 4cm;"></td>               
-                <td style="width: 12cm;">
-                                                    UNIVERSIDAD ALVA EDISON<br>
-                                                    DIRECCIÓN DE LICENCIATURAS-CLAVE SEP 21MSU1022U
-                                                    </td>
-                <td></td>    
-            </tr>
-            <tr>  
-                <td style ="height: 1.2cm;"></td>                             
-                <td style ="height: 1.2cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: center; vertical-align: middle;">LISTA DE EVALUACIÓN Y ASISTENCIAS PARCIALES</td>  
-                <td></td>            
-            </tr>
-            <tr>
-                <td style="height: .6cm; width: 9cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">ASIGNATURA O MATERIA: '.$primerElemento->idAsignatura.'</td>               
-                <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">GRUPO: '.$request->carrera.'</td>
-                <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">SEMESTRE:</td>
-            </tr>
-            <tr>
-                <td style="height: .6cm; width: 7cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">CARRERA: '.$primerElemento->carrera.'</td>               
-                <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">TURNO: '.$primerElemento->turno.'</td>
-                <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">No HRS.: </td>
-            </tr>';         
-            $html2 .= '</table><br><br>';
 
-        $html2 .= '<table border="0.2" cellpadding="0" style="font-size: 5.5pt; vertical-align: middle; text-align: center; line-height: .5cm;">  
-            <tr>
-                <td style="height: .5cm; width: .4cm;" rowspan="2">No</td>
-                <td style="width: 1.4cm;" rowspan="2">MATRICULA</td>
-                <td style="width: 4cm;" rowspan="2">NOMBRE DEL ALUMNO</td>
-                <td style="width: 8.8cm;" colspan="22">ASISTENCIAS</td>
-                <td style="width: 1cm;" rowspan="2">FALTAS</td> 
-                <td style="width: 3cm;" colspan="2">CALIFICACIÓN</td>    
-            </tr>
-            <tr>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
+            // Determinar como se deben agrupar los resultados en paginas:
+            // - Si mandan asignatura Y grupo: una sola lista (comportamiento original, sin agrupar).
+            // - Si mandan solo grupo (sin asignatura): una pagina por cada asignatura de ese grupo.
+            // - Si mandan solo asignatura (sin grupo): una pagina por cada grupo de esa asignatura.
+            if (!empty($request->grupo) && empty($request->asignatura)) {
+                $campoAgrupador = 'idAsignatura';
+            } elseif (!empty($request->asignatura) && empty($request->grupo)) {
+                $campoAgrupador = 'grupo';
+            } else {
+                $campoAgrupador = null;
+            }
 
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
+            if ($campoAgrupador !== null) {
+                $gruposDePagina = [];
+                foreach ($results as $fila) {
+                    $gruposDePagina[$fila->$campoAgrupador][] = $fila;
+                }
+            } else {
+                $gruposDePagina = [$results];
+            }
 
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="height: .5cm; width: .4cm;"></td>
-                <td style="width: 1cm;">No</td>
-                <td style="width: 2cm;">LETRA</td>    
-            </tr>';
-        $limite =0;
-      
-        foreach ($results as $index2 => $row) {
-            $html2 .= '<tr><td style="height: .25cm;">'.($index2+1).'</td><td>'.' '.$row->matricula.'</td><td style="text-align: left;">'.' '.$row->PrimerApellidoAl.' '.$row->SegundoapellidoAl.' '.$row->NombreAl.
-                        '</td><td></td><td></td>
-                           <td></td><td></td><td></td><td></td><td></td>
-                           <td></td><td></td><td></td><td></td><td></td>
-                           <td></td><td></td><td></td><td></td><td></td>
-                           <td></td><td></td><td></td><td></td><td></td>
-                           <td></td><td></td><td></td>
-                        </tr>';
-            $limite = $index2+1;    
-        }
-        $limite++;
-        for ($i = $limite; $i <= 27; $i++) 
-        $html2 .= '<tr><td style="height: .25cm;">'.$i.'</td><td style="text-align: left;">
-                    </td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td>
+            $primeraPagina = true;
+
+            foreach ($gruposDePagina as $resultsPagina) {
+
+                if (!$primeraPagina) {
+                    $pdf->AddPage(); // Salto de pagina entre asignaturas/grupos
+                }
+                $primeraPagina = false;
+
+                $primerElemento = $resultsPagina[0];
+                 // Generar la tabla HTML para los datos
+                $html2 = '<table border="0" cellpadding="1" style ="font-family: Arial; font-size: 9pt; font-weight: bold; text-align: center; vertical-align: middle;">    
+                    <tr>
+                        <td style="width: 4cm;"></td>               
+                        <td style="width: 12cm;">
+                                                            UNIVERSIDAD ALVA EDISON<br>
+                                                            DIRECCIÓN DE LICENCIATURAS-CLAVE SEP 21MSU1022U
+                                                            </td>
+                        <td></td>    
+                    </tr>
+                    <tr>  
+                        <td style ="height: 1.2cm;"></td>                             
+                        <td style ="height: 1.2cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: center; vertical-align: middle;">LISTA DE EVALUACIÓN Y ASISTENCIAS PARCIALES</td>  
+                        <td></td>            
+                    </tr>
+                    <tr>
+                        <td style="height: .6cm; width: 9cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">ASIGNATURA O MATERIA: '.$primerElemento->idAsignatura.'</td>               
+                        <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">GRUPO: '.$primerElemento->grupo.'</td>
+                        <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">SEMESTRE:</td>
+                    </tr>
+                    <tr>
+                        <td style="height: .6cm; width: 7cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">CARRERA: '.$primerElemento->carrera.'</td>               
+                        <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">TURNO: '.$primerElemento->turno.'</td>
+                        <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">No HRS.: </td>
+                    </tr>';         
+                    $html2 .= '</table><br><br>';
+
+                $html2 .= '<table border="0" cellpadding="0" style="font-size: 5.5pt; vertical-align: middle; text-align: center; line-height: .5cm; border-collapse: collapse;">  
+                    <tr>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;" rowspan="2">No</td>
+                        <td style="border:0.1mm solid #666; width: 1.4cm;" rowspan="2">MATRICULA</td>
+                        <td style="border:0.1mm solid #666; width: 4cm;" rowspan="2">NOMBRE DEL ALUMNO</td>
+                        <td style="border:0.1mm solid #666; width: 8.8cm;" colspan="22">ASISTENCIAS</td>
+                        <td style="border:0.1mm solid #666; width: 1cm;" rowspan="2">FALTAS</td> 
+                        <td style="border:0.1mm solid #666; width: 3cm;" colspan="2">CALIFICACIÓN</td>    
+                    </tr>
+                    <tr>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;"></td>
+                        <td style="border:0.1mm solid #666; width: 1cm;">No</td>
+                        <td style="border:0.1mm solid #666; width: 2cm;">LETRA</td>    
                     </tr>';
-            
-        $html2 .='</table>';
-        $html2 .='<table border="0" cellpadding="0" style="font-size: 7pt;"><tr><td style="width: 5.9cm;"></td><td style="width: 6cm;"></td><td>APROVECHAMIENTO</td></tr>';
-        $html2 .='<tr><td style="width: 5.9cm;font-size: 6pt;">PARCIAL No.</td><td style="width: 7cm;font-size: 7pt;">No. DE ALUMNOS APROBADOS<br>TOTAL ALUMNOS</td><td>89.87847</td></tr>';
-        $html2 .= '</table><br><br>';
+                $limite =0;
+              
+                foreach ($resultsPagina as $index2 => $row) {
+                    $html2 .= '<tr><td style="border:0.1mm solid #666; height: .25cm;">'.($index2+1).'</td><td style="border:0.1mm solid #666;">'.' '.$row->matricula.'</td><td style="border:0.1mm solid #666; text-align: left;">'.' '.$row->PrimerApellidoAl.' '.$row->SegundoapellidoAl.' '.$row->NombreAl.
+                                '</td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td>
+                                   <td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td>
+                                   <td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td>
+                                   <td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td>
+                                   <td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td>
+                                   <td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td>
+                                </tr>';
+                    $limite = $index2+1;
+                }
 
-        $html2 .='<table border="0.5" cellpadding="0" style="font-size: 6pt;">
-                 <tr>
-                    <td style="height: 1.5cm; width: 4.65cm;">ELABORÓ:</td>
-                    <td style="width: 4.65cm;">REVISÓ:</td>
-                    <td rowspan="2" style="width: 4.65cm;">FECHA:<br><br><br></td>
-                    <td rowspan="2" style="width: 4.65cm;text-align: center; vertical-align: middle;font-weight: bold;"><br><br><br><br>UAEL01</td>
-                 </tr>';
-        $html2 .='<tr><td style="height: 0.5cm; width: 4.65cm;">Aqui nombre y firma del Docente</td>
-                      <td style="height: 0.5cm; width: 4.65cm;">Prof. Raymundo Hernandez T.</td>
-                      </tr></table>';
+                $html2 .='</table>';
+                $html2 .='<table border="0" cellpadding="0" style="font-size: 7pt;"><tr><td style="width: 5.9cm;"></td><td style="width: 6cm;"></td><td>APROVECHAMIENTO</td></tr>';
+                $html2 .='<tr><td style="width: 5.9cm;font-size: 6pt;">PARCIAL No.</td><td style="width: 7cm;font-size: 7pt;">No. DE ALUMNOS APROBADOS<br>TOTAL ALUMNOS</td><td>89.87847</td></tr>';
+                $html2 .= '</table><br><br>';
+
+                $html2 .='<table border="0" cellpadding="0" style="font-size: 6pt; border-collapse: collapse;">
+                         <tr>
+                            <td style="border:0.1mm solid #666; height: 1.5cm; width: 4.65cm;">ELABORÓ:</td>
+                            <td style="border:0.1mm solid #666; width: 4.65cm;">REVISÓ:</td>
+                            <td rowspan="2" style="border:0.1mm solid #666; width: 4.65cm;">FECHA:<br><br><br></td>
+                            <td rowspan="2" style="border:0.1mm solid #666; width: 4.65cm;text-align: center; vertical-align: middle;font-weight: bold;"><br><br><br><br>UAEL01</td>
+                         </tr>';
+                $html2 .='<tr><td style="border:0.1mm solid #666; height: 0.5cm; width: 4.65cm;">Aqui nombre y firma del Docente</td>
+                              <td style="border:0.1mm solid #666; height: 0.5cm; width: 4.65cm;">Prof. Raymundo Hernandez T.</td>
+                              </tr></table>';
+
+                // Escribir la tabla de esta pagina en el PDF
+                $pdf->writeHTML($html2, true, false, true, false, '');
+            }
+
+            $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo
+           
+            $pdf->Output($filePath, 'F');  // 'F' para guardar el archivo en el servidor
         
-        // Escribir la tabla en el PDF
-        $pdf->writeHTML($html2, true, false, true, false, '');
-        $filePath = storage_path('app/public/'.$nameReport);  // Ruta donde se guardará el archivo
-       
-        $pdf->Output($filePath, 'F');  // 'F' para guardar el archivo en el servidor
-    
-        // Ahora puedes verificar si el archivo se ha guardado correctamente en la ruta especificada.
-        if (file_exists($filePath)) {
-            return response()->json([
-                'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
-            ]);
-        } else {
+            // Ahora puedes verificar si el archivo se ha guardado correctamente en la ruta especificada.
+            if (file_exists($filePath)) {
+                return response()->json([
+                    'status' => 200,  
+                    'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 500,
+                    'message' => 'Error al generar el reporte'
+                ]);
+            } 
+        }
+        else {
             return response()->json([
                 'status' => 500,
-                'message' => 'Error al generar el reporte'
+                'message' => 'No hay informacion para mostrar el grupo'
             ]);
-        } 
-    }
-    else {
-        return response()->json([
-            'status' => 500,
-            'message' => 'No hay informacion para mostrar el grupo'
-        ]);
-       }   
+           }   
     }
 
 

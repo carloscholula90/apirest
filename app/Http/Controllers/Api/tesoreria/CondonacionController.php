@@ -15,6 +15,153 @@ use App\Http\Controllers\Api\serviciosGenerales\GenericExport;
 class CondonacionController extends Controller  
 {
 
+    public function registros($uid, $secuencia, $idPeriodo)
+    {
+        $validator = Validator::make([
+            'uid' => $uid,
+            'secuencia' => $secuencia,
+            'idPeriodo' => $idPeriodo,
+        ], [
+            'uid' => 'required|integer',
+            'secuencia' => 'required|integer',
+            'idPeriodo' => 'required|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->returnEstatus(
+                'Error en la validacion de los datos',
+                400,
+                $validator->errors()
+            );
+        }
+
+        $condonaciones = DB::table('condonar as c')
+            ->leftJoin('servicio as s', 's.idServicio', '=', 'c.idServicio')
+            ->select(
+                's.descripcion as descripcionServicio',
+                'c.idServicio',
+                'c.consecutivoEdocta',
+                'c.parcialidad',
+                'c.motivo',
+                'c.importe',
+                'c.importeCondonar'
+            )
+            ->where('c.uid', $uid)
+            ->where('c.secuencia', $secuencia)
+            ->where('c.idPeriodo', $idPeriodo)
+            ->orderBy('c.idServicio')
+            ->orderBy('c.parcialidad')
+            ->orderBy('c.consecutivo')
+            ->get();
+
+        return $this->returnData('condonaciones', $condonaciones, 200);
+    }
+
+    public function eliminar($uid, $secuencia, $idServicio, $consecutivoEdocta)
+    {
+        $validator = Validator::make([
+            'uid' => $uid,
+            'secuencia' => $secuencia,
+            'idServicio' => $idServicio,
+            'consecutivoEdocta' => $consecutivoEdocta,
+        ], [
+            'uid' => 'required|integer',
+            'secuencia' => 'required|integer',
+            'idServicio' => 'required|integer',
+            'consecutivoEdocta' => 'required|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->returnEstatus(
+                'Error en la validacion de los datos',
+                400,
+                $validator->errors()
+            );
+        }
+
+        try {
+            $resultado = DB::transaction(function () use ($uid, $secuencia, $idServicio, $consecutivoEdocta) {
+                $condonacion = DB::table('condonar')
+                    ->where('uid', $uid)
+                    ->where('secuencia', $secuencia)
+                    ->where('idServicio', $idServicio)
+                    ->where('consecutivoEdocta', $consecutivoEdocta)
+                    ->orderByDesc('consecutivo')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$condonacion) {
+                    return 'condonacion_no_encontrada';
+                }
+
+                $edocta = DB::table('edocta')
+                    ->where('uid', $uid)
+                    ->where('secuencia', $secuencia)
+                    ->where('idServicio', $idServicio)
+                    ->where('consecutivo', $consecutivoEdocta)
+                    ->where('idPeriodo', $condonacion->idPeriodo)
+                    ->where('tipomovto', 'C')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$edocta) {
+                    return 'edocta_no_encontrado';
+                }
+
+                DB::table('edocta')
+                    ->where('uid', $uid)
+                    ->where('secuencia', $secuencia)
+                    ->where('idServicio', $idServicio)
+                    ->where('consecutivo', $consecutivoEdocta)
+                    ->where('idPeriodo', $condonacion->idPeriodo)
+                    ->where('tipomovto', 'C')
+                    ->update(['importe' => $condonacion->importe]);
+
+                DB::table('condonar')
+                    ->where('uid', $uid)
+                    ->where('secuencia', $secuencia)
+                    ->where('idServicio', $idServicio)
+                    ->where('consecutivo', $condonacion->consecutivo)
+                    ->where('idPeriodo', $condonacion->idPeriodo)
+                    ->delete();
+
+                return [
+                    'idServicio' => (int) $idServicio,
+                    'consecutivoEdocta' => (int) $consecutivoEdocta,
+                    'importeRestaurado' => (float) $condonacion->importe,
+                ];
+            });
+
+            if ($resultado === 'condonacion_no_encontrada') {
+                return $this->returnEstatus('No se encontro la condonacion', 404, null);
+            }
+
+            if ($resultado === 'edocta_no_encontrado') {
+                return $this->returnEstatus('No se encontro el movimiento de estado de cuenta', 404, null);
+            }
+
+            return response()->json([
+                'message' => 'Condonacion eliminada correctamente',
+                'condonacionEliminada' => $resultado,
+                'status' => 200,
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar condonacion', [
+                'error' => $e->getMessage(),
+                'uid' => $uid,
+                'secuencia' => $secuencia,
+                'idServicio' => $idServicio,
+                'consecutivoEdocta' => $consecutivoEdocta,
+            ]);
+
+            return $this->returnEstatus(
+                'Error al eliminar la condonacion',
+                500,
+                $e->getMessage()
+            );
+        }
+    }
+
     public function guardar(Request $request)
     {
         $validator = Validator::make($request->all(), [

@@ -194,4 +194,237 @@ class CarreraController extends Controller
         }  
     }
     
+
+    /**
+     * Carreras de un nivel para un alumno: nombre, si ya fue cursada, el último
+     * semestre cursado en ella, y los grupos abiertos en el periodo activo.
+     */
+    public function disponiblesAlumno($idNivel, $uid)
+    {
+        if (!ctype_digit((string) $idNivel)) {
+            return $this->returnEstatus('El idNivel debe ser un entero válido.', 422, null);
+        }
+
+        if (!ctype_digit((string) $uid)) {
+            return $this->returnEstatus('El uid debe ser un entero válido.', 422, null);
+        }
+
+        $nivel = DB::table('nivel')->where('idNivel', $idNivel)->first(['idNivel', 'descripcion']);
+
+        if (!$nivel) {
+            return $this->returnEstatus('Nivel no encontrado.', 404, null);
+        }
+
+        $persona = DB::table('persona')->where('uid', $uid)->first(['uid']);
+
+        if (!$persona) {
+            return $this->returnEstatus('Alumno no encontrado.', 404, null);
+        }
+
+        $carreras = DB::table('carrera as c')
+            ->join('plan', function ($join) {
+                $join->on('plan.idCarrera', '=', 'c.idCarrera')
+                     ->on('plan.idNivel', '=', 'c.idNivel');
+            })
+            ->where('c.idNivel', $idNivel)
+            ->distinct()
+            ->orderBy('c.descripcion')
+            ->get(['c.idCarrera', 'c.descripcion']);
+
+        if ($carreras->isEmpty()) {
+            return $this->returnEstatus('No hay carreras registradas para ese nivel.', 404, null);
+        }
+
+        $periodoActivo = DB::table('periodo')
+            ->where('idNivel', $idNivel)
+            ->where('activo', 1)
+            ->first(['idPeriodo', 'descripcion']);
+
+        $resultado = $carreras->map(function ($carrera) use ($idNivel, $uid, $periodoActivo) {
+            // 'ciclos' no tiene idCarrera; la carrera de cada ciclo se resuelve
+            // via 'alumno' (uid + idNivel + idCarrera -> secuencia), igual que en
+            // KardexController/ReincorporacionController.
+            $secuencias = DB::table('alumno')
+                ->where('uid', $uid)
+                ->where('idNivel', $idNivel)
+                ->where('idCarrera', $carrera->idCarrera)
+                ->pluck('secuencia');
+
+            $cursada = $secuencias->isNotEmpty();
+
+            $ultimoCiclo = null;
+            if ($cursada) {
+                $ultimoCiclo = DB::table('ciclos')
+                    ->where('uid', $uid)
+                    ->where('idNivel', $idNivel)
+                    ->whereIn('secuencia', $secuencias)
+                    ->orderByDesc('idPeriodo')
+                    ->orderByDesc('indexCiclo')
+                    ->first(['semestre']);
+            }
+
+            $grupos = collect();
+            if ($periodoActivo) {
+                $carreraFormateada = str_pad((string) $carrera->idCarrera, 2, '0', STR_PAD_LEFT);
+                $grupos = DB::table('grupos')
+                    ->where('idNivel', $idNivel)
+                    ->where('idPeriodo', $periodoActivo->idPeriodo)
+                    ->where('grupo', 'like', $carreraFormateada.'%')
+                    ->distinct()
+                    ->orderBy('grupo')
+                    ->get(['grupo', 'capacidad', 'inscritos'])
+                    ->map(fn ($g) => [
+                        'grupo' => $g->grupo,
+                        'capacidad' => $g->capacidad !== null ? (int) $g->capacidad : null,
+                        'inscritos' => $g->inscritos !== null ? (int) $g->inscritos : null,
+                    ])
+                    ->values();
+            }
+
+            return [
+                'idCarrera' => (int) $carrera->idCarrera,
+                'nombre' => $carrera->descripcion,
+                'cursada' => $cursada,
+                'ultimoSemestre' => ($ultimoCiclo !== null && $ultimoCiclo->semestre !== null) ? (int) $ultimoCiclo->semestre : null,
+                'grupos' => $grupos,
+            ];
+        })->values();
+
+        return $this->returnData('data', [
+            'idNivel' => (int) $nivel->idNivel,
+            'nivel' => $nivel->descripcion,
+            'periodoActivo' => $periodoActivo ? [
+                'idPeriodo' => (int) $periodoActivo->idPeriodo,
+                'descripcion' => $periodoActivo->descripcion,
+            ] : null,
+            'carreras' => $resultado,
+        ], 200);
+    }
+
+    /**
+     * Último semestre cursado por el alumno en una carrera, y para el periodo
+     * activo del nivel, los grupos disponibles de los semestres previos a ese
+     * (útil para recursamiento), agrupados por semestre.
+     */
+    public function semestresAnteriores($idNivel, $uid, $idCarrera)
+    {
+        if (!ctype_digit((string) $idNivel)) {
+            return $this->returnEstatus('El idNivel debe ser un entero válido.', 422, null);
+        }
+
+        if (!ctype_digit((string) $uid)) {
+            return $this->returnEstatus('El uid debe ser un entero válido.', 422, null);
+        }
+
+        if (!ctype_digit((string) $idCarrera)) {
+            return $this->returnEstatus('El idCarrera debe ser un entero válido.', 422, null);
+        }
+
+        $nivel = DB::table('nivel')->where('idNivel', $idNivel)->first(['idNivel', 'descripcion']);
+
+        if (!$nivel) {
+            return $this->returnEstatus('Nivel no encontrado.', 404, null);
+        }
+
+        $persona = DB::table('persona')->where('uid', $uid)->first(['uid']);
+
+        if (!$persona) {
+            return $this->returnEstatus('Alumno no encontrado.', 404, null);
+        }
+
+        $carrera = DB::table('carrera')
+            ->where('idNivel', $idNivel)
+            ->where('idCarrera', $idCarrera)
+            ->first(['idCarrera', 'descripcion']);
+
+        if (!$carrera) {
+            return $this->returnEstatus('Carrera no encontrada para ese nivel.', 404, null);
+        }
+
+        // 'ciclos' no tiene idCarrera; se resuelve via 'alumno' (uid + idNivel +
+        // idCarrera -> secuencia), igual que en KardexController/ReincorporacionController.
+        $secuencias = DB::table('alumno')
+            ->where('uid', $uid)
+            ->where('idNivel', $idNivel)
+            ->where('idCarrera', $idCarrera)
+            ->pluck('secuencia');
+
+        if ($secuencias->isEmpty()) {
+            return $this->returnEstatus('El alumno no ha cursado esta carrera.', 404, null);
+        }
+
+        $ultimoCiclo = DB::table('ciclos')
+            ->where('uid', $uid)
+            ->where('idNivel', $idNivel)
+            ->whereIn('secuencia', $secuencias)
+            ->orderByDesc('idPeriodo')
+            ->orderByDesc('indexCiclo')
+            ->first(['semestre']);
+
+        if (!$ultimoCiclo || $ultimoCiclo->semestre === null) {
+            return $this->returnEstatus('No se pudo determinar el último semestre cursado.', 404, null);
+        }
+
+        $ultimoSemestre = (int) $ultimoCiclo->semestre;
+
+        $periodoActivo = DB::table('periodo')
+            ->where('idNivel', $idNivel)
+            ->where('activo', 1)
+            ->first(['idPeriodo', 'descripcion']);
+
+        // Semestres 1..(ultimoSemestre - 1), sin incluir el último cursado.
+        $porSemestre = [];
+        for ($s = 1; $s < $ultimoSemestre; $s++) {
+            $porSemestre[$s] = [];
+        }
+
+        if ($periodoActivo && $ultimoSemestre > 1) {
+            $carreraFormateada = str_pad((string) $idCarrera, 2, '0', STR_PAD_LEFT);
+
+            $grupos = DB::table('grupos')
+                ->where('idNivel', $idNivel)
+                ->where('idPeriodo', $periodoActivo->idPeriodo)
+                ->where('grupo', 'like', $carreraFormateada.'%')
+                ->distinct()
+                ->get(['grupo', 'capacidad', 'inscritos']);
+
+            foreach ($grupos as $g) {
+                // Mismo criterio que GrupoController::gruposSemestre para ubicar
+                // el dígito de semestre dentro del código de grupo.
+                $pos = strlen($g->grupo) === 4 ? 2 : 3;
+                $semestreGrupo = isset($g->grupo[$pos]) && ctype_digit($g->grupo[$pos])
+                    ? (int) $g->grupo[$pos]
+                    : null;
+
+                if ($semestreGrupo !== null && isset($porSemestre[$semestreGrupo])) {
+                    $porSemestre[$semestreGrupo][] = [
+                        'grupo' => $g->grupo,
+                        'capacidad' => $g->capacidad !== null ? (int) $g->capacidad : null,
+                        'inscritos' => $g->inscritos !== null ? (int) $g->inscritos : null,
+                    ];
+                }
+            }
+        }
+
+        $semestresAnteriores = [];
+        foreach ($porSemestre as $semestre => $grupos) {
+            $semestresAnteriores[] = [
+                'semestre' => $semestre,
+                'grupos' => $grupos,
+            ];
+        }
+
+        return $this->returnData('data', [
+            'idNivel' => (int) $nivel->idNivel,
+            'uid' => (int) $uid,
+            'idCarrera' => (int) $carrera->idCarrera,
+            'carrera' => $carrera->descripcion,
+            'ultimoSemestreCursado' => $ultimoSemestre,
+            'periodoActivo' => $periodoActivo ? [
+                'idPeriodo' => (int) $periodoActivo->idPeriodo,
+                'descripcion' => $periodoActivo->descripcion,
+            ] : null,
+            'semestresAnteriores' => $semestresAnteriores,
+        ], 200);
+    }
 }
