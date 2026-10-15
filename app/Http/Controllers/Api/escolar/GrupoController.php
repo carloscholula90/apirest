@@ -154,6 +154,51 @@ class GrupoController extends Controller
        return $this->returnData('grupos',$grupos,200);
     }
 
+    public function gruposAsignatura($idNivel,$idPeriodo,$idCarrera,$idAsignatura)
+    {
+       $grupos = DB::table('grupos as g')
+                                ->select(
+                                   'g.gruposec',
+                                   'g.idNivel',
+                                   'n.descripcion as nivel',
+                                   'g.idPeriodo',
+                                   'p.descripcion as periodo',
+                                   DB::raw("SUBSTRING(g.grupo, 1, CASE WHEN LENGTH(g.grupo) = 4 THEN 1 ELSE 2 END) AS idCarrera"),
+                                   'car.descripcion as carrera',
+                                   DB::raw("SUBSTRING(g.grupo, CASE WHEN LENGTH(g.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre"),
+                                   'g.grupo',
+                                   'g.idAsignatura',
+                                   'asig.descripcion as asignatura',
+                                   'g.idTurno',
+                                   't.descripcion as turno',
+                                   'g.inscritos',
+                                   'g.capacidad',
+                                   'g.uidProfesor',
+                                   'g.secuenciaProfesor',
+                                   DB::raw("CONCAT(prof.primerApellido, ' ', prof.segundoApellido, ' ', prof.nombre) AS profesor")
+                                )
+                                ->leftJoin('nivel as n', 'n.idNivel', '=', 'g.idNivel')
+                                ->leftJoin('periodo as p', function ($join) {
+                                   $join->on('p.idNivel', '=', 'g.idNivel')
+                                        ->on('p.idPeriodo', '=', 'g.idPeriodo');
+                                })
+                                ->leftJoin('carrera as car', function ($join) {
+                                   $join->on('car.idNivel', '=', 'g.idNivel')
+                                        ->on('car.idCarrera', '=', DB::raw("SUBSTRING(g.grupo, 1, CASE WHEN LENGTH(g.grupo) = 4 THEN 1 ELSE 2 END)"));
+                                })
+                                ->leftJoin('asignatura as asig', 'asig.idAsignatura', '=', 'g.idAsignatura')
+                                ->leftJoin('turno as t', 't.idTurno', '=', 'g.idTurno')
+                                ->leftJoin('persona as prof', 'prof.uid', '=', 'g.uidProfesor')
+                                ->where('g.idNivel', $idNivel)
+                                ->where('g.idPeriodo', $idPeriodo)
+                                // La carrera son los primeros 1 o 2 caracteres del grupo ('01D5A' -> 1)
+                                ->whereRaw("CAST(SUBSTRING(g.grupo, 1, CASE WHEN LENGTH(g.grupo) = 4 THEN 1 ELSE 2 END) AS UNSIGNED) = ?", [(int) $idCarrera])
+                                ->where('g.idAsignatura', $idAsignatura)
+                                ->orderBy('g.grupo')
+                                ->get();
+       return $this->returnData('grupos',$grupos,200);
+    }
+
     public function gruposRelacionados($grupo)
     {
        $grupo = strtoupper(trim($grupo));
@@ -740,7 +785,7 @@ public function obtenerAsignaturas($grupo){
 
         return response()->json([
             'status'  => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
         ]);
 
     } else {

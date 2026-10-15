@@ -206,7 +206,7 @@ class AlumnoController extends Controller
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -294,7 +294,7 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -372,7 +372,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$name
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$name
             ]);
         }
 
@@ -456,7 +456,7 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $fileName
             
         ]);
     } else {
@@ -607,6 +607,7 @@ public function getAvance($uid,$secuencia){
             'fechaBaja'    => 'required|date',
             'tipoBaja'     => 'required|integer',
             'fechaBajaSEP' => 'required|date',
+            'usrMvt' => 'required|string'
         ]);
 
         if ($validator->fails()) {
@@ -617,6 +618,8 @@ public function getAvance($uid,$secuencia){
             );
         }
 
+        DB::statement("SET @origen = 'LARAVEL'");
+        DB::statement("SET @usrMvt = '" . $request->usrMvt . "'");
         DB::statement("CALL BajaAlumno(?, ?, ?, ?, ?, ?)", [
             $request->uid,
             $request->matricula,

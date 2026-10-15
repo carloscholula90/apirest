@@ -49,34 +49,64 @@ class DocumentosController extends Controller{
                             'carrera.descripcion as carrera',
                             DB::raw('CONLETRA(c.CF) as califConLetra'))
                                 ->join('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
-                                ->join('calificaciones as c', 'c.grupoSec', '=', 'g.grupoSec')
-                                ->join('tipoExamen as e', 'e.idExamen', '=', 'c.idExamen')
-                                ->join('ciclos as cl', 'cl.indexCiclo', '=', 'c.indexCiclo')
-                                ->join('alumno as al', 'al.uid', '=', 'cl.uid')
-                                ->join('plan as pl', 'pl.idPlan', '=', 'al.idPlan')
+                                // Los alumnos se toman de su inscripcion al grupo (ciclos) y no de
+                                // calificaciones, para que el pase de lista salga aunque todavia no
+                                // se hayan generado las calificaciones del grupo.
+                                ->join('ciclos as cl', function ($join) {
+                                        $join->on('cl.idNivel', '=', 'g.idNivel')
+                                             ->on('cl.idPeriodo', '=', 'g.idPeriodo')
+                                             ->on('cl.grupo', '=', 'g.grupo');
+                                })
+                                ->leftJoin('calificaciones as c', function ($join) {
+                                        $join->on('c.grupoSec', '=', 'g.grupoSec')
+                                             ->on('c.indexCiclo', '=', 'cl.indexCiclo');
+                                })
+                                ->leftJoin('tipoExamen as e', 'e.idExamen', '=', 'c.idExamen')
+                                ->join('alumno as al', function ($join) {
+                                        $join->on('al.uid', '=', 'cl.uid')
+                                             ->on('al.secuencia', '=', 'cl.secuencia');
+                                })
+                                // idPlan se repite entre carreras: hay que cruzar tambien nivel y carrera
+                                ->join('plan as pl', function ($join) {
+                                        $join->on('pl.idPlan', '=', 'al.idPlan')
+                                             ->on('pl.idNivel', '=', 'al.idNivel')
+                                             ->on('pl.idCarrera', '=', 'al.idCarrera');
+                                })
                                 ->join('persona as Nal', 'Nal.uid', '=', 'cl.uid')
                                 ->join('nivel as niv', 'niv.idNivel', '=', 'pl.idNivel')
                                 ->join('carrera', function ($join) {
                                         $join->on('carrera.idCarrera', '=', 'pl.idCarrera')
                                              ->on('carrera.idNivel', '=', 'pl.idNivel');
-                                })  
+                                })
                                 ->leftJoin('persona as p', 'p.uid', '=', 'g.uidProfesor')
                                 ->leftJoin('persona as Nsecre', 'Nsecre.uid', '=', 'g.uidSecretario')
                                 ->leftJoin('persona as Npresi', 'Npresi.uid', '=', 'g.uidPresidente')
                                 ->leftJoin('turno as turno', 'turno.idTurno', '=', 'g.idTurno')
                                 ->leftJoin('persona as NSup', 'NSup.uid', '=', 'g.uidSupervisor')
                                 ->where('pl.idNivel', '=',$nivel)
-                                ->where('pl.idCarrera', '=',$carrera)                              
+                                ->where('pl.idCarrera', '=',$carrera)
                                 ->where('g.idNivel', $nivel)
                                 ->where('g.idPeriodo', $periodo)
+                                // Excluye inscripciones canceladas; inscrito NULL se incluye
+                                ->where(function ($query) {
+                                    $query->whereNull('cl.inscrito')
+                                          ->orWhere('cl.inscrito', '<>', 0);
+                                })
                                 ->when(!empty($asignatura), function ($query) use ($asignatura) {
                                     $query->where('g.idAsignatura', $asignatura);
                                 })
                                 ->when(!empty($grupo), function ($query) use ($grupo) {
                                     $query->where('g.grupo', $grupo);
                                 })
+                                ->where(function ($query) {
+                                    $query->whereNull('g.inscritos')
+                                          ->orWhere('g.inscritos', '<>', 0);
+                                })
                                 ->orderBy('g.idAsignatura')
                                 ->orderBy('g.grupo')
+                                ->orderBy('Nal.primerApellido')
+                                ->orderBy('Nal.segundoApellido')
+                                ->orderBy('Nal.nombre')
                                 ->get();
 
         // Siempre arreglo: una Collection vacia no cuenta como empty() y provocaba
@@ -157,7 +187,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -350,7 +380,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -386,7 +416,7 @@ class DocumentosController extends Controller{
      
         $orientation='P';
         $size='letter';
-        $nameReport='paseLista'.'_'.mt_rand(100, 999).'.pdf';
+        $nameReport='paseLista'.'_'.mt_rand(100, 999).'.pdf';   
       
         $results = $this->obtenerDatosAlumnos($request->nivel,$request->carrera,$request->periodo,$request->asignatura,$request->grupo);
 
@@ -525,7 +555,7 @@ class DocumentosController extends Controller{
 
                 $html2 .='</table>';
                 $html2 .='<table border="0" cellpadding="0" style="font-size: 7pt;"><tr><td style="width: 5.9cm;"></td><td style="width: 6cm;"></td><td>APROVECHAMIENTO</td></tr>';
-                $html2 .='<tr><td style="width: 5.9cm;font-size: 6pt;">PARCIAL No.</td><td style="width: 7cm;font-size: 7pt;">No. DE ALUMNOS APROBADOS<br>TOTAL ALUMNOS</td><td>89.87847</td></tr>';
+                $html2 .='<tr><td style="width: 5.9cm;font-size: 6pt;">PARCIAL No.</td><td style="width: 7cm;font-size: 7pt;">No. DE ALUMNOS APROBADOS<br>TOTAL ALUMNOS</td><td></td></tr>';
                 $html2 .= '</table><br><br>';
 
                 $html2 .='<table border="0" cellpadding="0" style="font-size: 6pt; border-collapse: collapse;">
@@ -535,8 +565,8 @@ class DocumentosController extends Controller{
                             <td rowspan="2" style="border:0.1mm solid #666; width: 4.65cm;">FECHA:<br><br><br></td>
                             <td rowspan="2" style="border:0.1mm solid #666; width: 4.65cm;text-align: center; vertical-align: middle;font-weight: bold;"><br><br><br><br>UAEL01</td>
                          </tr>';
-                $html2 .='<tr><td style="border:0.1mm solid #666; height: 0.5cm; width: 4.65cm;">Aqui nombre y firma del Docente</td>
-                              <td style="border:0.1mm solid #666; height: 0.5cm; width: 4.65cm;">Prof. Raymundo Hernandez T.</td>
+                $html2 .='<tr><td style="border:0.1mm solid #666; height: 0.5cm; width: 4.65cm;"></td>
+                              <td style="border:0.1mm solid #666; height: 0.5cm; width: 4.65cm;"></td>
                               </tr></table>';
 
                 // Escribir la tabla de esta pagina en el PDF
@@ -551,7 +581,7 @@ class DocumentosController extends Controller{
             if (file_exists($filePath)) {
                 return response()->json([
                     'status' => 200,  
-                    'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                    'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
                 ]);
             } else {
                 return response()->json([
@@ -675,7 +705,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -781,7 +811,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -878,7 +908,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -1009,7 +1039,7 @@ Universidad Alva Edison (UAE) en cada publicación. </b>
     if (file_exists($filePath)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
         ]);
     } else {
         return response()->json([

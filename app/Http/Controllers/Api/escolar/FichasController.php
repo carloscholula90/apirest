@@ -95,6 +95,20 @@ class FichasController extends Controller{
             $join->on('ocs.idNivel', '=', 'al.idNivel')
                 ->on('ocs.idServicio', '=', 'cta.idServicio');
         })
+        // Colegiatura y recargo del nivel y su orden de cobro, para intercalarlos por mes
+        ->leftJoin('configuracionTesoreria as ct', 'ct.idNivel', '=', 'al.idNivel')
+        ->leftJoin('ordenCobroServicio as ocsCol', function ($join) {
+            $join->on('ocsCol.idNivel', '=', 'al.idNivel')
+                ->on('ocsCol.idServicio', '=', 'ct.idServicioColegiatura');
+        })
+        ->leftJoin('ordenCobroServicio as ocsRec', function ($join) {
+            $join->on('ocsRec.idNivel', '=', 'al.idNivel')
+                ->on('ocsRec.idServicio', '=', 'ct.idServicioRecargo');
+        })
+        ->leftJoin('periodo as per', function ($join) {
+            $join->on('per.idNivel', '=', 'al.idNivel')
+                ->on('per.idPeriodo', '=', 'cta.idPeriodo');
+        })
         ->where('al.idCarrera', (int) $idCarrera)
         ->where('al.idNivel', (int) $idNivel)
         ->where('s.mostrarFichaPago', 1)
@@ -139,10 +153,30 @@ class FichasController extends Controller{
                 cta.saldo
             ) AS lineaPago
         ")
-        ->orderBy('matricula','asc')
+        /*
+         * Orden de cobro: los servicios siguen ordenCobroServicio.orden. Recargos y
+         * colegiaturas forman un bloque (en la posicion del primero de ellos) que se
+         * intercala por mes del periodo: recargo agosto, colegiatura agosto, recargo
+         * septiembre, ... El mes sale de la referencia, contado desde el inicio del periodo.
+         */
+        ->orderBy('al.matricula', 'asc')
+        ->orderBy('cta.uid', 'asc')
+        ->orderByRaw("
+            CASE WHEN cta.idServicio IN (ct.idServicioColegiatura, ct.idServicioRecargo)
+                THEN LEAST(COALESCE(ocsCol.orden, 999999), COALESCE(ocsRec.orden, 999999))
+                ELSE COALESCE(ocs.orden, 999999)
+            END ASC
+        ")
+        ->orderByRaw("
+            CASE WHEN cta.idServicio IN (ct.idServicioColegiatura, ct.idServicioRecargo)
+                THEN MOD(CONVERT(SUBSTRING(cta.referencia, 4), SIGNED) - COALESCE(MONTH(per.fechaInicio), 1) + 12, 12)
+                ELSE 0
+            END ASC
+        ")
         ->orderByRaw('COALESCE(ocs.orden, 999999) ASC')
         ->orderByRaw('COALESCE(YEAR(cta.fechaPago), 9999) ASC')
         ->orderByRaw('COALESCE(cta.parcialidad, 999999) ASC')
+        ->orderBy('cta.referencia', 'asc')
         ->get();
 
 
@@ -176,7 +210,7 @@ class FichasController extends Controller{
     $name=''; 
     foreach ($resultados as $fila) {
         $total = number_format($fila->total, 2, '.', ',');
-        if($name==''||$name!=$fila->nombre){
+        if($name==''||$name!=$fila->uid){
             if($name!=''){
                   $html .= '<br><br><tr><td colspan="2" style="font-size: 10px;">La Universidad Alva Edison en apoyo a la situación
                     económica, mantendrá la beca de 50%, por lo que el costo de la colegiatura es de $'.$total.'
@@ -209,7 +243,7 @@ class FichasController extends Controller{
                 <td style="font-size: 12pt;">' .$fila->matricula. '</td>
                 </tr><br>';
         }
-        $name=$fila->nombre;
+        $name=$fila->uid;
         Carbon::setLocale('es'); // Establece el idioma a español
         $fecha = Carbon::parse($fila->fechaVencimiento)->translatedFormat('d/F/Y');
         $mes = Carbon::parse($fila->fechaVencimiento)->translatedFormat('F Y');
@@ -249,7 +283,7 @@ class FichasController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -384,7 +418,7 @@ public function generarFichaEspecial($matricula,$importe,$fechaVencimiento){
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([

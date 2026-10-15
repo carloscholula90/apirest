@@ -38,6 +38,14 @@ Route::group([], function () {
         'gruposProfesor'
     ]);
 
+    Route::get('/asignatura/{idNivel}/{idPeriodo}/{idCarrera}/{idAsignatura}', [
+        GrupoController::class,
+        'gruposAsignatura'
+    ])
+    ->whereNumber('idNivel')
+    ->whereNumber('idPeriodo')
+    ->whereNumber('idCarrera');
+
     Route::get('/relacionados/{grupo}', [
         GrupoController::class,
         'gruposRelacionados'

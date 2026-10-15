@@ -119,6 +119,15 @@ SELECT
                         CONCAT_WS(
                             ', ',
                             CASE
+                                -- El trigger guarda el importe anterior en $.importe y el nuevo en $.importeNew
+                                WHEN JSON_CONTAINS_PATH(logs_base.log, 'one', '$.importeNew') = 1 THEN
+                                    CONCAT(
+                                        'importe de $',
+                                        COALESCE(FORMAT(CAST(JSON_UNQUOTE(JSON_EXTRACT(logs_base.log, '$.importe')) AS DECIMAL(12,2)), 2), 'sin valor'),
+                                        ' a $',
+                                        COALESCE(FORMAT(CAST(JSON_UNQUOTE(JSON_EXTRACT(logs_base.log, '$.importeNew')) AS DECIMAL(12,2)), 2), 'sin valor')
+                                    )
+                                -- Registros anteriores al cambio del trigger: solo traen un importe
                                 WHEN JSON_CONTAINS_PATH(logs_base.log, 'one', '$.importe') = 1 THEN
                                     CONCAT('importe $', FORMAT(CAST(JSON_UNQUOTE(JSON_EXTRACT(logs_base.log, '$.importe')) AS DECIMAL(12,2)), 2))
                             END,

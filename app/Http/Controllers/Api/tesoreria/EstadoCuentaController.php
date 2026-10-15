@@ -131,6 +131,7 @@ class EstadoCuentaController extends Controller{
                 'edo.tipomovto',
                 'ocs.orden as _ordenCobro',
                 'edo.fechaMovto as _fechaMovimientoOrden',
+                DB::raw('MONTH(per.fechaInicio) as _mesInicioPeriodo'),
                 'nivel.descripcion as nivel',
                 'carrera.descripcion as nombreCarrera',
                 'persona.nombre',
@@ -203,6 +204,10 @@ class EstadoCuentaController extends Controller{
                         ->on('ocs.idServicio', '=', 'edo.idServicio');
                 })
                 ->join('nivel', 'nivel.idNivel', '=', 'al.idNivel')
+                ->leftJoin('periodo as per', function ($join) {
+                    $join->on('per.idNivel', '=', 'al.idNivel')
+                        ->on('per.idPeriodo', '=', 'edo.idPeriodo');
+                })
                 ->leftJoin('configuracionTesoreria as inscripcion', function ($join) {
                     $join->on('inscripcion.idNivel', '=', 'al.idNivel')
                         ->on('inscripcion.idServicioInscripcion', '=', 's.idServicio');
@@ -268,7 +273,8 @@ class EstadoCuentaController extends Controller{
                 ->each(function ($movimiento) {
                     unset(
                         $movimiento->_ordenCobro,
-                        $movimiento->_fechaMovimientoOrden
+                        $movimiento->_fechaMovimientoOrden,
+                        $movimiento->_mesInicioPeriodo
                     );
                 });
 
@@ -279,40 +285,36 @@ class EstadoCuentaController extends Controller{
      * Intercala recargos y colegiaturas por mes (recargo agosto, colegiatura agosto,
      * recargo septiembre, colegiatura septiembre, ...). El bloque mensual ocupa la
      * posicion del primero de esos servicios en ordenCobroServicio; el resto de los
-     * movimientos conserva el orden que trae la consulta.
+     * movimientos conserva el orden que trae la consulta. Dentro de cada mes los
+     * servicios siguen ordenCobroServicio.orden (p. ej. recargo antes que colegiatura)
+     * y en cada servicio van primero los cargos y luego los abonos.
      */
     private function ordenarMensualidades($movimientos)
     {
         $esMensual = fn ($m) => !is_null($m->idServicioColegiatura) || !is_null($m->idServicioRecargo);
-        $mes = fn ($m) => (int) substr((string) $m->referencia, 3);
 
-        // Fecha que ubica cada mes dentro del periodo (sirve aunque el periodo cruce de año):
-        // el vencimiento de la colegiatura de ese mes, o si no hay, el primer cargo del mes.
-        $fechaPorMes = [];
-        foreach ($movimientos as $m) {
-            if (!is_null($m->idServicioColegiatura) && $m->tipomovto === 'C' && $m->fechaLimite) {
-                $fechaPorMes[$mes($m)] = min($fechaPorMes[$mes($m)] ?? PHP_INT_MAX, strtotime($m->fechaLimite));
-            }
-        }
-        foreach ($movimientos as $m) {
-            if ($esMensual($m) && $m->tipomovto === 'C' && !isset($fechaPorMes[$mes($m)])) {
-                $fechaPorMes[$mes($m)] = strtotime($m->_fechaMovimientoOrden);
-            }
-        }
+        // Posicion del mes dentro del periodo, contando desde el mes de inicio del periodo
+        // (sirve aunque el periodo cruce de año: agosto=0, ..., enero=5 si inicia en agosto).
+        $posicionMes = function ($m) {
+            $mes = (int) substr((string) $m->referencia, 3);
+            $inicio = (int) ($m->_mesInicioPeriodo ?? 1) ?: 1;
+            return ($mes - $inicio + 12) % 12;
+        };
 
         $ordenMensual = $movimientos->filter($esMensual)->min(fn ($m) => $m->_ordenCobro ?? 999999);
 
         $claves = [];
         foreach ($movimientos->values() as $i => $m) {
+            $esCargo = $m->tipomovto === 'C' ? 0 : 1;
             $claves[] = $esMensual($m)
-                ? [$ordenMensual, $fechaPorMes[$mes($m)] ?? PHP_INT_MAX, is_null($m->idServicioRecargo) ? 1 : 0, $i, $m]
-                : [$m->_ordenCobro ?? 999999, 0, 0, $i, $m];
+                ? [$ordenMensual, $posicionMes($m), $m->_ordenCobro ?? 999999, $esCargo, $i, $m]
+                : [$m->_ordenCobro ?? 999999, 0, 0, 0, $i, $m];
         }
 
-        // El indice $i conserva el orden de la consulta (cargo antes que abono, fecha, consecutivo)
-        usort($claves, fn ($a, $b) => array_slice($a, 0, 4) <=> array_slice($b, 0, 4));
+        // El indice $i conserva el orden de la consulta (fecha, consecutivo)
+        usort($claves, fn ($a, $b) => array_slice($a, 0, 5) <=> array_slice($b, 0, 5));
 
-        return collect(array_column($claves, 4));
+        return collect(array_column($claves, 5));
     }
 
     public function generaReporte($uid,$idPeriodo,$matricula,$tipoEdoCta){
@@ -455,7 +457,7 @@ class EstadoCuentaController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -886,7 +888,7 @@ class EstadoCuentaController extends Controller{
             if (file_exists($filePath)) 
                         return response()->json([
                             'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
-                            'error'   => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport ,
+                            'error'   => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport ,
                             'status'  => 200
                         ], 200);
 
@@ -2308,7 +2310,7 @@ class EstadoCuentaController extends Controller{
                 $importeTotal, 2, '.', ',' )
         );
         $urlReporte = $reporte
-            ? 'https://reportes.siaweb.com.mx/storage/app/public/'
+            ? 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'
                 .basename($reporte)
             : null;
 
