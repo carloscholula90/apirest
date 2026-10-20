@@ -26,11 +26,15 @@ class GrupoController extends Controller
     {
        $carreraFormatted = str_pad($idCarrera, 2, '0', STR_PAD_LEFT);
        $grupos = DB::table('grupos')
-                                ->distinct()  
-                                ->select('grupo')
+                                ->distinct()
+                                ->select('grupo', 'idTurno')
                                 ->where('idNivel', $idNivel)
                                 ->where('idPeriodo',$idPeriodo)
                                 ->where('grupo', 'like', $carreraFormatted.'%')
+                                // Primero por turno (1 matutino, 2 vespertino, ...), luego semestre y grupo
+                                ->orderBy('idTurno')
+                                ->orderByRaw("SUBSTRING(grupo, CASE WHEN LENGTH(grupo) = 4 THEN 3 ELSE 4 END, 1)")
+                                ->orderBy('grupo')
                                 ->get();
        return $this->returnData('grupos',$grupos,200);
     }
@@ -38,17 +42,23 @@ class GrupoController extends Controller
     public function gruposSemestre($idNivel,$idPeriodo,$idCarrera)
     {
        $carreraFormatted = str_pad($idCarrera, 2, '0', STR_PAD_LEFT);
-       $grupos = DB::table('grupos')
+       $grupos = DB::table('grupos as g')
                                 ->distinct()
                                 ->select(
-                                   DB::raw("SUBSTRING(grupo, CASE WHEN LENGTH(grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre"),
-                                   'grupo'
+                                   DB::raw("SUBSTRING(g.grupo, CASE WHEN LENGTH(g.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre"),
+                                   'g.grupo',
+                                   'g.idTurno',
+                                   't.letra as claveTurno',
+                                   // La descripcion del turno trae un \r al final en la base
+                                   DB::raw("TRIM(REPLACE(REPLACE(t.descripcion, '\\r', ''), '\\n', '')) AS turno")
                                 )
-                                ->where('idNivel', $idNivel)
-                                ->where('idPeriodo',$idPeriodo)
-                                ->where('grupo', 'like', $carreraFormatted.'%')
+                                ->leftJoin('turno as t', 't.idTurno', '=', 'g.idTurno')
+                                ->where('g.idNivel', $idNivel)
+                                ->where('g.idPeriodo',$idPeriodo)
+                                ->where('g.grupo', 'like', $carreraFormatted.'%')
+                                ->orderBy('g.idTurno')
                                 ->orderBy('semestre')
-                                ->orderBy('grupo')
+                                ->orderBy('g.grupo')
                                 ->get();
        return $this->returnData('grupos',$grupos,200);
     }
@@ -170,7 +180,7 @@ class GrupoController extends Controller
                                    'g.idAsignatura',
                                    'asig.descripcion as asignatura',
                                    'g.idTurno',
-                                   't.descripcion as turno',
+                                   DB::raw("TRIM(REPLACE(REPLACE(t.descripcion, '\\r', ''), '\\n', '')) AS turno"),
                                    'g.inscritos',
                                    'g.capacidad',
                                    'g.uidProfesor',
@@ -194,6 +204,9 @@ class GrupoController extends Controller
                                 // La carrera son los primeros 1 o 2 caracteres del grupo ('01D5A' -> 1)
                                 ->whereRaw("CAST(SUBSTRING(g.grupo, 1, CASE WHEN LENGTH(g.grupo) = 4 THEN 1 ELSE 2 END) AS UNSIGNED) = ?", [(int) $idCarrera])
                                 ->where('g.idAsignatura', $idAsignatura)
+                                // Primero por turno (1 matutino, 2 vespertino, ...), luego semestre y grupo
+                                ->orderBy('g.idTurno')
+                                ->orderByRaw("SUBSTRING(g.grupo, CASE WHEN LENGTH(g.grupo) = 4 THEN 3 ELSE 4 END, 1)")
                                 ->orderBy('g.grupo')
                                 ->get();
        return $this->returnData('grupos',$grupos,200);
@@ -785,7 +798,7 @@ public function obtenerAsignaturas($grupo){
 
         return response()->json([
             'status'  => 200,
-            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
         ]);
 
     } else {

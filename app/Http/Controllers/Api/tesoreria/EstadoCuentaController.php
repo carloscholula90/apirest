@@ -2225,10 +2225,24 @@ class EstadoCuentaController extends Controller{
                     END
                 ) > 0
             ")
-            ->orderByRaw('COALESCE(ocs.orden, 999999) ASC' )            
-            ->orderByRaw( 'COALESCE(edo.parcialidad, 999999) ASC' )
+            // Inscripcion primero; recargos y colegiaturas por parcialidad; otros al final.
+            ->orderByRaw("
+                CASE
+                    WHEN CAST(LEFT(edo.referencia, 3) AS UNSIGNED) = 1 THEN 0
+                    WHEN CAST(LEFT(edo.referencia, 3) AS UNSIGNED) IN (2, 3) THEN 1
+                    ELSE 2
+                END ASC
+            ")
+            ->orderByRaw('COALESCE(edo.parcialidad, 999999) ASC')
+            ->orderByRaw("
+                CASE
+                    WHEN CAST(LEFT(edo.referencia, 3) AS UNSIGNED) = 3 THEN 0
+                    WHEN CAST(LEFT(edo.referencia, 3) AS UNSIGNED) = 2 THEN 1
+                    ELSE 2
+                END ASC
+            ")
+            ->orderByRaw('COALESCE(ocs.orden, 999999) ASC')
             ->orderBy('edo.referencia')
-            ->orderByRaw('CAST(LEFT(edo.referencia, 3) AS UNSIGNED) ASC')
             ->lockForUpdate()
             ->get();
     }

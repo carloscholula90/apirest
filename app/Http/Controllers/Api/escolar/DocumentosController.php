@@ -21,6 +21,10 @@ class DocumentosController extends Controller{
                             'a.descripcion as NomAsig',
                             'g.grupo as grupo',
                             'al.matricula',
+                            'al.uid',
+                            // El semestre es el digito despues de la letra de turno en el grupo ('03D5A' -> 5)
+                            DB::raw("SUBSTRING(g.grupo, CASE WHEN LENGTH(g.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre"),
+                            'det.condocente as horas',
                             'pl.idModalidad as Modalidad',
                             'p.nombre as nombreProf',
                             'p.primerApellido as PrimerApellidoProf',
@@ -71,6 +75,13 @@ class DocumentosController extends Controller{
                                         $join->on('pl.idPlan', '=', 'al.idPlan')
                                              ->on('pl.idNivel', '=', 'al.idNivel')
                                              ->on('pl.idCarrera', '=', 'al.idCarrera');
+                                })
+                                // Horas de la asignatura en el plan del alumno (las horas cambian entre planes)
+                                ->leftJoin('detasignatura as det', function ($join) {
+                                        $join->on('det.idNivel', '=', 'g.idNivel')
+                                             ->on('det.idCarrera', '=', 'pl.idCarrera')
+                                             ->on('det.idPlan', '=', 'al.idPlan')
+                                             ->on('det.idAsignatura', '=', 'g.idAsignatura');
                                 })
                                 ->join('persona as Nal', 'Nal.uid', '=', 'cl.uid')
                                 ->join('nivel as niv', 'niv.idNivel', '=', 'pl.idNivel')
@@ -187,7 +198,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -380,7 +391,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -490,22 +501,22 @@ class DocumentosController extends Controller{
                         <td style ="height: 1.2cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: center; vertical-align: middle;">LISTA DE EVALUACIÓN Y ASISTENCIAS PARCIALES</td>  
                         <td></td>            
                     </tr>
-                    <tr>
-                        <td style="height: .6cm; width: 9cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">ASIGNATURA O MATERIA: '.$primerElemento->idAsignatura.'</td>               
+                    <tr>  
+                        <td style="height: .6cm; width: 9cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">ASIGNATURA O MATERIA: '.$primerElemento->idAsignatura.' - '.$primerElemento->NomAsig.'</td>             
                         <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">GRUPO: '.$primerElemento->grupo.'</td>
-                        <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">SEMESTRE:</td>
+                        <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">SEMESTRE: '.$primerElemento->semestre.'</td>
                     </tr>
                     <tr>
                         <td style="height: .6cm; width: 7cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">CARRERA: '.$primerElemento->carrera.'</td>               
                         <td style="height: .6cm; width: 3cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">TURNO: '.$primerElemento->turno.'</td>
-                        <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">No HRS.: </td>
+                        <td style="height: .6cm; width: 5cm; font-family: Arial; font-size: 7pt; font-weight: bold; text-align: left; vertical-align: middle;">No HRS.: '.$primerElemento->horas.'</td>
                     </tr>';         
                     $html2 .= '</table><br><br>';
 
                 $html2 .= '<table border="0" cellpadding="0" style="font-size: 5.5pt; vertical-align: middle; text-align: center; line-height: .5cm; border-collapse: collapse;">  
                     <tr>
                         <td style="border:0.1mm solid #666; height: .5cm; width: .4cm;" rowspan="2">No</td>
-                        <td style="border:0.1mm solid #666; width: 1.4cm;" rowspan="2">MATRICULA</td>
+                        <td style="border:0.1mm solid #666; width: 1.4cm;" rowspan="2">UID</td>
                         <td style="border:0.1mm solid #666; width: 4cm;" rowspan="2">NOMBRE DEL ALUMNO</td>
                         <td style="border:0.1mm solid #666; width: 8.8cm;" colspan="22">ASISTENCIAS</td>
                         <td style="border:0.1mm solid #666; width: 1cm;" rowspan="2">FALTAS</td> 
@@ -542,7 +553,7 @@ class DocumentosController extends Controller{
                 $limite =0;
               
                 foreach ($resultsPagina as $index2 => $row) {
-                    $html2 .= '<tr><td style="border:0.1mm solid #666; height: .25cm;">'.($index2+1).'</td><td style="border:0.1mm solid #666;">'.' '.$row->matricula.'</td><td style="border:0.1mm solid #666; text-align: left;">'.' '.$row->PrimerApellidoAl.' '.$row->SegundoapellidoAl.' '.$row->NombreAl.
+                    $html2 .= '<tr><td style="border:0.1mm solid #666; height: .25cm;">'.($index2+1).'</td><td style="border:0.1mm solid #666;">'.' '.$row->uid.'</td><td style="border:0.1mm solid #666; text-align: left;">'.' '.$row->PrimerApellidoAl.' '.$row->SegundoapellidoAl.' '.$row->NombreAl.
                                 '</td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td>
                                    <td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td>
                                    <td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td><td style="border:0.1mm solid #666;"></td>
@@ -581,7 +592,7 @@ class DocumentosController extends Controller{
             if (file_exists($filePath)) {
                 return response()->json([
                     'status' => 200,  
-                    'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                    'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
                 ]);
             } else {
                 return response()->json([
@@ -705,7 +716,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -811,7 +822,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -908,7 +919,7 @@ class DocumentosController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -1039,7 +1050,7 @@ Universidad Alva Edison (UAE) en cada publicación. </b>
     if (file_exists($filePath)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
         ]);
     } else {
         return response()->json([

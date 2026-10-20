@@ -38,10 +38,11 @@ class GruposConsultaController extends Controller
                     'grupo' => $row->grupo,
                     'capacidad' => $row->capacidad !== null ? (int) $row->capacidad : null,
                     'idTurno' => $row->idTurno !== null ? (int) $row->idTurno : null,
-                    'turno' => $row->turno,
+                    'turno' => $row->turno !== null ? trim($row->turno) : null,
                 ];
             })
-            ->sortBy([['semestre', 'asc'], ['grupo', 'asc'], ['idTurno', 'asc']])
+            // Primero por turno (1 matutino, 2 vespertino, ...), luego semestre y grupo
+            ->sortBy([['idTurno', 'asc'], ['semestre', 'asc'], ['grupo', 'asc']])
             ->values();
 
         if ($grupos->isEmpty()) {

@@ -63,6 +63,10 @@ Route::prefix('auditoria/estado-cuenta')->group(function () {
     require base_path('routes/auditoria/estadoCuenta.php');
 });
 
+Route::prefix('auditoria/bajas')->group(function () {
+    require base_path('routes/auditoria/bajas.php');
+});
+
 Route::prefix('bloqueospersonas')->group(function () {
     require base_path('routes/seguridad/bloqueospersonas.php');
 });
