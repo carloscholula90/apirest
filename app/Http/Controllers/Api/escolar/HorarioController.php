@@ -1,142 +1,274 @@
 <?php
 
-namespace App\Http\Controllers\Api\escolar;  
+namespace App\Http\Controllers\Api\escolar;
+
+use App\Http\Controllers\Api\escolar\Concerns\ManejaHorarios;
 use App\Http\Controllers\Controller;
+use App\Models\escolar\DuracionSesion;
 use App\Models\escolar\Horario;
+use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class HorarioController extends Controller
 {
-    public function index()
+    use ManejaHorarios;
+
+    // Horario por dia y sesiones guardadas del grupo
+    public function show($grupoSec)
     {
-        $horarios = Horario::all();
-        return $this->returnData('horarios', $horarios, 200);
+        $grupo = $this->buscaGrupo($grupoSec);
+
+        if (!$grupo) {
+            return $this->returnEstatus('Grupo no encontrado', 404, null);
+        }
+
+        return $this->returnData('horario', $this->resumen($grupo), 200);
+    }
+
+    // Calcula las sesiones sin guardar nada
+    public function vistaPrevia(Request $request)
+    {
+        $plan = $this->planeaSesiones($request, $request->grupoSec);
+
+        if (is_string($plan)) {
+            return $this->returnEstatus($plan, 400, null);
+        }
+
+        return $this->returnData('sesiones', array_values(array_map(function ($sesion) {
+            return [
+                'fechaIni' => $sesion['fechaIni'],
+                'fechaFin' => $sesion['fechaFin'],
+                'day' => $sesion['day'],
+            ];
+        }, $plan['sesiones'])), 200);
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'grupoSec' => 'required|integer|unique:horarios,grupoSec'
-        ]);
+        $plan = $this->planeaSesiones($request, $request->grupoSec);
 
-        if ($validator->fails()) 
-            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
-
-        try{
-            $horario = Horario::create([
-                'grupoSec' => $request->grupoSec,
-
-                'horalIni' => $request->horalIni,
-                'horalFin' => $request->horalFin,
-                'horamIni' => $request->horamIni,
-                'horamFin' => $request->horamFin,
-                'horammIni' => $request->horammIni,
-                'horammFin' => $request->horammFin,
-                'horajIni' => $request->horajIni,
-                'horajFin' => $request->horajFin,
-                'horavIni' => $request->horavIni,
-                'horavFin' => $request->horavFin,
-                'horasIni' => $request->horasIni,
-                'horasFin' => $request->horasFin,
-                'horadIni' => $request->horadIni,
-                'horadFin' => $request->horadFin,
-            ]);
-        } catch (QueryException $e) {
-
-            if ($e->getCode() == '23000') 
-                return $this->returnEstatus('El horario ya existe',400,null);
-
-            return $this->returnEstatus('Error al insertar el horario',400,null);
+        if (is_string($plan)) {
+            return $this->returnEstatus($plan, 400, null);
         }
 
-        if (!$horario) 
-            return $this->returnEstatus('Error al crear el horario',500,null); 
+        if (Horario::where('grupoSec', $request->grupoSec)->exists()) {
+            return $this->returnEstatus('El grupo ya tiene horario', 400, null);
+        }
 
-        $horario = Horario::findOrFail($request->grupoSec);        
-        return $this->returnData('horarios',$horario,200);
+        return $this->guardaSesiones($plan);
     }
 
-    public function show($id)
+    // Reemplaza las sesiones pendientes; las impartidas no se tocan
+    public function update(Request $request, $grupoSec)
     {
-        $horario = Horario::find($id);
+        $plan = $this->planeaSesiones($request, $grupoSec);
 
-        if (!$horario) 
-            return $this->returnEstatus('Horario no encontrado',404,null); 
+        if (is_string($plan)) {
+            return $this->returnEstatus($plan, 400, null);
+        }
 
-        return $this->returnData('horarios',$horario,200);
+        return $this->guardaSesiones($plan);
     }
 
-    public function destroy($id)
+    public function destroy($grupoSec)
     {
-        $horario = Horario::find($id);
-
-        if (!$horario)
-            return $this->returnEstatus('Horario no encontrado',404,null); 
+        if (!$this->buscaGrupo($grupoSec)) {
+            return $this->returnEstatus('Grupo no encontrado', 404, null);
+        }
 
         try {
-            $horario->delete();
-            return $this->returnEstatus('Horario eliminado',200,null);  
-
+            $this->sesionesPendientes($grupoSec)->delete();
         } catch (QueryException $e) {
-
-            if ($e->getCode() == '23000') 
-                return $this->returnEstatus('No se puede eliminar el horario, está siendo utilizado',400,null); 
+            return $this->returnEstatus('Error al eliminar el horario', 500, null);
         }
+
+        $impartidas = $this->sesionesImpartidas($grupoSec)->count();
+
+        return $this->returnEstatus(
+            $impartidas ? 'Horario eliminado; se conservaron '.$impartidas.' sesiones impartidas' : 'Horario eliminado',
+            200,
+            null
+        );
     }
 
-    public function update(Request $request, $id)
+    // Devuelve el grupo y sus sesiones calculadas, o un texto con el error
+    private function planeaSesiones(Request $request, $grupoSec)
     {
-        $horario = Horario::find($id);
-
-        if (!$horario)  
-            return $this->returnEstatus('Horario no encontrado',404,null);
-
         $validator = Validator::make($request->all(), [
-            'grupoSec' => 'required|integer'
+            'dias' => 'required|array|min:1',
+            'dias.*.day' => 'required',
+            'dias.*.horaIni' => 'required|date_format:H:i',
+            'dias.*.sesiones' => 'required|integer|min:1',
         ]);
 
-        if ($validator->fails()) 
-            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+        if ($validator->fails()) {
+            return 'Captura dia, hora de inicio y numero de sesiones de cada horario';
+        }
 
-        $horario->grupoSec = $id;
+        $grupo = $grupoSec ? $this->buscaGrupo($grupoSec) : null;
 
-        $horario->horalIni = $request->horalIni;
-        $horario->horalFin = $request->horalFin;
-        $horario->horamIni = $request->horamIni;
-        $horario->horamFin = $request->horamFin;
-        $horario->horammIni = $request->horammIni;
-        $horario->horammFin = $request->horammFin;
-        $horario->horajIni = $request->horajIni;
-        $horario->horajFin = $request->horajFin;
-        $horario->horavIni = $request->horavIni;
-        $horario->horavFin = $request->horavFin;
-        $horario->horasIni = $request->horasIni;
-        $horario->horasFin = $request->horasFin;
-        $horario->horadIni = $request->horadIni;
-        $horario->horadFin = $request->horadFin;
+        if (!$grupo) {
+            return 'Grupo no encontrado';
+        }
 
-        $horario->save();
+        $duracion = DuracionSesion::minutos($grupo->idNivel, $grupo->idTurno);
 
-        return $this->returnEstatus('Horario actualizado',200,null); 
+        if (!$duracion) {
+            return 'No hay duracion de sesion configurada para el nivel y turno del grupo';
+        }
+
+        $periodo = DB::table('periodo')
+            ->where('idNivel', $grupo->idNivel)
+            ->where('idPeriodo', $grupo->idPeriodo)
+            ->first();
+
+        if (!$periodo || !$periodo->fechaInicio || !$periodo->fechaTermino) {
+            return 'El periodo del grupo no tiene fechas de inicio y termino';
+        }
+
+        $horarios = [];
+
+        foreach ($request->dias as $dia) {
+            $numero = $this->diaNumero($dia['day']);
+
+            if (!$numero) {
+                return 'El dia de la semana no es valido';
+            }
+
+            if (isset($horarios[$numero])) {
+                return 'Cada dia solo puede tener un horario';
+            }
+
+            $minutos = (int) $dia['sesiones'] * $duracion;
+            $inicio = Carbon::createFromFormat('H:i', $dia['horaIni']);
+
+            if ($inicio->copy()->addMinutes($minutos)->format('Y-m-d') !== $inicio->format('Y-m-d')) {
+                return 'La clase del '.$this->diaNombre($numero).' debe terminar antes de medianoche';
+            }
+
+            $horarios[$numero] = ['horaIni' => $dia['horaIni'], 'minutos' => $minutos];
+        }
+
+        $sesiones = [];
+        $termino = Carbon::parse($periodo->fechaTermino)->startOfDay();
+
+        $festivos = DB::table('diasFestivos')
+            ->whereBetween('fechaFestivo', [$periodo->fechaInicio, $periodo->fechaTermino])
+            ->pluck('fechaFestivo')
+            ->map(function ($fecha) {
+                return substr($fecha, 0, 10);
+            })
+            ->all();
+
+        for ($fecha = Carbon::parse($periodo->fechaInicio)->startOfDay(); $fecha->lte($termino); $fecha->addDay()) {
+            $numero = $fecha->dayOfWeek + 1;
+
+            if (!isset($horarios[$numero]) || in_array($fecha->format('Y-m-d'), $festivos)) {
+                continue;
+            }
+
+            $inicio = Carbon::parse($fecha->format('Y-m-d').' '.$horarios[$numero]['horaIni']);
+
+            $sesiones[] = [
+                'grupoSec' => $grupoSec,
+                'fechaIni' => $inicio->format('Y-m-d H:i:s'),
+                'fechaFin' => $inicio->copy()->addMinutes($horarios[$numero]['minutos'])->format('Y-m-d H:i:s'),
+                'day' => $numero,
+                'impartido' => 0,
+            ];
+        }
+
+        if (!$sesiones) {
+            return 'Ninguna fecha habil del periodo coincide con los dias capturados';
+        }
+
+        return ['grupo' => $grupo, 'sesiones' => $sesiones];
     }
 
-    // Reporte
-    public function generaReporte()
+    private function guardaSesiones(array $plan)
     {
-        return $this->imprimeCtl('horario','horarios');
-    } 
+        $grupo = $plan['grupo'];
+        $grupoSec = $grupo->gruposec ?? $grupo->grupoSec;
 
-    public function exportaExcel()
-    {  
-        return $this->exportaXLS('horario','grupoSec', [
-            'GRUPO',
-            'LUNES INI','LUNES FIN',
-            'MARTES INI','MARTES FIN',
-            'MIÉRCOLES INI','MIÉRCOLES FIN',
-            'JUEVES INI','JUEVES FIN',
-            'VIERNES INI','VIERNES FIN',
-            'SÁBADO INI','SÁBADO FIN',
-            'DOMINGO INI','DOMINGO FIN'
-        ]);     
+        try {
+            DB::transaction(function () use ($plan, $grupoSec) {
+                $fechasImpartidas = $this->sesionesImpartidas($grupoSec)->pluck('fechaIni')
+                    ->map(function ($fecha) {
+                        return substr($fecha, 0, 10);
+                    })
+                    ->all();
+
+                $this->sesionesPendientes($grupoSec)->delete();
+
+                $nuevas = array_filter($plan['sesiones'], function ($sesion) use ($fechasImpartidas) {
+                    return !in_array(substr($sesion['fechaIni'], 0, 10), $fechasImpartidas);
+                });
+
+                foreach (array_chunk($nuevas, 200) as $bloque) {
+                    Horario::insert($bloque);
+                }
+            });
+        } catch (QueryException $e) {
+            return $this->returnEstatus('Error al guardar el horario', 500, null);
+        }
+
+        return $this->returnData('horario', $this->resumen($grupo), 200);
+    }
+
+    private function resumen($grupo)
+    {
+        $grupoSec = $grupo->gruposec ?? $grupo->grupoSec;
+        $duracion = DuracionSesion::minutos($grupo->idNivel, $grupo->idTurno);
+
+        $sesiones = Horario::where('grupoSec', $grupoSec)
+            ->orderBy('fechaIni')
+            ->get(['secHorarios', 'fechaIni', 'fechaFin', 'day', 'impartido']);
+
+        // Cada dia conserva el horario de su sesion mas reciente
+        $dias = [];
+
+        foreach ($sesiones as $sesion) {
+            $inicio = Carbon::parse($sesion->fechaIni);
+            $fin = Carbon::parse($sesion->fechaFin);
+
+            $dias[$sesion->day] = [
+                'day' => (int) $sesion->day,
+                'dia' => $this->diaNombre($sesion->day),
+                'horaIni' => $inicio->format('H:i'),
+                'horaFin' => $fin->format('H:i'),
+                'sesiones' => $duracion ? (int) floor($inicio->diffInMinutes($fin) / $duracion) : null,
+            ];
+        }
+
+        ksort($dias);
+
+        return [
+            'grupoSec' => (int) $grupoSec,
+            'duracionSesion' => $duracion,
+            'dias' => array_values($dias),
+            'total' => $sesiones->count(),
+            'impartidas' => $sesiones->where('impartido', 1)->count(),
+            'sesiones' => $sesiones,
+        ];
+    }
+
+    private function buscaGrupo($grupoSec)
+    {
+        return DB::table('grupos')->where('gruposec', $grupoSec)->first();
+    }
+
+    private function sesionesImpartidas($grupoSec)
+    {
+        return Horario::where('grupoSec', $grupoSec)->where('impartido', 1);
+    }
+
+    private function sesionesPendientes($grupoSec)
+    {
+        return Horario::where('grupoSec', $grupoSec)->where(function ($query) {
+            $query->whereNull('impartido')->orWhere('impartido', '<>', 1);
+        });
     }
 }

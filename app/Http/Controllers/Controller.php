@@ -73,14 +73,11 @@ abstract class Controller
             $query = $query->orderBy($order); // Ordenar por el campo especificado
             
         $data = $query->get();
-        // Consultar los datos de la tabla
-        $data = DB::table($tableName)->get();
 
-        if(empty( $data)){
+        if($data->isEmpty()){
             return response()->json([
                 'status' => 500,
-                'message' => 'No hay datos para generar el reporte
-                '
+                'message' => 'No hay datos para generar el reporte'
             ]);
         }
      
@@ -94,6 +91,9 @@ abstract class Controller
             $headers = ['CLAVE','DESCRIPCIÓN'];
             $columnWidths = [100,300]; // Ajusta los anchos según sea necesario
         }
+
+        // Imprimir solo las columnas que tienen encabezado (evita columnas extra como fechaAlta/fechaModificacion)
+        $columns = array_slice($columns, 0, count($headers));
 
         // Generar el PDF
         $pdfController = new pdfController();
@@ -121,7 +121,7 @@ abstract class Controller
         if (file_exists($path)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'. $tableName . '_rpt.xlsx' // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'. $tableName . '_rpt.xlsx' // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([

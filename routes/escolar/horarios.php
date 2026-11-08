@@ -1,9 +1,10 @@
 <?php
 use App\Http\Controllers\Api\escolar\HorarioController;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route; 
+use Illuminate\Support\Facades\Route;
 
-Route::get('/{id}', [HorarioController::class, 'show']);
+Route::post('/vista-previa', [HorarioController::class, 'vistaPrevia']);
+Route::get('/{grupoSec}', [HorarioController::class, 'show']);
 Route::post('/create', [HorarioController::class, 'store']);
-Route::put('/{id}', [HorarioController::class, 'update']);
-Route::delete('/{id}', [HorarioController::class, 'destroy']);
+Route::put('/{grupoSec}', [HorarioController::class, 'update']);
+Route::delete('/{grupoSec}', [HorarioController::class, 'destroy']);

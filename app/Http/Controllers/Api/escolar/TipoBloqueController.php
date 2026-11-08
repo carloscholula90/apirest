@@ -19,10 +19,13 @@ class TipoBloqueController extends Controller
 
     public function store(Request $request)
     {
+        $this->normalizaColor($request);
+
         $validator = Validator::make($request->all(), [
             'descripcion' => 'required|max:255',
-            'color' => 'required|max:255',
+            'color' => ['required', 'regex:/^#([0-9A-F]{3}|[0-9A-F]{6})$/'],
             'activo' => 'required|integer|in:0,1',
+            'pagable' => 'nullable|integer|in:0,1',
         ]);
 
         if ($validator->fails()) {
@@ -36,8 +39,9 @@ class TipoBloqueController extends Controller
             $tipoBloque = TipoBloque::create([
                 'idTipoBloque' => $newId,
                 'descripcion' => strtoupper(trim($request->descripcion)),
-                'color' => trim($request->color),
+                'color' => $request->color,
                 'activo' => $request->activo,
+                'pagable' => $request->pagable ?? 1,
             ]);
         } catch (QueryException $e) {
             if ($e->getCode() == '23000') {
@@ -73,10 +77,13 @@ class TipoBloqueController extends Controller
             return $this->returnEstatus('Tipo de bloque no encontrado', 404, null);
         }
 
+        $this->normalizaColor($request);
+
         $validator = Validator::make($request->all(), [
             'descripcion' => 'required|max:255',
-            'color' => 'required|max:255',
+            'color' => ['required', 'regex:/^#([0-9A-F]{3}|[0-9A-F]{6})$/'],
             'activo' => 'required|integer|in:0,1',
+            'pagable' => 'nullable|integer|in:0,1',
         ]);
 
         if ($validator->fails()) {
@@ -84,8 +91,13 @@ class TipoBloqueController extends Controller
         }
 
         $tipoBloque->descripcion = strtoupper(trim($request->descripcion));
-        $tipoBloque->color = trim($request->color);
+        $tipoBloque->color = $request->color;
         $tipoBloque->activo = $request->activo;
+
+        if ($request->has('pagable')) {
+            $tipoBloque->pagable = $request->pagable ?? 1;
+        }
+
         $tipoBloque->save();
 
         return $this->returnData('tipoBloque', $tipoBloque, 200);
@@ -108,6 +120,14 @@ class TipoBloqueController extends Controller
             }
 
             return $this->returnEstatus('Error al eliminar el tipo de bloque', 400, null);
+        }
+    }
+
+    // Guarda el color como hexadecimal limpio (#RRGGBB), sin espacios ni ';' al final
+    private function normalizaColor(Request $request)
+    {
+        if ($request->has('color')) {
+            $request->merge(['color' => strtoupper(rtrim(trim((string) $request->color), ';'))]);
         }
     }
 

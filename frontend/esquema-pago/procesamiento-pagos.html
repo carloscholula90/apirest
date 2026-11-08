@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Procesamiento de pagos | Siaweb</title>
+  <link rel="shortcut icon" href="../assets/images/favicon.ico">
+  <!-- Hope UI: mismos archivos que el resto de SIAWEB -->
+  <link rel="stylesheet" href="../assets/css/core/libs.min.css">
+  <link rel="stylesheet" href="../assets/css/hope-ui.min.css?v=2.0.0">
+  <link rel="stylesheet" href="../assets/css/custom.min.css?v=2.0.0">
+  <link rel="stylesheet" href="../assets/css/dark.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&family=Sora:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/esquema-pago.css">
+</head>
+<body>
+  <!-- Aquí va el menú lateral y la barra superior de SIAWEB -->
+  <main class="main-content">
+    <div class="container-fluid content-inner py-4 siaweb-ep" id="pantalla-pagos">
+
+      <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
+        <div>
+          <h1 class="ep-titulo">Procesamiento de pagos</h1>
+          <p class="ep-subtitulo">Administra los calendarios de pago por turno, procesa el pago y revisa el reporte concentrado.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-outline" id="btn-nuevo-calendario"><span data-icono="calendario"></span>Nuevo calendario</button>
+          <a class="btn btn-outline" href="#reporte"><span data-icono="documento"></span>Ver reporte concentrado</a>
+        </div>
+      </div>
+
+      <div id="alerta-general" class="d-none mb-3"></div>
+
+      <div class="row g-4 align-items-stretch mb-4">
+        <div class="col-12 col-xl-6">
+          <section class="card h-100">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <h2 class="card-title"><span class="icon-badge"><span data-icono="calendario" data-tam="18"></span></span>Calendarios de pago</h2>
+              <div class="segmented" role="radiogroup" aria-label="Filtro de calendarios">
+                <button type="button" role="radio" aria-checked="true" class="on" data-filtro="pendientes">Por procesar</button>
+                <button type="button" role="radio" aria-checked="false" data-filtro="todos">Todos</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table">
+                  <thead><tr><th><span class="visually-hidden">Seleccionar</span></th><th>Turno</th><th>Fecha inicio</th><th>Fecha fin</th><th>Estado</th><th><span class="visually-hidden">Acciones</span></th></tr></thead>
+                  <tbody id="tabla-calendarios"></tbody>
+                </table>
+              </div>
+              <p class="ep-ayuda mt-3 mb-0">Por default se selecciona el siguiente calendario por fecha que aún no se procesa. Un calendario procesado ya no se puede modificar.</p>
+            </div>
+          </section>
+        </div>
+
+        <div class="col-12 col-xl-6">
+          <section class="card h-100">
+            <div class="card-header d-flex flex-wrap align-items-start justify-content-between gap-2">
+              <div>
+                <h2 class="card-title">Resumen del calendario</h2>
+                <p class="ep-ayuda mt-1 mb-0" id="resumen-titulo">Sin calendario seleccionado</p>
+              </div>
+              <span class="tag muted" id="resumen-estado"></span>
+            </div>
+            <div class="card-body d-flex flex-column gap-3">
+              <div class="row g-3">
+                <div class="col-6 col-md-4"><div class="kpi"><span class="icon-badge info"><span data-icono="usuarios" data-tam="18"></span></span><span class="rlabel">Empleados</span><span class="v" id="kpi-empleados">—</span></div></div>
+                <div class="col-6 col-md-4"><div class="kpi"><span class="icon-badge info"><span data-icono="reloj" data-tam="18"></span></span><span class="rlabel">Horas trabajadas</span><span class="v" id="kpi-horas">—</span></div></div>
+                <div class="col-6 col-md-4"><div class="kpi"><span class="icon-badge danger"><span data-icono="menos" data-tam="18"></span></span><span class="rlabel">Horas a descontar</span><span class="v" id="kpi-descontar">—</span></div></div>
+                <div class="col-6 col-md-6"><div class="kpi"><span class="icon-badge danger"><span data-icono="porcentaje" data-tam="18"></span></span><span class="rlabel">Retenciones</span><span class="v" id="kpi-retenciones">—</span></div></div>
+                <div class="col-12 col-md-6"><div class="kpi key"><span class="icon-badge"><span data-icono="dinero" data-tam="18"></span></span><span class="rlabel">Neto a pagar</span><span class="v" id="kpi-neto">—</span></div></div>
+              </div>
+              <div class="info-box stacked d-none" id="resumen-calculo">
+                <strong style="font-size:13px">Cómo se llega al neto</strong>
+                <div class="calc">
+                  <span>Honorarios (<span id="calc-horas"></span> h a pagar)</span><span id="calc-honorarios"></span>
+                  <span>Más IVA trasladado</span><span id="calc-iva"></span>
+                  <span>Menos retenciones de ISR e IVA</span><span id="calc-retenciones"></span>
+                  <span class="tot">Neto a pagar</span><span class="tot" id="calc-neto"></span>
+                </div>
+              </div>
+              <div class="d-flex flex-wrap justify-content-end align-items-center gap-3 mt-auto">
+                <span id="estado-procesado" aria-live="polite"></span>
+                <button type="button" class="btn btn-primary" id="btn-procesar" disabled><span data-icono="procesar"></span>Procesar pago</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <section class="card" id="reporte">
+        <div class="card-header">
+          <h2 class="card-title"><span class="icon-badge"><span data-icono="documento" data-tam="18"></span></span>Reporte concentrado</h2>
+          <p class="ep-ayuda mt-1 mb-0">Pago de servicios profesionales independientes · <span id="reporte-titulo">sin calendario</span></p>
+        </div>
+        <div class="card-body">
+          <div id="alerta-omitidos" class="d-none mb-3"></div>
+          <div class="table-responsive">
+            <table class="table" style="min-width:1180px">
+              <thead>
+                <tr>
+                  <th>No.</th><th>Catedrático</th><th>Grado</th><th>Régimen</th>
+                  <th class="num">Horas trab.</th><th class="num">Desc.</th><th class="num">Horas a pagar</th><th class="num">$ por hora</th>
+                  <th class="num">Honorarios</th><th class="num">IVA</th><th class="num">Subtotal</th>
+                  <th class="num">Ret. ISR</th><th class="num">% ISR</th><th class="num">Ret. IVA</th><th class="num">Neto</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-concentrado"></tbody>
+              <tfoot id="pie-concentrado"></tfoot>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Nuevo / editar calendario (mismo modal) -->
+  <div class="modal fade siaweb-ep siaweb-ep-modal" id="modal-calendario" tabindex="-1" aria-labelledby="titulo-modal-calendario" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" id="form-calendario" novalidate>
+        <div class="modal-header">
+          <h2 class="modal-title" id="titulo-modal-calendario"><span class="icon-badge"><span data-icono="calendario" data-tam="18"></span></span><span class="ep-texto-titulo">Nuevo calendario de pago</span></h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div>
+            <label class="form-label" for="calendario-turno">Turno</label>
+            <select class="form-select" id="calendario-turno"></select>
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label" for="calendario-inicio">Fecha inicio</label>
+              <input class="form-control" id="calendario-inicio" type="date">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="calendario-fin">Fecha fin</label>
+              <input class="form-control" id="calendario-fin" type="date">
+            </div>
+          </div>
+          <div class="readonly-row"><span class="rlabel">Procesado</span><span class="rvalue" style="font-size:15px">No</span></div>
+          <div class="ep-error d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><span data-icono="check"></span>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="../assets/js/core/libs.min.js"></script>
+  <script>
+    // Solo para probar fuera de SIAWEB: si Hope UI no cargó, usa Bootstrap 5.2.3 desde CDN
+    if (!window.bootstrap) {
+      document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"><\/script>');
+    }
+  </script>
+  <script src="../assets/js/hope-ui.js"></script>
+  <script src="js/esquema-pago-comun.js"></script>
+  <!-- Modo demo: solo se activa con ?demo=1 o window.SIAWEB_DEMO = true -->
+  <script src="js/esquema-pago-demo.js"></script>
+  <script src="js/procesamiento-pagos.js"></script>
+</body>
+</html>

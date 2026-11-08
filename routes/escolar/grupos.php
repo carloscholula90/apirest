@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\Api\escolar\GrupoController;
+use App\Http\Controllers\Api\escolar\GruposOfertaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
@@ -76,3 +77,13 @@ Route::group([], function () {
 });
 
 Route::get('/consulta/{idNivel}/{idPeriodo}/{idCarrera}', [\App\Http\Controllers\Api\escolar\GruposConsultaController::class, 'show']);
+
+// Oferta de asignaturas
+Route::get('/oferta/{idNivel}/{idPeriodo}/{idCarrera}', [GruposOfertaController::class, 'index'])
+    ->whereNumber('idNivel')
+    ->whereNumber('idPeriodo')
+    ->whereNumber('idCarrera');
+Route::get('/actas/{gruposec}', [GruposOfertaController::class, 'acta']);
+Route::put('/capacidad/{gruposec}', [GruposOfertaController::class, 'actualizarCapacidad']);
+Route::put('/logotipo/{gruposec}', [GruposOfertaController::class, 'actualizarLogotipo']);
+Route::delete('/grupo/{gruposec}', [GruposOfertaController::class, 'destroy']);

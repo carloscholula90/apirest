@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\escolar;
 
+use App\Http\Controllers\Api\escolar\Concerns\ManejaHorarios;
 use App\Http\Controllers\Controller;
 use App\Models\escolar\HorarioProfesor;
 use Illuminate\Database\QueryException;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 
 class HorarioProfesorController extends Controller
 {
+    use ManejaHorarios;
+
     public function index()
     {
         $horariosProfesor = HorarioProfesor::with('tipoBloque')
@@ -36,6 +39,18 @@ class HorarioProfesorController extends Controller
             return $this->returnEstatus('Error en la validacion de los datos', 400, $validator->errors());
         }
 
+        $diaSemana = $this->diaNombre($request->diaSemana);
+
+        if (!$diaSemana) {
+            return $this->returnEstatus('El dia de la semana no es valido', 400, null);
+        }
+
+        $error = $this->validaTraslape($request->uid, $diaSemana, $request);
+
+        if ($error) {
+            return $this->returnEstatus($error, 400, null);
+        }
+
         $maxSecuencia = HorarioProfesor::where('uid', $request->uid)->max('secuencia');
         $newSecuencia = $maxSecuencia ? $maxSecuencia + 1 : 1;
 
@@ -45,7 +60,7 @@ class HorarioProfesorController extends Controller
                 'secuencia' => $newSecuencia,
                 'fechaInicio' => $request->fechaInicio,
                 'fechaFin' => $request->fechaFin,
-                'diaSemana' => strtoupper(trim($request->diaSemana)),
+                'diaSemana' => $diaSemana,
                 'horaInicio' => $request->horaInicio,
                 'horaFin' => $request->horaFin,
                 'idTipoBloque' => $request->idTipoBloque,
@@ -83,11 +98,7 @@ class HorarioProfesorController extends Controller
 
     public function update(Request $request, $uid, $secuencia)
     {
-        $horarioProfesor = HorarioProfesor::where('uid', $uid)
-            ->where('secuencia', $secuencia)
-            ->first();
-
-        if (!$horarioProfesor) {
+        if (!$this->buscaHorario($uid, $secuencia)->exists()) {
             return $this->returnEstatus('Horario del profesor no encontrado', 404, null);
         }
 
@@ -104,30 +115,41 @@ class HorarioProfesorController extends Controller
             return $this->returnEstatus('Error en la validacion de los datos', 400, $validator->errors());
         }
 
-        $horarioProfesor->fechaInicio = $request->fechaInicio;
-        $horarioProfesor->fechaFin = $request->fechaFin;
-        $horarioProfesor->diaSemana = strtoupper(trim($request->diaSemana));
-        $horarioProfesor->horaInicio = $request->horaInicio;
-        $horarioProfesor->horaFin = $request->horaFin;
-        $horarioProfesor->idTipoBloque = $request->idTipoBloque;
-        $horarioProfesor->save();
-        $horarioProfesor->load('tipoBloque');
+        $diaSemana = $this->diaNombre($request->diaSemana);
+
+        if (!$diaSemana) {
+            return $this->returnEstatus('El dia de la semana no es valido', 400, null);
+        }
+
+        $error = $this->validaTraslape($uid, $diaSemana, $request, $secuencia);
+
+        if ($error) {
+            return $this->returnEstatus($error, 400, null);
+        }
+
+        // La llave es compuesta (uid, secuencia): se actualiza por query para no tocar horarios de otros profesores
+        $this->buscaHorario($uid, $secuencia)->update([
+            'fechaInicio' => $request->fechaInicio,
+            'fechaFin' => $request->fechaFin,
+            'diaSemana' => $diaSemana,
+            'horaInicio' => $request->horaInicio,
+            'horaFin' => $request->horaFin,
+            'idTipoBloque' => $request->idTipoBloque,
+        ]);
+
+        $horarioProfesor = $this->buscaHorario($uid, $secuencia)->with('tipoBloque')->first();
 
         return $this->returnData('horarioProfesor', $horarioProfesor, 200);
     }
 
     public function destroy($uid, $secuencia)
     {
-        $horarioProfesor = HorarioProfesor::where('uid', $uid)
-            ->where('secuencia', $secuencia)
-            ->first();
-
-        if (!$horarioProfesor) {
+        if (!$this->buscaHorario($uid, $secuencia)->exists()) {
             return $this->returnEstatus('Horario del profesor no encontrado', 404, null);
         }
 
         try {
-            $horarioProfesor->delete();
+            $this->buscaHorario($uid, $secuencia)->delete();
             return $this->returnEstatus('Horario del profesor eliminado', 200, null);
         } catch (QueryException $e) {
             if ($e->getCode() == '23000') {
@@ -136,5 +158,37 @@ class HorarioProfesorController extends Controller
 
             return $this->returnEstatus('Error al eliminar el horario del profesor', 400, null);
         }
+    }
+
+    private function buscaHorario($uid, $secuencia)
+    {
+        return HorarioProfesor::where('uid', $uid)
+            ->where('secuencia', $secuencia);
+    }
+
+    // No se permiten dos actividades del mismo profesor, el mismo dia y en vigencias que se cruzan
+    private function validaTraslape($uid, $diaSemana, Request $request, $excluirSecuencia = null)
+    {
+        $traslape = HorarioProfesor::with('tipoBloque')
+            ->where('uid', $uid)
+            ->where('fechaInicio', '<=', $request->fechaFin)
+            ->where('fechaFin', '>=', $request->fechaInicio)
+            ->when($excluirSecuencia, function ($query) use ($excluirSecuencia) {
+                $query->where('secuencia', '<>', $excluirSecuencia);
+            })
+            ->get()
+            ->first(function ($otro) use ($diaSemana, $request) {
+                return $this->diaNombre($otro->diaSemana) === $diaSemana
+                    && $this->seEmpalman($request->horaInicio, $request->horaFin, $otro->horaInicio, $otro->horaFin);
+            });
+
+        if (!$traslape) {
+            return null;
+        }
+
+        $tipo = $traslape->tipoBloque ? trim($traslape->tipoBloque->descripcion) : 'otra actividad';
+
+        return 'Se traslapa con ' . $tipo . ' del ' . $diaSemana . ' ('
+            . substr($traslape->horaInicio, 0, 5) . ' - ' . substr($traslape->horaFin, 0, 5) . ')';
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\tesoreria;  
 use App\Http\Controllers\Controller;
 use App\Models\tesoreria\Impuesto;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -17,18 +18,22 @@ class ImpuestoController extends Controller{
     {
 
         $validator = Validator::make($request->all(), [
-                    'descripcion' => 'required|max:255'
+                    'descripcion' => 'required|max:255',
+                    'porcentaje' => 'nullable|numeric|between:0,100',
+                    'esRetencion' => 'nullable|integer|in:0,1'
         ]);
 
-        if ($validator->fails()) 
-            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
+        if ($validator->fails())
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
 
-        $maxId = Impuesto::max('idImpuesto');  
-        $newId = $maxId ? $maxId + 1 : 1; 
+        $maxId = Impuesto::max('idImpuesto');
+        $newId = $maxId ? $maxId + 1 : 1;
         try{
         $impuestos = Impuesto::create([
                         'idImpuesto' => $newId,
-                        'descripcion' => strtoupper(trim($request->descripcion))
+                        'descripcion' => strtoupper(trim($request->descripcion)),
+                        'porcentaje' => $request->porcentaje ?? 0,
+                        'esRetencion' => $request->esRetencion ?? 0
         ]);
         } catch (QueryException $e) {
             // Capturamos el error relacionado con las restricciones
@@ -72,14 +77,23 @@ class ImpuestoController extends Controller{
 
         $validator = Validator::make($request->all(), [
                     'idImpuesto' => 'required|numeric|max:255',
-                    'descripcion' => 'required|max:255'
+                    'descripcion' => 'required|max:255',
+                    'porcentaje' => 'nullable|numeric|between:0,100',
+                    'esRetencion' => 'nullable|integer|in:0,1'
         ]);
 
-        if ($validator->fails()) 
-            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors()); 
-            
+        if ($validator->fails())
+            return $this->returnEstatus('Error en la validación de los datos',400,$validator->errors());
+
         $Impuesto->idImpuesto = $request->idImpuesto;
         $Impuesto->descripcion = strtoupper(trim($request->descripcion));
+
+        if ($request->has('porcentaje'))
+            $Impuesto->porcentaje = $request->porcentaje ?? 0;
+
+        if ($request->has('esRetencion'))
+            $Impuesto->esRetencion = $request->esRetencion ?? 0;
+
         $Impuesto->save();
         return $this->returnData('Impuesto',$Impuesto,200);
     }

@@ -1,12 +1,16 @@
 <?php
 
 namespace App\Http\Controllers\Api\escolar;  
+use App\Http\Controllers\Api\escolar\Concerns\ManejaHorarios;
 use App\Http\Controllers\Controller;
 use App\Models\escolar\Turno;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class TurnoController extends Controller{
+
+    use ManejaHorarios;
 
     public function index(){       
         $turnos = Turno::all();
@@ -16,7 +20,7 @@ class TurnoController extends Controller{
     public function turnosConDetalle()
     {
         $turnos = Turno::with(['detallesTurno' => function ($query) {
-            $query->orderBy('idDtlTurno');
+            $query->orderByRaw('CAST(diaSemana AS UNSIGNED)');
         }])
             ->orderBy('descripcion')
             ->get()
@@ -30,7 +34,7 @@ class TurnoController extends Controller{
 
                 return [
                     'idTurno' => $turno->idTurno,
-                    'descripcion' => $turno->descripcion,
+                    'descripcion' => trim($turno->descripcion),
                     'letra' => $turno->letra,
                     'parciales' => $turno->parciales,
                     'textoTurno' => $horario
@@ -59,23 +63,12 @@ class TurnoController extends Controller{
         return substr($hora, 0, 5);
     }
 
+    // diaSemana se guarda como numero (1 domingo ... 7 sabado); tambien se aceptan nombres
     private function diaCorto($diaSemana)
     {
-        $dias = [
-            'LUNES' => 'L',
-            'MARTES' => 'M',
-            'MIERCOLES' => 'M',
-            'MIÉRCOLES' => 'M',
-            'JUEVES' => 'J',
-            'VIERNES' => 'V',
-            'SABADO' => 'S',
-            'SÁBADO' => 'S',
-            'DOMINGO' => 'D',
-        ];
+        $dia = $this->diaNombre($diaSemana);
 
-        $dia = strtoupper(trim($diaSemana));
-
-        return $dias[$dia] ?? substr($dia, 0, 1);
+        return $dia ? mb_substr($dia, 0, 1, 'UTF-8') : trim($diaSemana);
     }
 
     public function store(Request $request)

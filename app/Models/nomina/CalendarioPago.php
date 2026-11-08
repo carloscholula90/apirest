@@ -2,6 +2,7 @@
 
 namespace App\Models\nomina;
 
+use App\Models\escolar\Turno;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -10,10 +11,10 @@ class CalendarioPago extends Model
     use HasFactory;
 
     protected $table = 'calendarioPago';
-    protected $primaryKey = 'idTurno';
+    protected $primaryKey = 'idCalendarioPago';
     protected $keyType = 'int';
     public $timestamps = false;
-    public $incrementing = false;
+    public $incrementing = true;
 
     protected $fillable = [
         'idTurno',
@@ -22,4 +23,9 @@ class CalendarioPago extends Model
         'procesado',
         'fechaCreacion',
     ];
+
+    public function turno()
+    {
+        return $this->belongsTo(Turno::class, 'idTurno', 'idTurno');
+    }
 }

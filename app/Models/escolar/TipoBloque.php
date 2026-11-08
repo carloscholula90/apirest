@@ -20,5 +20,6 @@ class TipoBloque extends Model
         'descripcion',
         'color',
         'activo',
+        'pagable',
     ];
 }

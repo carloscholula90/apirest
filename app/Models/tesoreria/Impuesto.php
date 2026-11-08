@@ -16,6 +16,8 @@ class Impuesto extends Model
 
     protected $fillable = [
                         'idImpuesto',
-                        'descripcion'
+                        'descripcion',
+                        'porcentaje',
+                        'esRetencion'
     ];
 }

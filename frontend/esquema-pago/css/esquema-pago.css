@@ -1,0 +1,241 @@
+/*
+ * Esquema de pago — estilos del sistema de diseño SIAWEB sobre Hope UI 2.0 / Bootstrap 5.
+ * Todo vive bajo .siaweb-ep para no alterar el resto de las secciones.
+ */
+.siaweb-ep {
+  --ep-bg: #f1f4f1;
+  --ep-surface: #ffffff;
+  --ep-surface-muted: #edf1ed;
+  --ep-border: #dfe5df;
+  --ep-text: #1b221c;
+  --ep-text-muted: #5c665d;
+  --ep-accent: #1c7a3d;
+  --ep-accent-strong: #146130;
+  --ep-accent-soft-bg: #e2f4e9;
+  --ep-accent-soft-text: #1f7a41;
+  --ep-bad-bg: #fbe7e4;
+  --ep-bad-text: #a23b2e;
+  --ep-info-bg: #e2eef8;
+  --ep-info-text: #2f6a95;
+  --ep-danger: #c0392b;
+  --ep-on-accent: #ffffff;
+  --ep-shadow-1: rgba(20, 30, 20, .10);
+  --ep-shadow-2: rgba(20, 30, 20, .06);
+
+  /* Bootstrap toma el verde de marca como primario dentro de estas pantallas */
+  --bs-primary: var(--ep-accent);
+  --bs-primary-rgb: 28, 122, 61;
+  --bs-link-color: var(--ep-accent-strong);
+  --bs-link-hover-color: var(--ep-accent-strong);
+
+  font-family: 'Titillium Web', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.12rem;
+  color: var(--ep-text);
+}
+
+/* Modo oscuro de Hope UI (dark.min.css agrega .dark al body) */
+.dark .siaweb-ep,
+.siaweb-ep.dark {
+  --ep-bg: #14181a;
+  --ep-surface: #1c211e;
+  --ep-surface-muted: #252b27;
+  --ep-border: #343c36;
+  --ep-text: #e8ece8;
+  --ep-text-muted: #9aa79c;
+  --ep-accent: #3fbf70;
+  --ep-accent-strong: #57d184;
+  --ep-accent-soft-bg: #1c3226;
+  --ep-accent-soft-text: #7fe3a5;
+  --ep-bad-bg: #3a221d;
+  --ep-bad-text: #f0a08f;
+  --ep-info-bg: #1c2b36;
+  --ep-info-text: #8fc3eb;
+  --ep-on-accent: #0f1a12;
+  --ep-shadow-1: rgba(0, 0, 0, .45);
+  --ep-shadow-2: rgba(0, 0, 0, .3);
+  --bs-primary-rgb: 63, 191, 112;
+}
+
+.siaweb-ep .ep-titulo { font-family: 'Sora', 'Titillium Web', sans-serif; font-size: 23px; font-weight: 700; margin: 0; }
+.siaweb-ep .ep-subtitulo { color: var(--ep-text-muted); font-size: 15px; margin: 4px 0 0; }
+
+/* Tarjetas */
+.siaweb-ep .card {
+  background: var(--ep-surface);
+  border: 1px solid var(--ep-border);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px var(--ep-shadow-1), 0 2px 6px var(--ep-shadow-2);
+}
+.siaweb-ep .card-header { background: transparent; border-bottom: 0; padding: 18px 20px 6px; }
+.siaweb-ep .card-body { padding: 14px 20px 18px; }
+.siaweb-ep .card-title { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; margin: 0; }
+
+.siaweb-ep .icon-badge {
+  width: 34px; height: 34px; border-radius: 999px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ep-accent-soft-bg); color: var(--ep-accent-strong);
+}
+.siaweb-ep .icon-badge.danger { background: var(--ep-bad-bg); color: var(--ep-danger); }
+.siaweb-ep .icon-badge.info { background: var(--ep-info-bg); color: var(--ep-info-text); }
+
+/* Botones */
+.siaweb-ep .btn { font-weight: 600; font-size: 15px; border-radius: 10px; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; }
+.siaweb-ep .btn-primary { background: var(--ep-accent); border-color: var(--ep-accent); color: var(--ep-on-accent); }
+.siaweb-ep .btn-primary:hover, .siaweb-ep .btn-primary:focus { background: var(--ep-accent-strong); border-color: var(--ep-accent-strong); color: var(--ep-on-accent); }
+.siaweb-ep .btn-outline { background: var(--ep-surface); border: 1.5px solid var(--ep-border); color: var(--ep-text); }
+.siaweb-ep .btn-outline:hover { border-color: var(--ep-accent); color: var(--ep-text); }
+.siaweb-ep .btn-danger { background: var(--ep-danger); border-color: var(--ep-danger); color: #fff; }
+.siaweb-ep .btn-link-danger { background: transparent; border: 0; color: var(--ep-danger); padding-left: 4px; padding-right: 4px; }
+.siaweb-ep .btn:disabled { opacity: .45; }
+.siaweb-ep .btn-icon {
+  width: 36px; height: 36px; min-height: 36px; padding: 0; justify-content: center;
+  border-radius: 999px; border: 1px solid var(--ep-border); background: var(--ep-surface); color: var(--ep-text-muted);
+}
+.siaweb-ep .btn-icon:hover { color: var(--ep-accent-strong); border-color: var(--ep-accent); }
+.siaweb-ep .btn-icon.del:hover { color: var(--ep-danger); border-color: var(--ep-danger); }
+
+/* Formularios */
+.siaweb-ep .form-label, .siaweb-ep .ep-label { font-size: 13px; font-weight: 600; color: var(--ep-text-muted); margin-bottom: 6px; }
+.siaweb-ep .form-control, .siaweb-ep .form-select {
+  font-size: 14px; color: var(--ep-text); background-color: var(--ep-surface);
+  border: 1.5px solid var(--ep-border); border-radius: 10px; min-height: 44px;
+}
+.siaweb-ep .form-control:focus, .siaweb-ep .form-select:focus { border-color: var(--ep-accent); box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .2); }
+.siaweb-ep .form-check-input:checked { background-color: var(--ep-accent); border-color: var(--ep-accent); }
+.siaweb-ep .form-text, .siaweb-ep .ep-ayuda { font-size: 12px; color: var(--ep-text-muted); }
+.siaweb-ep .amount-input { display: flex; align-items: center; border: 1.5px solid var(--ep-accent); border-radius: 10px; background: var(--ep-surface); padding: 0 12px; }
+.siaweb-ep .amount-input span { color: var(--ep-accent-strong); font-weight: 700; margin-right: 6px; }
+.siaweb-ep .amount-input .form-control { border: 0; box-shadow: none; padding-left: 0; }
+.siaweb-ep .search-wrap { position: relative; }
+.siaweb-ep .search-wrap .form-control { padding-right: 40px; }
+.siaweb-ep .search-wrap > svg { position: absolute; right: 12px; top: 13px; color: var(--ep-text-muted); pointer-events: none; }
+.siaweb-ep .search-results { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); max-height: 280px; overflow: auto; border-radius: 10px; box-shadow: 0 10px 30px var(--ep-shadow-1); }
+.siaweb-ep .search-results .list-group-item { font-size: 14px; cursor: pointer; }
+
+/* Tablas */
+.siaweb-ep .table { font-size: 14px; color: var(--ep-text); margin-bottom: 0; }
+.siaweb-ep .table thead th {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--ep-text-muted); border-bottom: 1px solid var(--ep-border); white-space: nowrap; background: transparent;
+}
+.siaweb-ep .table td { border-bottom: 1px solid var(--ep-surface-muted); vertical-align: middle; background: transparent; }
+.siaweb-ep .table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.siaweb-ep .table tr.row-active td { background: var(--ep-accent-soft-bg); }
+.siaweb-ep .table tfoot td { font-weight: 700; background: var(--ep-surface-muted); border-top: 1px solid var(--ep-border); }
+.siaweb-ep .ofa-radio { width: 18px; height: 18px; accent-color: var(--ep-accent); cursor: pointer; }
+
+/* Etiquetas */
+.siaweb-ep .tag {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .03em; border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+}
+.siaweb-ep .tag.good { background: var(--ep-accent-soft-bg); color: var(--ep-accent-soft-text); }
+.siaweb-ep .tag.bad { background: var(--ep-bad-bg); color: var(--ep-bad-text); }
+.siaweb-ep .tag.info { background: var(--ep-info-bg); color: var(--ep-info-text); }
+.siaweb-ep .tag.muted { background: var(--ep-surface-muted); color: var(--ep-text-muted); }
+.siaweb-ep .swatch { width: 14px; height: 14px; border-radius: 999px; display: inline-block; flex: none; border: 1px solid rgba(0, 0, 0, .08); }
+
+/* Mensajes */
+.siaweb-ep .alert-siaweb, .siaweb-ep .info-box {
+  display: flex; gap: 10px; align-items: flex-start; border-radius: 10px; padding: 10px 12px; font-size: 14px;
+}
+.siaweb-ep .alert-siaweb { background: var(--ep-bad-bg); color: var(--ep-bad-text); }
+.siaweb-ep .info-box { background: var(--ep-accent-soft-bg); color: var(--ep-accent-strong); }
+.siaweb-ep .info-box.neutral { background: var(--ep-info-bg); color: var(--ep-info-text); }
+.siaweb-ep .info-box.danger-soft { background: var(--ep-bad-bg); color: var(--ep-bad-text); }
+.siaweb-ep .info-box.stacked { flex-direction: column; gap: 4px; }
+.siaweb-ep .alert-siaweb svg, .siaweb-ep .info-box > svg { flex: none; margin-top: 2px; }
+.siaweb-ep .table-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  padding: 28px 12px; color: var(--ep-text-muted); font-size: 14px;
+}
+.siaweb-ep .table-empty strong { color: var(--ep-text); font-size: 15px; }
+.siaweb-ep .saved { display: inline-flex; align-items: center; gap: 6px; color: var(--ep-accent-strong); font-size: 14px; font-weight: 600; }
+
+/* Datos de solo lectura */
+.siaweb-ep .readonly-row { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.siaweb-ep .rlabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ep-text-muted); }
+.siaweb-ep .rvalue { font-size: 16px; font-weight: 700; }
+
+/* Días */
+.siaweb-ep .day-chip {
+  font-size: 12px; font-weight: 700; width: 28px; height: 28px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ep-surface-muted); color: var(--ep-text-muted);
+}
+.siaweb-ep .day-chip.on { background: var(--ep-accent-soft-bg); color: var(--ep-accent-soft-text); }
+
+/* Selector de una opción */
+.siaweb-ep .segmented { display: inline-flex; border: 1.5px solid var(--ep-border); border-radius: 10px; padding: 3px; gap: 3px; background: var(--ep-surface); }
+.siaweb-ep .segmented button { font: inherit; font-size: 14px; font-weight: 600; border: 0; border-radius: 8px; padding: 6px 12px; min-height: 36px; background: transparent; color: var(--ep-text-muted); }
+.siaweb-ep .segmented button.on { background: var(--ep-accent-soft-bg); color: var(--ep-accent-strong); }
+
+.siaweb-ep .tipo-opt {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 12px; min-height: 52px;
+  border-radius: 10px; border: 1.5px solid var(--ep-border); background: var(--ep-surface); color: var(--ep-text); font-size: 14px; font-weight: 700;
+}
+.siaweb-ep .tipo-opt.on { border-color: var(--ep-accent); background: var(--ep-accent-soft-bg); }
+.siaweb-ep .tipo-dot { width: 16px; height: 16px; border-radius: 5px; flex: none; }
+
+/* Indicadores */
+.siaweb-ep .kpi { background: var(--ep-surface); border: 1px solid var(--ep-border); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.siaweb-ep .kpi .v { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.siaweb-ep .kpi.key { background: var(--ep-accent-soft-bg); border-color: var(--ep-accent); }
+.siaweb-ep .kpi.key .v { color: var(--ep-accent-strong); }
+.siaweb-ep .calc { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.siaweb-ep .calc .tot { font-weight: 700; border-top: 1px solid currentColor; padding-top: 6px; margin-top: 2px; }
+
+/* Cuadrícula del horario */
+.siaweb-ep .grid-wrap { overflow-x: auto; border: 1px solid var(--ep-border); border-radius: 10px; }
+.siaweb-ep .hgrid { display: grid; min-width: 640px; background: var(--ep-surface); }
+.siaweb-ep .hhead {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ep-text-muted);
+  display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--ep-border); background: var(--ep-surface-muted);
+}
+.siaweb-ep .hhour { font-size: 12px; color: var(--ep-text-muted); padding: 2px 8px 0 0; text-align: right; border-right: 1px solid var(--ep-border); }
+.siaweb-ep .hcell { border: 0; border-bottom: 1px solid var(--ep-surface-muted); border-right: 1px solid var(--ep-surface-muted); background: transparent; padding: 0; }
+.siaweb-ep .hcell:hover, .siaweb-ep .hcell:focus { background: var(--ep-accent-soft-bg); outline: none; }
+.siaweb-ep .hblk {
+  margin: 2px; border-radius: 8px; border: 1.5px solid; padding: 4px 8px; text-align: left; font-size: 12px; line-height: 1.25;
+  color: var(--ep-text); display: flex; flex-direction: column; gap: 1px; overflow: hidden; z-index: 1; background: var(--ep-surface);
+}
+.siaweb-ep .hblk strong { font-size: 12px; letter-spacing: .02em; }
+.siaweb-ep .hblk.fixed { border-style: dashed; cursor: default; }
+.siaweb-ep .stat { display: flex; justify-content: space-between; align-items: center; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--ep-surface-muted); }
+.siaweb-ep .hhour.receso, .siaweb-ep .hhour.hueco { font-size: 11px; }
+.siaweb-ep .hreceso {
+  display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11px; font-weight: 700;
+  letter-spacing: .03em; text-transform: uppercase; border-radius: 6px; margin: 2px; border: 1.5px dashed;
+}
+.siaweb-ep .hhueco { background: var(--ep-surface-muted); }
+.siaweb-ep .hblk.otro { border-style: dotted; cursor: default; background: var(--ep-surface-muted) !important; color: var(--ep-text-muted); }
+
+/* Leyenda de tipos de bloque (solo informativa) */
+.siaweb-ep .leyenda { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; font-weight: 600; }
+.siaweb-ep .leyenda-item { display: inline-flex; align-items: center; gap: 6px; }
+.siaweb-ep .leyenda-muestra { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid; flex: none; }
+
+/* Impresión del horario global */
+.ep-impresion { display: none; }
+@media print {
+  body * { visibility: hidden; }
+  .ep-impresion, .ep-impresion * { visibility: visible; }
+  .ep-impresion { display: block; position: absolute; left: 0; top: 0; width: 100%; padding: 0; font-family: 'Titillium Web', sans-serif; color: #000; }
+  .ep-impresion .hgrid { min-width: 0; }
+  .ep-impresion .grid-wrap { overflow: visible; }
+  .ep-impresion .hblk { break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .ep-impresion .hhead, .ep-impresion .hhueco { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { size: landscape; margin: 12mm; }
+}
+
+/* Modales (Bootstrap) con el patrón "Condonar cargo" */
+.siaweb-ep-modal .modal-content {
+  font-family: 'Titillium Web', -apple-system, BlinkMacSystemFont, sans-serif;
+  border-radius: 14px; border: 1px solid var(--ep-border, #dfe5df);
+  box-shadow: 0 10px 30px rgba(20, 30, 20, .10), 0 2px 6px rgba(20, 30, 20, .06);
+}
+.siaweb-ep-modal .modal-header { border-bottom: 0; padding: 18px 22px; }
+.siaweb-ep-modal .modal-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+.siaweb-ep-modal .modal-body { padding: 4px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
+.siaweb-ep-modal .modal-footer { border-top: 1px solid var(--ep-surface-muted, #edf1ed); padding: 14px 22px; gap: 10px; }
+.siaweb-ep-modal .modal-footer > * { margin: 0; }

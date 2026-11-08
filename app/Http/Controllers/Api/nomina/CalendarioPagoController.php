@@ -10,11 +10,44 @@ use Illuminate\Support\Facades\Validator;
 
 class CalendarioPagoController extends Controller
 {
-    public function index()
+    // ?pendientes=1 devuelve solo los calendarios que aun no se procesan
+    public function index(Request $request)
     {
-        $calendariosPago = CalendarioPago::orderBy('idTurno')->get();
+        $calendariosPago = CalendarioPago::with('turno')
+            ->when($request->boolean('pendientes'), function ($query) {
+                $query->where('procesado', 0);
+            })
+            ->orderBy('fechaInicio')
+            ->orderBy('idTurno')
+            ->get();
 
         return $this->returnData('calendariosPago', $calendariosPago, 200);
+    }
+
+    public function porTurno($idTurno)
+    {
+        $calendariosPago = CalendarioPago::with('turno')
+            ->where('idTurno', $idTurno)
+            ->orderBy('fechaInicio')
+            ->get();
+
+        return $this->returnData('calendariosPago', $calendariosPago, 200);
+    }
+
+    // Siguiente calendario por fecha que aun no se procesa; es el que se muestra por default
+    public function siguiente()
+    {
+        $calendarioPago = CalendarioPago::with('turno')
+            ->where('procesado', 0)
+            ->orderBy('fechaInicio')
+            ->orderBy('idTurno')
+            ->first();
+
+        if (!$calendarioPago) {
+            return $this->returnEstatus('No hay calendarios de pago por procesar', 404, null);
+        }
+
+        return $this->returnData('calendarioPago', $calendarioPago, 200);
     }
 
     public function store(Request $request)
@@ -22,8 +55,8 @@ class CalendarioPagoController extends Controller
         $validator = Validator::make($request->all(), [
             'idTurno' => 'required|integer',
             'fechaInicio' => 'required|date',
-            'fechaFin' => 'required|date|after_or_equal:fechaInicio',
-            'procesado' => 'required|integer|in:0,1',
+            'fechaFin' => 'required|date|after:fechaInicio',
+            'procesado' => 'nullable|integer|in:0,1',
             'fechaCreacion' => 'nullable|date',
         ]);
 
@@ -31,12 +64,18 @@ class CalendarioPagoController extends Controller
             return $this->returnEstatus('Error en la validacion de los datos', 400, $validator->errors());
         }
 
+        $empalme = $this->buscaEmpalme($request->idTurno, $request->fechaInicio, $request->fechaFin);
+
+        if ($empalme) {
+            return $this->returnEstatus($empalme, 400, null);
+        }
+
         try {
             $calendarioPago = CalendarioPago::create([
                 'idTurno' => $request->idTurno,
                 'fechaInicio' => $request->fechaInicio,
                 'fechaFin' => $request->fechaFin,
-                'procesado' => $request->procesado,
+                'procesado' => $request->procesado ?? 0,
                 'fechaCreacion' => $request->fechaCreacion ?? now(),
             ]);
         } catch (QueryException $e) {
@@ -54,9 +93,9 @@ class CalendarioPagoController extends Controller
         return $this->returnData('calendarioPago', $calendarioPago, 200);
     }
 
-    public function show($idTurno)
+    public function show($idCalendarioPago)
     {
-        $calendarioPago = CalendarioPago::find($idTurno);
+        $calendarioPago = CalendarioPago::with('turno')->find($idCalendarioPago);
 
         if (!$calendarioPago) {
             return $this->returnEstatus('Calendario de pago no encontrado', 404, null);
@@ -65,17 +104,22 @@ class CalendarioPagoController extends Controller
         return $this->returnData('calendarioPago', $calendarioPago, 200);
     }
 
-    public function update(Request $request, $idTurno)
+    public function update(Request $request, $idCalendarioPago)
     {
-        $calendarioPago = CalendarioPago::find($idTurno);
+        $calendarioPago = CalendarioPago::find($idCalendarioPago);
 
         if (!$calendarioPago) {
             return $this->returnEstatus('Calendario de pago no encontrado', 404, null);
         }
 
+        if ($calendarioPago->procesado) {
+            return $this->returnEstatus('El calendario de pago ya fue procesado y no se puede modificar', 400, null);
+        }
+
         $validator = Validator::make($request->all(), [
+            'idTurno' => 'nullable|integer',
             'fechaInicio' => 'required|date',
-            'fechaFin' => 'required|date|after_or_equal:fechaInicio',
+            'fechaFin' => 'required|date|after:fechaInicio',
             'procesado' => 'required|integer|in:0,1',
             'fechaCreacion' => 'nullable|date',
         ]);
@@ -84,6 +128,14 @@ class CalendarioPagoController extends Controller
             return $this->returnEstatus('Error en la validacion de los datos', 400, $validator->errors());
         }
 
+        $idTurno = $request->idTurno ?? $calendarioPago->idTurno;
+        $empalme = $this->buscaEmpalme($idTurno, $request->fechaInicio, $request->fechaFin, $calendarioPago->idCalendarioPago);
+
+        if ($empalme) {
+            return $this->returnEstatus($empalme, 400, null);
+        }
+
+        $calendarioPago->idTurno = $idTurno;
         $calendarioPago->fechaInicio = $request->fechaInicio;
         $calendarioPago->fechaFin = $request->fechaFin;
         $calendarioPago->procesado = $request->procesado;
@@ -97,12 +149,16 @@ class CalendarioPagoController extends Controller
         return $this->returnData('calendarioPago', $calendarioPago, 200);
     }
 
-    public function destroy($idTurno)
+    public function destroy($idCalendarioPago)
     {
-        $calendarioPago = CalendarioPago::find($idTurno);
+        $calendarioPago = CalendarioPago::find($idCalendarioPago);
 
         if (!$calendarioPago) {
             return $this->returnEstatus('Calendario de pago no encontrado', 404, null);
+        }
+
+        if ($calendarioPago->procesado) {
+            return $this->returnEstatus('El calendario de pago ya fue procesado y no se puede eliminar', 400, null);
         }
 
         try {
@@ -115,5 +171,24 @@ class CalendarioPagoController extends Controller
 
             return $this->returnEstatus('Error al eliminar el calendario de pago', 400, null);
         }
+    }
+
+    // Dos calendarios del mismo turno no pueden cubrir fechas en comun
+    private function buscaEmpalme($idTurno, $fechaInicio, $fechaFin, $excluirIdCalendarioPago = null)
+    {
+        $empalme = CalendarioPago::where('idTurno', $idTurno)
+            ->where('fechaInicio', '<=', $fechaFin)
+            ->where('fechaFin', '>=', $fechaInicio)
+            ->when($excluirIdCalendarioPago, function ($query) use ($excluirIdCalendarioPago) {
+                $query->where('idCalendarioPago', '<>', $excluirIdCalendarioPago);
+            })
+            ->first();
+
+        if (!$empalme) {
+            return null;
+        }
+
+        return 'Se empalma con el calendario del ' . date('d/m/Y', strtotime($empalme->fechaInicio))
+            . ' al ' . date('d/m/Y', strtotime($empalme->fechaFin)) . ' del mismo turno';
     }
 }

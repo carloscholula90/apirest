@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\escolar;
 
+use App\Http\Controllers\Api\escolar\Concerns\ManejaHorarios;
 use App\Http\Controllers\Controller;
 use App\Models\escolar\DetalleTurno;
 use Illuminate\Database\QueryException;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 
 class DetalleTurnoController extends Controller
 {
+    use ManejaHorarios;
+
     public function index()
     {
         $detallesTurno = DetalleTurno::orderBy('idTurno')
@@ -32,6 +35,16 @@ class DetalleTurnoController extends Controller
             return $this->returnEstatus('Error en la validacion de los datos', 400, $validator->errors());
         }
 
+        $diaSemana = $this->diaNumero($request->diaSemana);
+
+        if (!$diaSemana) {
+            return $this->returnEstatus('El dia de la semana no es valido, usa 1 (domingo) a 7 (sabado)', 400, null);
+        }
+
+        if ($this->diaOcupado($request->idTurno, $diaSemana)) {
+            return $this->returnEstatus('El dia ya tiene horario en este turno, no se permite el empalme de dias', 400, null);
+        }
+
         $maxId = DetalleTurno::max('idDtlTurno');
         $newId = $maxId ? $maxId + 1 : 1;
 
@@ -39,7 +52,7 @@ class DetalleTurnoController extends Controller
             $detalleTurno = DetalleTurno::create([
                 'idDtlTurno' => $newId,
                 'idTurno' => $request->idTurno,
-                'diaSemana' => strtoupper(trim($request->diaSemana)),
+                'diaSemana' => (string) $diaSemana,
                 'horaInicio' => $request->horaInicio,
                 'horaFin' => $request->horaFin,
             ]);
@@ -58,15 +71,14 @@ class DetalleTurnoController extends Controller
         return $this->returnData('detalleTurno', $detalleTurno, 200);
     }
 
+    // Devuelve todos los dias configurados para el turno
     public function show($idTurno)
     {
-        $detalleTurno = DetalleTurno::find($idTurno);
+        $detallesTurno = DetalleTurno::where('idTurno', $idTurno)
+            ->orderByRaw('CAST(diaSemana AS UNSIGNED)')
+            ->get();
 
-        if (!$detalleTurno) {
-            return $this->returnEstatus('Detalle de turno no encontrado', 404, null);
-        }
-
-        return $this->returnData('detalleTurno', $detalleTurno, 200);
+        return $this->returnData('detallesTurno', $detallesTurno, 200);
     }
 
     public function update(Request $request, $idDtlTurno)
@@ -88,8 +100,18 @@ class DetalleTurnoController extends Controller
             return $this->returnEstatus('Error en la validacion de los datos', 400, $validator->errors());
         }
 
+        $diaSemana = $this->diaNumero($request->diaSemana);
+
+        if (!$diaSemana) {
+            return $this->returnEstatus('El dia de la semana no es valido, usa 1 (domingo) a 7 (sabado)', 400, null);
+        }
+
+        if ($this->diaOcupado($request->idTurno, $diaSemana, $detalleTurno->idDtlTurno)) {
+            return $this->returnEstatus('El dia ya tiene horario en este turno, no se permite el empalme de dias', 400, null);
+        }
+
         $detalleTurno->idTurno = $request->idTurno;
-        $detalleTurno->diaSemana = strtoupper(trim($request->diaSemana));
+        $detalleTurno->diaSemana = (string) $diaSemana;
         $detalleTurno->horaInicio = $request->horaInicio;
         $detalleTurno->horaFin = $request->horaFin;
         $detalleTurno->save();
@@ -97,9 +119,11 @@ class DetalleTurnoController extends Controller
         return $this->returnData('detalleTurno', $detalleTurno, 200);
     }
 
-    public function destroy($idDtlTurno)
+    public function destroy($idTurno, $idDtlTurno)
     {
-        $detalleTurno = DetalleTurno::find($idDtlTurno);
+        $detalleTurno = DetalleTurno::where('idTurno', $idTurno)
+            ->where('idDtlTurno', $idDtlTurno)
+            ->first();
 
         if (!$detalleTurno) {
             return $this->returnEstatus('Detalle de turno no encontrado', 404, null);
@@ -115,6 +139,19 @@ class DetalleTurnoController extends Controller
 
             return $this->returnEstatus('Error al eliminar el detalle del turno', 400, null);
         }
+    }
+
+    // Un turno solo puede tener un registro por dia; se comparan los dias ya guardados con o sin nombre
+    private function diaOcupado($idTurno, $diaSemana, $excluirIdDtlTurno = null)
+    {
+        return DetalleTurno::where('idTurno', $idTurno)
+            ->when($excluirIdDtlTurno, function ($query) use ($excluirIdDtlTurno) {
+                $query->where('idDtlTurno', '<>', $excluirIdDtlTurno);
+            })
+            ->get()
+            ->contains(function ($detalle) use ($diaSemana) {
+                return $this->diaNumero($detalle->diaSemana) === $diaSemana;
+            });
     }
 
     public function generaReporte()

@@ -43,19 +43,23 @@ class GrupoController extends Controller
     {
        $carreraFormatted = str_pad($idCarrera, 2, '0', STR_PAD_LEFT);
        $grupos = DB::table('grupos as g')
-                                ->distinct()
                                 ->select(
                                    DB::raw("SUBSTRING(g.grupo, CASE WHEN LENGTH(g.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre"),
                                    'g.grupo',
                                    'g.idTurno',
                                    't.letra as claveTurno',
                                    // La descripcion del turno trae un \r al final en la base
-                                   DB::raw("TRIM(REPLACE(REPLACE(t.descripcion, '\\r', ''), '\\n', '')) AS turno")
+                                   DB::raw("TRIM(REPLACE(REPLACE(t.descripcion, '\\r', ''), '\\n', '')) AS turno"),
+                                   // grupos tiene un renglon por materia; se toma el mayor de todas las materias del grupo
+                                   DB::raw("MAX(g.inscritos) AS inscritos"),
+                                   DB::raw("MAX(g.capacidad) AS capacidad")
                                 )
                                 ->leftJoin('turno as t', 't.idTurno', '=', 'g.idTurno')
                                 ->where('g.idNivel', $idNivel)
                                 ->where('g.idPeriodo',$idPeriodo)
                                 ->where('g.grupo', 'like', $carreraFormatted.'%')
+                                ->where('g.inscritos', '>', 1)
+                                ->groupBy('g.grupo', 'g.idTurno', 't.letra', 't.descripcion')
                                 ->orderBy('g.idTurno')
                                 ->orderBy('semestre')
                                 ->orderBy('g.grupo')
@@ -243,6 +247,7 @@ class GrupoController extends Controller
                                  'p.descripcion as periodo',
                                  DB::raw("SUBSTRING(g.grupo, 1, CASE WHEN LENGTH(g.grupo) = 4 THEN 1 ELSE 2 END) AS idCarrera"),
                                  'car.descripcion as carrera',
+                                 't.idTurno',
                                  't.letra as turno',
                                  't.descripcion as descripcion',
                                  DB::raw("SUBSTRING(g.grupo, CASE WHEN LENGTH(g.grupo) = 4 THEN 3 ELSE 4 END, 1) AS semestre"),
@@ -265,8 +270,7 @@ class GrupoController extends Controller
                               ->whereRaw("SUBSTRING(g.grupo, 1, CASE WHEN LENGTH(g.grupo) = 4 THEN 1 ELSE 2 END) = ?", [$carrera])
                               ->whereRaw("SUBSTRING(g.grupo, CASE WHEN LENGTH(g.grupo) = 4 THEN 3 ELSE 4 END, 1) = ?", [$semestre])
                               ->where('g.grupo', '<>', $grupo)
-                              ->orderBy('g.idNivel')
-                              ->orderBy('g.idPeriodo')
+                              ->orderBy('t.idTurno')
                               ->orderBy('g.grupo')
                               ->get();
 
@@ -546,12 +550,10 @@ public function obtenerAsignaturas($grupo){
             $request->validate([
                            'uidSecretario' => 'required',
                            'uidPresidente' => 'required',
-                           'uidVocal' => 'required',
-                           'logoSep' => 'required',
-                           'logoEscudo' => 'required',
+                           // uidVocal es el nombre anterior del supervisor; se sigue aceptando
+                           'uidSupervisor' => 'required_without:uidVocal',
                            'fechaIni' => 'required',
-                           'horaIni' => 'required',
-                           'idFormato' => 'required'
+                           'horaIni' => 'required'
             ]);
 
             $grupo = Grupo::where('gruposec', $gruposec)
@@ -563,23 +565,19 @@ public function obtenerAsignaturas($grupo){
                ], 404);
             }
 
-            $grupo->update([
+            // Logotipos y formato son opcionales; si no llegan se conserva lo guardado
+            Grupo::where('gruposec', $gruposec)->update(array_merge([
                      'uidSecretario' => $request->uidSecretario,
                      'uidPresidente' => $request->uidPresidente,
-                     'uidPresidente' => $request->uidVocal,
-                     'logoSep' => $request->logoSep,
-                     'logoEscudo'=> $request->logoEscudo,
-                     'idFormato' => $request->idFormato,
+                     'uidSupervisor' => $request->uidSupervisor ?? $request->uidVocal,
                      'fechaIni' => $request->fechaIni,
                      'horaIni' => $request->horaIni,
                      'horaFin' => $request->horaFin
-            ]);
-
-            $grupo->refresh();
+            ], $request->only(['logoSep', 'logoEscudo', 'idFormato'])));
 
             return response()->json([
-               'message' => 'Profesor actualizado correctamente',
-               'data'    => $grupo
+               'message' => 'Acta actualizada correctamente',
+               'data'    => Grupo::where('gruposec', $gruposec)->first()
             ], 200);
          }
 
@@ -598,16 +596,14 @@ public function obtenerAsignaturas($grupo){
                ], 404);
             }
 
-            $grupo->update([
+            Grupo::where('gruposec', $gruposec)->update([
                'uidProfesor' => $request->uidProfesor,
                'secuenciaProfesor' => $request->secuencia
             ]);
 
-            $grupo->refresh();
-
             return response()->json([
                'message' => 'Profesor actualizado correctamente',
-               'data'    => $grupo
+               'data'    => Grupo::where('gruposec', $gruposec)->first()
             ], 200);
          }
 
@@ -798,7 +794,7 @@ public function obtenerAsignaturas($grupo){
 
         return response()->json([
             'status'  => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
         ]);
 
     } else {

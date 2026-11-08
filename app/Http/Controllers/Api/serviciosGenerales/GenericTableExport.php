@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\serviciosGenerales;
 
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
-class GenericTableExport implements FromQuery, WithHeadings
+class GenericTableExport implements FromQuery, WithHeadings, WithStrictNullComparison
 {   
     protected $tableName;
     protected $nameId;
@@ -23,9 +25,15 @@ class GenericTableExport implements FromQuery, WithHeadings
 
     public function query()
     {
-        if(empty($order))
-            return DB::table($this->tableName)->orderBy($this->nameId);
-        else return DB::table($this->tableName)->orderBy($this->order);
+        $query = DB::table($this->tableName);
+
+        // Exportar solo las columnas que tienen encabezado
+        if (!empty($this->headers))
+            $query->select(array_slice(Schema::getColumnListing($this->tableName), 0, count($this->headers)));
+
+        if(empty($this->order))
+            return $query->orderBy($this->nameId);
+        else return $query->orderBy($this->order);
     }
 
     public function headings(): array {  

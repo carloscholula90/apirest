@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Configuración de turnos y bloques | Siaweb</title>
+  <link rel="shortcut icon" href="../assets/images/favicon.ico">
+  <!-- Hope UI: mismos archivos que el resto de SIAWEB -->
+  <link rel="stylesheet" href="../assets/css/core/libs.min.css">
+  <link rel="stylesheet" href="../assets/css/hope-ui.min.css?v=2.0.0">
+  <link rel="stylesheet" href="../assets/css/custom.min.css?v=2.0.0">
+  <link rel="stylesheet" href="../assets/css/dark.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&family=Sora:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/esquema-pago.css">
+</head>
+<body>
+  <!-- Aquí va el menú lateral y la barra superior de SIAWEB -->
+  <main class="main-content">
+    <div class="container-fluid content-inner py-4 siaweb-ep" id="pantalla-turnos">
+
+      <div class="mb-4">
+        <h1 class="ep-titulo">Configuración de turnos y bloques</h1>
+        <p class="ep-subtitulo">Define los días y horarios de cada turno, los bloques que aplican a todo el turno y el catálogo global de tipos de bloque.</p>
+      </div>
+
+      <div id="alerta-general" class="d-none mb-3"></div>
+
+      <div class="card mb-4">
+        <div class="card-body d-flex flex-wrap align-items-end gap-4">
+          <div style="flex: 0 1 280px;">
+            <label class="form-label" for="sel-turno">Turno</label>
+            <select class="form-select" id="sel-turno"></select>
+          </div>
+          <div class="readonly-row"><span class="rlabel">Letra</span><span class="rvalue" id="turno-letra">—</span></div>
+          <div class="readonly-row"><span class="rlabel">Parciales</span><span class="rvalue" id="turno-parciales">—</span></div>
+          <div class="readonly-row"><span class="rlabel">Horario que cubre</span><span class="rvalue" id="turno-horario">—</span></div>
+          <div class="readonly-row"><span class="rlabel">Días del turno</span><div class="d-flex gap-1 mt-1" id="turno-dias"></div></div>
+        </div>
+      </div>
+
+      <div class="row g-4 align-items-start">
+        <div class="col-12 col-xl-4">
+          <section class="card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <h2 class="card-title"><span class="icon-badge"><span data-icono="calendario" data-tam="18"></span></span>Detalle de turno</h2>
+              <button type="button" class="btn btn-outline" id="btn-nuevo-detalle"><span data-icono="mas"></span>Nuevo registro</button>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table">
+                  <thead><tr><th>Día</th><th>Hora inicio</th><th>Hora fin</th><th><span class="visually-hidden">Acciones</span></th></tr></thead>
+                  <tbody id="tabla-detalle"></tbody>
+                </table>
+              </div>
+              <p class="ep-ayuda mt-3 mb-0">Un registro por día; no se permite repetir un día ni empalmar horarios.</p>
+            </div>
+          </section>
+        </div>
+
+        <div class="col-12 col-xl-5">
+          <section class="card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <h2 class="card-title"><span class="icon-badge"><span data-icono="capas" data-tam="18"></span></span>Default por turno</h2>
+              <button type="button" class="btn btn-outline" id="btn-nuevo-default"><span data-icono="mas"></span>Nuevo bloque</button>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table">
+                  <thead><tr><th>Tipo de bloque</th><th>Inicio</th><th>Fin</th><th>Estado</th><th><span class="visually-hidden">Acciones</span></th></tr></thead>
+                  <tbody id="tabla-default"></tbody>
+                </table>
+              </div>
+              <div class="info-box mt-3">
+                <span data-icono="info" data-tam="18"></span>
+                <span>Aplican a todos los días del turno y se pintan automáticamente en el horario de cada profesor; desde ahí no se pueden editar.</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="col-12 col-xl-3">
+          <section class="card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <h2 class="card-title"><span class="icon-badge"><span data-icono="cuadros" data-tam="18"></span></span>Tipos de bloque</h2>
+              <button type="button" class="btn btn-outline" id="btn-nuevo-tipo"><span data-icono="mas"></span>Nuevo tipo</button>
+            </div>
+            <div class="card-body">
+              <p class="ep-ayuda mt-0 mb-2">Catálogo global: aplica a todos los turnos.</p>
+              <div class="table-responsive">
+                <table class="table">
+                  <thead><tr><th>Descripción</th><th>Estado</th><th><span class="visually-hidden">Acciones</span></th></tr></thead>
+                  <tbody id="tabla-tipos"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Nuevo día del turno -->
+  <div class="modal fade siaweb-ep siaweb-ep-modal" id="modal-detalle" tabindex="-1" aria-labelledby="titulo-modal-detalle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" id="form-detalle" novalidate>
+        <div class="modal-header">
+          <h2 class="modal-title" id="titulo-modal-detalle"><span class="icon-badge"><span data-icono="calendario" data-tam="18"></span></span><span class="ep-texto-titulo">Nuevo día</span></h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div>
+            <label class="form-label" for="detalle-dia">Día de la semana</label>
+            <select class="form-select" id="detalle-dia"></select>
+            <div class="form-text">Los días que ya tienen horario aparecen deshabilitados.</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label" for="detalle-inicio">Hora inicio</label>
+              <input class="form-control" id="detalle-inicio" type="time">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="detalle-fin">Hora fin</label>
+              <input class="form-control" id="detalle-fin" type="time">
+            </div>
+          </div>
+          <div class="ep-error d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><span data-icono="check"></span>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Nuevo / editar bloque por default (mismo modal) -->
+  <div class="modal fade siaweb-ep siaweb-ep-modal" id="modal-default" tabindex="-1" aria-labelledby="titulo-modal-default" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" id="form-default" novalidate>
+        <div class="modal-header">
+          <h2 class="modal-title" id="titulo-modal-default"><span class="icon-badge"><span data-icono="capas" data-tam="18"></span></span><span class="ep-texto-titulo">Nuevo bloque por default</span></h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div>
+            <label class="form-label" for="default-tipo">Tipo de bloque</label>
+            <select class="form-select" id="default-tipo"></select>
+            <div class="form-text d-none" id="default-tipo-ayuda">El tipo no se puede cambiar al editar; elimina el bloque y créalo de nuevo.</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label" for="default-inicio">Hora inicio</label>
+              <input class="form-control" id="default-inicio" type="time">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="default-fin">Hora fin</label>
+              <input class="form-control" id="default-fin" type="time">
+            </div>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="default-activo" checked>
+            <label class="form-check-label" for="default-activo">Activo</label>
+          </div>
+          <div class="info-box stacked">
+            <strong style="font-size:13px">Horario permitido</strong>
+            <span id="default-rango"></span>
+          </div>
+          <div class="ep-error d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><span data-icono="check"></span>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Nuevo / editar tipo de bloque (mismo modal) -->
+  <div class="modal fade siaweb-ep siaweb-ep-modal" id="modal-tipo" tabindex="-1" aria-labelledby="titulo-modal-tipo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" id="form-tipo" novalidate>
+        <div class="modal-header">
+          <h2 class="modal-title" id="titulo-modal-tipo"><span class="icon-badge"><span data-icono="cuadros" data-tam="18"></span></span><span class="ep-texto-titulo">Nuevo tipo de bloque</span></h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div>
+            <label class="form-label" for="tipo-descripcion">Descripción</label>
+            <input class="form-control" id="tipo-descripcion" type="text" maxlength="255" placeholder="Ej. TUTORÍA">
+          </div>
+          <div>
+            <label class="form-label" for="tipo-color">Color</label>
+            <div class="d-flex align-items-center gap-3">
+              <input class="form-control form-control-color" id="tipo-color" type="color" value="#3B82F6" style="width:64px">
+              <span class="ep-ayuda">Así se pinta el bloque en el horario del profesor.</span>
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="tipo-activo" checked>
+              <label class="form-check-label" for="tipo-activo">Activo</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="tipo-pagable" checked>
+              <label class="form-check-label" for="tipo-pagable">Se paga (cuenta para la hoja de pago)</label>
+            </div>
+          </div>
+          <div class="ep-error d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-link-danger me-auto d-none" id="btn-eliminar-tipo">Eliminar tipo</button>
+          <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><span data-icono="check"></span>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="../assets/js/core/libs.min.js"></script>
+  <script>
+    // Solo para probar fuera de SIAWEB: si Hope UI no cargó, usa Bootstrap 5.2.3 desde CDN
+    if (!window.bootstrap) {
+      document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"><\/script>');
+    }
+  </script>
+  <script src="../assets/js/hope-ui.js"></script>
+  <script src="js/esquema-pago-comun.js"></script>
+  <!-- Modo demo: solo se activa con ?demo=1 o window.SIAWEB_DEMO = true -->
+  <script src="js/esquema-pago-demo.js"></script>
+  <script src="js/turnos-bloques.js"></script>
+</body>
+</html>

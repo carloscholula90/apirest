@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers\Api\escolar;
 
+use App\Http\Controllers\Api\escolar\Concerns\ManejaHorarios;
 use App\Http\Controllers\Controller;
 use App\Models\escolar\DefaultTurno;
+use App\Models\escolar\DetalleTurno;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class DefaultTurnoController extends Controller
 {
+    use ManejaHorarios;
+
     public function index()
     {
         $defaultTurnos = DefaultTurno::orderBy('idTurno')
@@ -31,6 +35,12 @@ class DefaultTurnoController extends Controller
 
         if ($validator->fails()) {
             return $this->returnEstatus('Error en la validacion de los datos', 400, $validator->errors());
+        }
+
+        $error = $this->validaReglasTurno($request->idTurno, $request->idTipoBloque, $request->horaInicio, $request->horaFin);
+
+        if ($error) {
+            return $this->returnEstatus($error, 400, null);
         }
 
         try {
@@ -60,7 +70,7 @@ class DefaultTurnoController extends Controller
     {
         $defaultTurnos = DefaultTurno::with('tipoBloque')
             ->where('idTurno', $idTurno)
-            ->orderBy('idTipoBloque')
+            ->orderBy('horaInicio')
             ->get();
 
         if ($defaultTurnos->isEmpty()) {
@@ -72,9 +82,7 @@ class DefaultTurnoController extends Controller
 
     public function update(Request $request, $idTurno, $idTipoBloque)
     {
-        $defaultTurno = DefaultTurno::where('idTurno', $idTurno)
-            ->where('idTipoBloque', $idTipoBloque)
-            ->first();
+        $defaultTurno = $this->buscaDefault($idTurno, $idTipoBloque)->first();
 
         if (!$defaultTurno) {
             return $this->returnEstatus('Default de turno no encontrado', 404, null);
@@ -90,26 +98,30 @@ class DefaultTurnoController extends Controller
             return $this->returnEstatus('Error en la validacion de los datos', 400, $validator->errors());
         }
 
-        $defaultTurno->horaInicio = $request->horaInicio;
-        $defaultTurno->horaFin = $request->horaFin;
-        $defaultTurno->activo = $request->activo;
-        $defaultTurno->save();
+        $error = $this->validaReglasTurno($idTurno, $idTipoBloque, $request->horaInicio, $request->horaFin);
 
-        return $this->returnData('defaultTurno', $defaultTurno, 200);
+        if ($error) {
+            return $this->returnEstatus($error, 400, null);
+        }
+
+        // La llave es compuesta (idTurno, idTipoBloque): se actualiza por query para no tocar otros bloques del turno
+        $this->buscaDefault($idTurno, $idTipoBloque)->update([
+            'horaInicio' => $request->horaInicio,
+            'horaFin' => $request->horaFin,
+            'activo' => $request->activo,
+        ]);
+
+        return $this->returnData('defaultTurno', $this->buscaDefault($idTurno, $idTipoBloque)->first(), 200);
     }
 
     public function destroy($idTurno, $idTipoBloque)
     {
-        $defaultTurno = DefaultTurno::where('idTurno', $idTurno)
-            ->where('idTipoBloque', $idTipoBloque)
-            ->first();
-
-        if (!$defaultTurno) {
+        if (!$this->buscaDefault($idTurno, $idTipoBloque)->exists()) {
             return $this->returnEstatus('Default de turno no encontrado', 404, null);
         }
 
         try {
-            $defaultTurno->delete();
+            $this->buscaDefault($idTurno, $idTipoBloque)->delete();
             return $this->returnEstatus('Default de turno eliminado', 200, null);
         } catch (QueryException $e) {
             if ($e->getCode() == '23000') {
@@ -118,6 +130,42 @@ class DefaultTurnoController extends Controller
 
             return $this->returnEstatus('Error al eliminar el default del turno', 400, null);
         }
+    }
+
+    private function buscaDefault($idTurno, $idTipoBloque)
+    {
+        return DefaultTurno::where('idTurno', $idTurno)
+            ->where('idTipoBloque', $idTipoBloque);
+    }
+
+    // El bloque aplica a todos los dias del turno: debe caber en el horario de cada dia y no empalmarse con otro default
+    private function validaReglasTurno($idTurno, $idTipoBloque, $horaInicio, $horaFin)
+    {
+        $detalles = DetalleTurno::where('idTurno', $idTurno)->get();
+
+        if ($detalles->isEmpty()) {
+            return 'El turno no tiene dias definidos en el detalle de turno';
+        }
+
+        foreach ($detalles as $detalle) {
+            if (!$this->horaDentroDe($horaInicio, $horaFin, $detalle->horaInicio, $detalle->horaFin)) {
+                return 'El bloque debe quedar dentro del horario del turno (' . $this->diaNombre($detalle->diaSemana) . ' '
+                    . substr($detalle->horaInicio, 0, 5) . ' - ' . substr($detalle->horaFin, 0, 5) . ')';
+            }
+        }
+
+        $empalme = DefaultTurno::where('idTurno', $idTurno)
+            ->where('idTipoBloque', '<>', $idTipoBloque)
+            ->get()
+            ->first(function ($otro) use ($horaInicio, $horaFin) {
+                return $this->seEmpalman($horaInicio, $horaFin, $otro->horaInicio, $otro->horaFin);
+            });
+
+        if ($empalme) {
+            return 'El bloque se empalma con otro default del turno (' . substr($empalme->horaInicio, 0, 5) . ' - ' . substr($empalme->horaFin, 0, 5) . ')';
+        }
+
+        return null;
     }
 
     public function generaReporte()

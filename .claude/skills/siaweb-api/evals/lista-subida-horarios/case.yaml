@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: lista-subida-horarios
+expected_outcome: |
+  Lista ordenada de los archivos a subir a api.pruebas para que funcionen /horarios y /formatos, sin reemplazar routes/api.php completo y con verificación.

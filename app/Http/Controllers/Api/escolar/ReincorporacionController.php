@@ -14,7 +14,7 @@ class ReincorporacionController extends Controller
         }
 
         $persona = DB::table('persona')->where('uid', $uid)
-            ->first(['uid', 'nombre', 'primerApellido', 'segundoApellido', 'curp']);
+            ->first(['uid', 'nombre', 'primerApellido', 'segundoApellido', 'curp', 'bloqueado']);
         $trayectorias = DB::table('alumno as a')
             ->leftJoin('carrera as c', function ($join) {
                 $join->on('c.idNivel', '=', 'a.idNivel')->on('c.idCarrera', '=', 'a.idCarrera');
@@ -26,16 +26,8 @@ class ReincorporacionController extends Controller
             return response()->json(['status' => 404, 'message' => 'Alumno no encontrado.'], 404);
         }
 
-        // Cualquier registro impide reincorporarse, incluso BloqueoActivo = 0.
-        $bloqueos = DB::table('bloqueoPersonas')->where('uid', $uid)
-            ->orderBy('secuencia')->orderBy('idBloqueo')->orderBy('secuenciaBloq')
-            ->get(['secuencia', 'idBloqueo', 'BloqueoActivo', 'descripcion'])
-            ->map(fn ($b) => [
-                'secuencia' => (int) $b->secuencia,
-                'idBloqueo' => (int) $b->idBloqueo,
-                'activo' => (bool) $b->BloqueoActivo,
-                'motivo' => trim((string) $b->descripcion) ?: 'Motivo no registrado',
-            ])->values();
+        // El flag persona.bloqueado impide reincorporarse.
+        $bloqueado = (bool) $persona->bloqueado;
 
         $carreras = [];
         $totalCentavos = 0;
@@ -48,7 +40,7 @@ class ReincorporacionController extends Controller
                 ->leftJoin('tipoBaja as tb', 'tb.idTipoBaja', '=', 'cl.idTipoBaja')
                 ->where('cl.uid', $uid)->where('cl.secuencia', $a->secuencia)->where('cl.idNivel', $a->idNivel)
                 ->orderByDesc('cl.idPeriodo')->orderByDesc('cl.indexCiclo')
-                ->first(['cl.idPeriodo', 'cl.semestre', 'cl.idTipoBaja', 'p.activo as periodoActivo', 'tb.descripcion as causaBaja']);
+                ->first(['cl.idPeriodo', 'cl.semestre', 'cl.idTipoBaja', 'p.descripcion as periodo', 'p.activo as periodoActivo', 'tb.descripcion as causaBaja']);
 
             $adeudo = null;
             if ($ciclo) {
@@ -73,7 +65,7 @@ class ReincorporacionController extends Controller
                 ->where('idPeriodo', '>=', $ciclo->idPeriodo)
                 ->where('inscripciones', 1)
                 ->orderBy('idPeriodo')
-                ->value('idPeriodo') : null;
+                ->first(['idPeriodo', 'descripcion']) : null;
 
             $baja = (int) $a->activo === 0;
             $carreras[] = [
@@ -84,8 +76,10 @@ class ReincorporacionController extends Controller
                 'matricula' => $a->matricula,
                 'semestre' => $ciclo && $ciclo->semestre !== null ? (int) $ciclo->semestre : null,
                 'idPeriodo' => $ciclo ? (int) $ciclo->idPeriodo : null,
+                'periodo' => $ciclo->periodo ?? null,
                 'periodoActivo' => $ciclo && $ciclo->periodoActivo !== null ? (bool) $ciclo->periodoActivo : null,
-                'siguientePeriodoInscripcion' => $siguientePeriodo !== null ? (int) $siguientePeriodo : null,
+                'siguientePeriodoInscripcion' => $siguientePeriodo ? (int) $siguientePeriodo->idPeriodo : null,
+                'siguientePeriodoInscripcionNombre' => $siguientePeriodo->descripcion ?? null,
                 'baja' => $baja ? ($ciclo->causaBaja ?? 'Baja sin causa registrada') : 'Sin baja',
             ];
         }
@@ -101,9 +95,9 @@ class ReincorporacionController extends Controller
                 'curp' => $persona->curp,
                 'adeudoGlobal' => $adeudoCompleto ? $this->importe($totalCentavos) : null,
                 'adeudoCompleto' => $adeudoCompleto,
-                'bloqueo' => $bloqueos->isNotEmpty(),
-                'mensajeBloqueo' => $bloqueos->isEmpty() ? 'Sin bloqueos' : 'Alumno con bloqueos',
-                'puedeReincorporarse' => $bloqueos->isEmpty(),
+                'bloqueo' => $bloqueado,
+                'mensajeBloqueo' => $bloqueado ? 'Alumno con bloqueos' : 'Sin bloqueos',
+                'puedeReincorporarse' => !$bloqueado,
                 'carreras' => $carreras,
             ],
         ]);

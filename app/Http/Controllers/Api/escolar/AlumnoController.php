@@ -206,7 +206,7 @@ class AlumnoController extends Controller
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -294,7 +294,7 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -372,7 +372,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,
-                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$name
+                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$name
             ]);
         }
 
@@ -456,7 +456,7 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
+            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $fileName
             
         ]);
     } else {
@@ -521,24 +521,37 @@ public function getAvance($uid,$secuencia){
 
         ->leftJoin('edoCivil as ec', 'ec.idEdoCivil', '=', 'p.idEdoCivil')
 
-        // Periodo activo del nivel del alumno
-        ->join('periodo as perActivo', function ($join) {
-            $join->on('perActivo.idNivel', '=', 'a.idNivel')
-                 ->where('perActivo.activo', '=', 1);
+        // Último ciclo cursado para cada trayectoria del alumno.
+        ->leftJoinSub(
+            DB::table('ciclos')
+                ->select([
+                    'uid',
+                    'secuencia',
+                    'idNivel',
+                    DB::raw('MAX(idPeriodo) as ultimoIdPeriodo'),
+                ])
+                ->groupBy('uid', 'secuencia', 'idNivel'),
+            'ultimoCiclo',
+            function ($join) {
+                $join->on('ultimoCiclo.uid', '=', 'a.uid')
+                    ->on('ultimoCiclo.secuencia', '=', 'a.secuencia')
+                    ->on('ultimoCiclo.idNivel', '=', 'a.idNivel');
+            }
+        )
+        ->leftJoin('ciclos as sc', function ($join) {
+            $join->on('sc.uid', '=', 'ultimoCiclo.uid')
+                ->on('sc.secuencia', '=', 'ultimoCiclo.secuencia')
+                ->on('sc.idNivel', '=', 'ultimoCiclo.idNivel')
+                ->on('sc.idPeriodo', '=', 'ultimoCiclo.ultimoIdPeriodo');
         })
-
-      ->leftJoin('ciclos as sc', function ($join) {
-                $join->on('sc.uid', '=', 'a.uid')
-                    ->on('sc.secuencia', '=', 'a.secuencia')
-                    ->whereRaw("
-                        sc.idPeriodo IN (perActivo.idPeriodo, perActivo.idPeriodo + 1)
-                    ");
-            })  // Periodo real del ciclo encontrado
+        // Periodo real del último ciclo encontrado.
         ->leftJoin('periodo as per', function ($join) {
             $join->on('per.idPeriodo', '=', 'sc.idPeriodo')
                  ->on('per.idNivel', '=', 'a.idNivel');
         })
-
+ ->leftJoin('tipoBaja as tp', function ($join) {
+            $join->on('tp.idTipoBaja', '=', 'sc.idTipoBaja');
+        })
       ->select([
                     'a.uid',
                     'a.activo',
@@ -566,6 +579,10 @@ public function getAvance($uid,$secuencia){
 
                     'sc.idPeriodo',
                     'sc.grupo',
+                    'sc.fechaBaja',
+                    'sc.fechaBajaSEP',
+                    'sc.idTipoBaja',
+                    'tp.descripcion as tipoBaja',
                     'per.descripcion as periodo',
                 ])
                 ->get();
@@ -630,5 +647,63 @@ public function getAvance($uid,$secuencia){
         ]);
 
         return $this->returnData('msj', 'Baja registrada correctamente', 200);
+    }
+
+    public function asignaMatriculaAnterior(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'matricula'    => 'required|integer',
+            'matriculaAnt' => 'required|string|max:15',
+            'usrMvt'       => 'required|string'
+        ]);
+
+        if ($validator->fails()) {
+            return $this->returnEstatus(
+                'Error en la validación de los datos',
+                400,
+                $validator->errors()
+            );
+        }
+
+        $matricula = (int) $request->matricula;
+        $matriculaAnt = trim($request->matriculaAnt);
+
+        if ((string) $matricula === $matriculaAnt) {
+            return $this->returnEstatus('La matrícula anterior no puede ser igual a la matrícula', 400, null);
+        }
+
+        if (!DB::table('alumno')->where('matricula', $matricula)->exists()) {
+            return $this->returnEstatus('Alumno no encontrado', 404, null);
+        }
+
+        $liberadas = DB::transaction(function () use ($matricula, $matriculaAnt, $request) {
+            // Variables usadas por el trigger de bitácora de alumno
+            DB::statement("SET @origen = 'LARAVEL'");
+            DB::statement("SET @usrMvt = ?", [$request->usrMvt]);
+
+            // Quitar la matrícula anterior a los alumnos que ya la tenían asignada
+            $liberadas = DB::table('alumno')
+                ->where('matriculaAnt', $matriculaAnt)
+                ->where('matricula', '<>', $matricula)
+                ->pluck('matricula');
+
+            if ($liberadas->isNotEmpty()) {
+                DB::table('alumno')
+                    ->whereIn('matricula', $liberadas)
+                    ->update(['matriculaAnt' => null]);
+            }
+
+            DB::table('alumno')
+                ->where('matricula', $matricula)
+                ->update(['matriculaAnt' => $matriculaAnt]);
+
+            return $liberadas;
+        });
+
+        return $this->returnData('alumno', [
+            'matricula'    => $matricula,
+            'matriculaAnt' => $matriculaAnt,
+            'liberadas'    => $liberadas->values(),
+        ], 200);
     }
 }

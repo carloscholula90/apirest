@@ -26,6 +26,8 @@ class Grupo extends Model
                         'uidSecretario',
                         'uidPresidente',
                         'uidSupervisor',
+                        'logoSep',
+                        'logoEscudo',
                         'idFormato',
                         'fechaIni',
                         'horaIni',

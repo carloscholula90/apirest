@@ -151,6 +151,10 @@ Route::prefix('diasfestivos')->group(function () {
     require base_path('routes/general/diasfestivos.php');
 });
 
+Route::prefix('duracionsesion')->group(function () {
+    require base_path('routes/escolar/duracionsesion.php');
+});
+
 
 Route::prefix('edificios')->group(function () {
     require base_path('routes/general/edificios.php');
@@ -186,6 +190,10 @@ Route::prefix('estatusfacturas')->group(function () {
 
 Route::prefix('fichas')->group(function () {
     require base_path('routes/escolar/fichas.php');
+});
+
+Route::prefix('formatos')->group(function () {
+    require base_path('routes/escolar/formatos.php');
 });
 
 Route::prefix('formaspagos')->group(function () {
@@ -293,6 +301,10 @@ Route::prefix('permisospersona')->group(function () {
 });
   
 
+Route::prefix('pagos')->group(function () {
+    require base_path('routes/nomina/pagos.php');
+});
+
 Route::prefix('personas')->group(function () {
     require base_path('routes/general/personas.php');
 });
@@ -314,7 +326,11 @@ Route::prefix('profesores')->group(function () {
 });
 
 Route::prefix('recibos')->group(function () {
-    require base_path('routes/escolar/recibos.php');   
+    require base_path('routes/escolar/recibos.php');
+});
+
+Route::prefix('regimenesfiscales')->group(function () {
+    require base_path('routes/nomina/regimenesfiscales.php');
 });
 
 Route::prefix('rol')->group(function () {
@@ -383,10 +399,6 @@ Route::prefix('tipodirecciones')->group(function () {
 
 Route::prefix('tiposexamenes')->group(function () {
     require base_path('routes/escolar/tiposexamenes.php');
-});
-
-Route::prefix('turnos')->group(function () {
-    require base_path('routes/escolar/turnos.php');
 });
 
 Route::prefix('usuarios')->group(function () {

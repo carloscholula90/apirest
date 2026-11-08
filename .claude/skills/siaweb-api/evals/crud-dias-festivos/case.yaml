@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: crud-dias-festivos
+expected_outcome: |
+  Código de una API para listar por año, agregar y borrar días festivos, sobre la tabla real diasFestivos y con las convenciones de apirest, más un resumen de cómo integrarla y probarla.

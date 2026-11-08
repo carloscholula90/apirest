@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: pantalla-dias-festivos
+expected_outcome: |
+  Un archivo PHP de /secciones para ver, agregar y eliminar días festivos, con la estructura de las páginas reales de SIAWEB y conectado a apirest.

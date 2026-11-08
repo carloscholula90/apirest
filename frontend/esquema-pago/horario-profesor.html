@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Horario del profesor | Siaweb</title>
+  <link rel="shortcut icon" href="../assets/images/favicon.ico">
+  <!-- Hope UI: mismos archivos que el resto de SIAWEB -->
+  <link rel="stylesheet" href="../assets/css/core/libs.min.css">
+  <link rel="stylesheet" href="../assets/css/hope-ui.min.css?v=2.0.0">
+  <link rel="stylesheet" href="../assets/css/custom.min.css?v=2.0.0">
+  <link rel="stylesheet" href="../assets/css/dark.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&family=Sora:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/esquema-pago.css">
+</head>
+<body>
+  <!-- Aquí va el menú lateral y la barra superior de SIAWEB -->
+  <main class="main-content">
+    <div class="container-fluid content-inner py-4 siaweb-ep" id="pantalla-horario">
+
+      <div class="mb-4">
+        <h1 class="ep-titulo">Horario del profesor</h1>
+        <p class="ep-subtitulo">Arma el horario semanal de cada profesor en bloques de 50 minutos (cada bloque cuenta como 1 hora). Los recesos del turno se pintan solos.</p>
+      </div>
+
+      <div id="alerta-general" class="d-none mb-3"></div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-lg-5">
+              <label class="form-label" for="buscar-profesor">Profesor</label>
+              <div class="search-wrap">
+                <input class="form-control" id="buscar-profesor" type="text" autocomplete="off" placeholder="Busca por nombre o UID (mínimo 3 caracteres)"
+                       role="combobox" aria-expanded="false" aria-controls="resultados-profesor" aria-autocomplete="list">
+                <span data-icono="buscar" data-tam="18"></span>
+                <div class="list-group search-results d-none" id="resultados-profesor" role="listbox"></div>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3">
+              <label class="form-label" for="sel-turno">Turno</label>
+              <select class="form-select" id="sel-turno"></select>
+            </div>
+            <div class="col-6 col-lg-2">
+              <label class="form-label" for="vigencia-inicio">Vigencia desde</label>
+              <input class="form-control" id="vigencia-inicio" type="date">
+            </div>
+            <div class="col-6 col-lg-2">
+              <label class="form-label" for="vigencia-fin">Vigencia hasta</label>
+              <input class="form-control" id="vigencia-fin" type="date">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4 d-none" id="datos-profesor">
+        <div class="card-body d-flex flex-wrap align-items-center gap-4 py-3">
+          <div class="readonly-row"><span class="rlabel">UID</span><span class="rvalue" id="profesor-uid"></span></div>
+          <div class="readonly-row"><span class="rlabel">Profesor</span><span class="rvalue" id="profesor-nombre"></span></div>
+          <div class="readonly-row"><span class="rlabel">Horario del turno</span><span class="rvalue" id="turno-horario"></span></div>
+          <div class="readonly-row"><span class="rlabel">Días del turno</span><div class="d-flex gap-1 mt-1" id="turno-dias"></div></div>
+          <div class="readonly-row ms-lg-auto"><span class="rlabel">Horas pagables por semana</span><span class="rvalue" id="total-horas">0</span></div>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <h2 class="card-title">Arma el horario <span class="tag info ms-1" id="tag-turno"></span></h2>
+          <button type="button" class="btn btn-outline" id="btn-imprimir" disabled><span data-icono="documento"></span>Imprimir horario global</button>
+        </div>
+        <div class="card-body d-flex flex-column gap-3">
+          <!-- Tipos de bloque: solo informativo; el tipo se elige al seleccionar una celda -->
+          <div class="leyenda" id="leyenda" aria-label="Tipos de bloque"></div>
+          <div class="info-box neutral d-none" id="aviso-todos">
+            <span data-icono="info" data-tam="18"></span>
+            <span>Vista de todos los turnos, solo de consulta y sin recesos. Para agregar o cambiar bloques elige un turno.</span>
+          </div>
+          <div id="zona-horario">
+            <div class="table-empty">
+              <span data-icono="buscar" data-tam="30"></span>
+              <strong>Selecciona un profesor</strong>
+              <span>Búscalo por nombre o UID para ver y capturar su horario.</span>
+            </div>
+          </div>
+          <div class="info-box neutral d-none" id="aviso-ocultos">
+            <span data-icono="info" data-tam="18"></span>
+            <span></span>
+          </div>
+          <div id="resumen-horas"></div>
+          <div class="d-flex justify-content-end" id="estado-guardado" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Horario global para imprimir (todos los turnos, sin recesos) -->
+  <div class="siaweb-ep ep-impresion" id="impresion" aria-hidden="true"></div>
+
+  <!-- Nuevo / editar bloque (mismo modal) -->
+  <div class="modal fade siaweb-ep siaweb-ep-modal" id="modal-bloque" tabindex="-1" aria-labelledby="titulo-modal-bloque" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" id="form-bloque" novalidate>
+        <div class="modal-header">
+          <h2 class="modal-title" id="titulo-modal-bloque"><span class="icon-badge"><span data-icono="reloj" data-tam="18"></span></span><span class="ep-texto-titulo">Nuevo bloque</span></h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex flex-wrap gap-4">
+            <div class="readonly-row"><span class="rlabel">Profesor</span><span class="rvalue" style="font-size:15px" id="bloque-profesor"></span></div>
+            <div class="readonly-row"><span class="rlabel">Día</span><span class="rvalue" style="font-size:15px" id="bloque-dia"></span></div>
+            <div class="readonly-row"><span class="rlabel">Vigencia</span><span class="rvalue" style="font-size:15px" id="bloque-vigencia"></span></div>
+          </div>
+          <div>
+            <label class="form-label" for="bloque-tipo">Tipo de bloque</label>
+            <select class="form-select" id="bloque-tipo"></select>
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label" for="bloque-inicio">Hora inicio</label>
+              <select class="form-select" id="bloque-inicio"></select>
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="bloque-fin">Hora fin</label>
+              <select class="form-select" id="bloque-fin"></select>
+            </div>
+          </div>
+          <div class="info-box stacked">
+            <strong style="font-size:13px">Duración</strong>
+            <span id="bloque-duracion"></span>
+          </div>
+          <div class="ep-error d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-link-danger me-auto d-none" id="btn-eliminar-bloque">Eliminar bloque</button>
+          <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><span data-icono="check"></span>Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="../assets/js/core/libs.min.js"></script>
+  <script>
+    // Solo para probar fuera de SIAWEB: si Hope UI no cargó, usa Bootstrap 5.2.3 desde CDN
+    if (!window.bootstrap) {
+      document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"><\/script>');
+    }
+  </script>
+  <script src="../assets/js/hope-ui.js"></script>
+  <script src="js/esquema-pago-comun.js"></script>
+  <!-- Modo demo: solo se activa con ?demo=1 o window.SIAWEB_DEMO = true -->
+  <script src="js/esquema-pago-demo.js"></script>
+  <script src="js/horario-profesor.js"></script>
+</body>
+</html>

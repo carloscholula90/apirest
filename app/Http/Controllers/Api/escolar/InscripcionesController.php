@@ -467,7 +467,7 @@ class InscripcionesController extends Controller
                     // AspiranteController.
                     $maxSecuencia = DB::table('integra')
                         ->where('uid', $uid)
-                        ->where('idRol', 3)
+                        ->where('idRol', 2)
                         ->max('secuencia');
 
                     $secuencia = $maxSecuencia ? ((int) $maxSecuencia + 1) : 1;
@@ -475,7 +475,7 @@ class InscripcionesController extends Controller
                     DB::table('integra')->insert([
                         'uid' => $uid,
                         'secuencia' => $secuencia,
-                        'idRol' => 3,
+                        'idRol' => 2,
                     ]);
 
                     $plan = DB::table('plan')
@@ -508,7 +508,7 @@ class InscripcionesController extends Controller
                         'fechaMatricula' => now(),
                         'fechaAlta' => now(),
                         'fechaModificacion' => now(),
-                        'idRolIntegra' => 3,
+                        'idRolIntegra' => 2,
                     ]);
                 }
 
