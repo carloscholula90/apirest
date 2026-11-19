@@ -6,11 +6,15 @@ use App\Models\escolar\Grupo;
 use Illuminate\Http\Request;  
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;  
+use App\Http\Controllers\Api\serviciosGenerales\GenericTableExportEsp;
 
 class GrupoController extends Controller
 {
+    // Hora del acta: HH:MM o HH:MM:SS
+    private const FORMATO_HORA = '/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/';
+
     /**
      * Display a listing of the resource.
      */
@@ -547,13 +551,26 @@ public function obtenerAsignaturas($grupo){
    }
 
   public function actualizarActas(Request $request, $gruposec){
+            // Solo el profesor es obligatorio (se revisa en el grupo, porque se guarda en su propia ruta).
+            // Firmantes, fecha y horas son opcionales, pero si llegan se validan; los firmantes deben existir en persona
             $request->validate([
-                           'uidSecretario' => 'required',
-                           'uidPresidente' => 'required',
+                           'uidSecretario' => 'nullable|integer|exists:persona,uid',
+                           'uidPresidente' => 'nullable|integer|exists:persona,uid',
                            // uidVocal es el nombre anterior del supervisor; se sigue aceptando
-                           'uidSupervisor' => 'required_without:uidVocal',
-                           'fechaIni' => 'required',
-                           'horaIni' => 'required'
+                           'uidSupervisor' => 'nullable|integer|exists:persona,uid',
+                           'uidVocal' => 'nullable|integer|exists:persona,uid',
+                           'fechaIni' => 'nullable|date_format:Y-m-d',
+                           'horaIni' => ['nullable', 'regex:'.self::FORMATO_HORA],
+                           'horaFin' => ['nullable', 'regex:'.self::FORMATO_HORA]
+            ], [
+                           'uidSecretario.exists' => 'El secretario no existe en el catálogo de personas.',
+                           'uidPresidente.exists' => 'El presidente no existe en el catálogo de personas.',
+                           'uidSupervisor.exists' => 'El supervisor no existe en el catálogo de personas.',
+                           'uidVocal.exists' => 'El supervisor no existe en el catálogo de personas.',
+                           '*.integer' => 'Elige al firmante del catálogo de personas.',
+                           'fechaIni.*' => 'Captura la fecha del acta (AAAA-MM-DD).',
+                           'horaIni.*' => 'Captura la hora de inicio del acta (HH:MM).',
+                           'horaFin.*' => 'Captura la hora de fin del acta (HH:MM).'
             ]);
 
             $grupo = Grupo::where('gruposec', $gruposec)
@@ -565,20 +582,94 @@ public function obtenerAsignaturas($grupo){
                ], 404);
             }
 
-            // Logotipos y formato son opcionales; si no llegan se conserva lo guardado
-            Grupo::where('gruposec', $gruposec)->update(array_merge([
-                     'uidSecretario' => $request->uidSecretario,
-                     'uidPresidente' => $request->uidPresidente,
-                     'uidSupervisor' => $request->uidSupervisor ?? $request->uidVocal,
-                     'fechaIni' => $request->fechaIni,
-                     'horaIni' => $request->horaIni,
-                     'horaFin' => $request->horaFin
-            ], $request->only(['logoSep', 'logoEscudo', 'idFormato'])));
+            if (!$grupo->uidProfesor) {
+               throw ValidationException::withMessages(['uidProfesor' => 'Asigna el profesor de la asignatura antes de guardar el acta.']);
+            }
+
+            $errores = $this->validaActa($request, $grupo);
+
+            if ($errores) {
+               throw ValidationException::withMessages($errores);
+            }
+
+            // Se guardan los campos que llegan (null los vacía); los que no llegan conservan lo guardado.
+            // Logotipos y formato igual: si no llegan se conserva lo guardado
+            $campos = $request->only(['uidSecretario', 'uidPresidente', 'fechaIni', 'horaIni', 'horaFin', 'logoSep', 'logoEscudo', 'idFormato']);
+
+            if ($request->has('uidSupervisor') || $request->has('uidVocal')) {
+               $campos['uidSupervisor'] = $request->has('uidSupervisor') ? $request->uidSupervisor : $request->uidVocal;
+            }
+
+            if ($campos) {
+               Grupo::where('gruposec', $gruposec)->update($campos);
+            }
 
             return response()->json([
                'message' => 'Acta actualizada correctamente',
                'data'    => Grupo::where('gruposec', $gruposec)->first()
             ], 200);
+         }
+
+         /*
+          * Reglas del acta que dependen del grupo: la fecha cae dentro de las fechas de su periodo,
+          * la hora de fin es posterior a la de inicio y los firmantes capturados son personas distintas entre sí.
+          * El presidente puede ser el profesor (es su predeterminado); el secretario y el supervisor no.
+          * Regresa los errores por campo.
+          */
+         private function validaActa(Request $request, $grupo)
+         {
+            $errores = [];
+
+            // Los campos son opcionales: se valida cómo quedaría el acta (lo que llega o, si no llega, lo guardado)
+            $valor = function ($campo) use ($request, $grupo) {
+               return $request->has($campo) ? $request->input($campo) : $grupo->$campo;
+            };
+            $horaIni = $valor('horaIni');
+            $horaFin = $valor('horaFin');
+
+            if ($horaIni && $horaFin && substr($horaFin, 0, 5) <= substr($horaIni, 0, 5)) {
+               $errores['horaFin'] = 'La hora de fin debe ser posterior a la hora de inicio.';
+            }
+
+            $periodo = DB::table('periodo')
+               ->where('idNivel', $grupo->idNivel)
+               ->where('idPeriodo', $grupo->idPeriodo)
+               ->first(['fechaInicio', 'fechaTermino']);
+
+            if ($request->filled('fechaIni') && $periodo && $periodo->fechaInicio && $periodo->fechaTermino) {
+               $inicio = substr($periodo->fechaInicio, 0, 10);
+               $termino = substr($periodo->fechaTermino, 0, 10);
+
+               if ($request->fechaIni < $inicio || $request->fechaIni > $termino) {
+                  $errores['fechaIni'] = 'La fecha del acta debe quedar dentro del periodo ('
+                     .date('d/m/Y', strtotime($inicio)).' al '.date('d/m/Y', strtotime($termino)).').';
+               }
+            }
+
+            $supervisor = $request->has('uidSupervisor') ? $request->uidSupervisor
+               : ($request->has('uidVocal') ? $request->uidVocal : $grupo->uidSupervisor);
+            $firmantes = [
+               'uidSecretario' => ['secretario', (int) $valor('uidSecretario')],
+               'uidPresidente' => ['presidente', (int) $valor('uidPresidente')],
+               'uidSupervisor' => ['supervisor', (int) $supervisor],
+            ];
+            $vistos = [];
+
+            foreach ($firmantes as $campo => [$rol, $uid]) {
+               // Un firmante vacío no se compara
+               if (!$uid) {
+                  continue;
+               }
+
+               if ($campo !== 'uidPresidente' && $grupo->uidProfesor && $uid === (int) $grupo->uidProfesor) {
+                  $errores[$campo] = 'El '.$rol.' no puede ser el profesor de la asignatura.';
+               } elseif (isset($vistos[$uid])) {
+                  $errores[$campo] = 'El '.$rol.' no puede ser la misma persona que el '.$vistos[$uid].'.';
+               }
+               $vistos[$uid] = $vistos[$uid] ?? $rol;
+            }
+
+            return $errores;
          }
 
          public function actualizarProfesor(Request $request, $gruposec){
@@ -794,7 +885,7 @@ public function obtenerAsignaturas($grupo){
 
         return response()->json([
             'status'  => 200,
-            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/grupos_rpt.xlsx'
         ]);
 
     } else {

@@ -33,6 +33,9 @@ class ImpuestoController extends Controller{
                         'idImpuesto' => $newId,
                         'descripcion' => strtoupper(trim($request->descripcion)),
                         'porcentaje' => $request->porcentaje ?? 0,
+                        // valor e isPorcentaje son las columnas que lee tesoreria; se mantienen iguales
+                        'isPorcentaje' => 1,
+                        'valor' => $request->porcentaje ?? 0,
                         'esRetencion' => $request->esRetencion ?? 0
         ]);
         } catch (QueryException $e) {
@@ -88,8 +91,11 @@ class ImpuestoController extends Controller{
         $Impuesto->idImpuesto = $request->idImpuesto;
         $Impuesto->descripcion = strtoupper(trim($request->descripcion));
 
-        if ($request->has('porcentaje'))
+        if ($request->has('porcentaje')) {
             $Impuesto->porcentaje = $request->porcentaje ?? 0;
+            $Impuesto->isPorcentaje = 1;
+            $Impuesto->valor = $Impuesto->porcentaje;
+        }
 
         if ($request->has('esRetencion'))
             $Impuesto->esRetencion = $request->esRetencion ?? 0;

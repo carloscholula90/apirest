@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\Validator;
 
 class GruposOfertaController extends Controller
 {
-    // id_campo de la tabla configuracion con el firmante predeterminado del acta
+    // Columna de configuracionActas (una fila por nivel) con el uid del firmante predeterminado del acta;
+    // el presidente no viene de ahí: su predeterminado es el profesor de la asignatura
     private const FIRMANTES_CONFIG = [
-        'secretario' => 3,
-        'presidente' => 4,
-        'supervisor' => 5,
+        'secretario' => 'idSecretario',
+        'supervisor' => 'idSupervisor',
     ];
 
     // Renglones de la oferta (un renglon por asignatura y grupo) con el estado de su acta y horario
@@ -34,7 +34,8 @@ class GruposOfertaController extends Controller
 
         $grupos = DB::table('grupos as g')
             ->select(
-                'g.gruposec',
+                // Con alias el nombre no depende de cómo lo devuelva el motor (MySQL o SQLite)
+                'g.gruposec as gruposec',
                 'g.grupo',
                 DB::raw($semestreSql.' AS semestre'),
                 'g.idAsignatura',
@@ -74,6 +75,13 @@ class GruposOfertaController extends Controller
             ->leftJoin('persona as prof', 'prof.uid', '=', 'g.uidProfesor')
             ->where('g.idNivel', $idNivel)
             ->where('g.idPeriodo', $idPeriodo)
+            // La asignatura también debe ser del nivel: estar en un plan del nivel (detasignatura), no solo en un grupo
+            // marcado con ese nivel; así no se cuelan materias de otro nivel capturadas en un grupo equivocado
+            ->whereExists(function ($query) {
+                $query->selectRaw('1')->from('detasignatura as dn')
+                    ->whereColumn('dn.idAsignatura', 'g.idAsignatura')
+                    ->whereColumn('dn.idNivel', 'g.idNivel');
+            })
             // La carrera son los primeros 1 o 2 caracteres del grupo ('01D5A' -> 1)
             ->whereRaw("CAST(SUBSTRING(g.grupo, 1, CASE WHEN LENGTH(g.grupo) = 4 THEN 1 ELSE 2 END) AS UNSIGNED) = ?", [(int) $idCarrera])
             ->when($request->query('idTurno'), function ($query, $idTurno) {
@@ -114,7 +122,8 @@ class GruposOfertaController extends Controller
         return $this->returnData('grupos', $grupos, 200);
     }
 
-    // Lo guardado en el acta manda; cada firmante vacio toma el valor de configuracion
+    // Lo guardado en el acta manda. Si falta: secretario y supervisor salen de configuracionActas del nivel;
+    // el presidente es el profesor de la asignatura
     public function acta($gruposec)
     {
         $grupo = $this->buscaGrupo($gruposec);
@@ -129,25 +138,32 @@ class GruposOfertaController extends Controller
             'supervisor' => $grupo->uidSupervisor,
         ];
 
-        // En configuracion el nombre del firmante esta en descripcion; valor solo trae el rol
-        $predeterminados = DB::table('configuracion')
-            ->whereIn('id_campo', self::FIRMANTES_CONFIG)
-            ->pluck('descripcion', 'id_campo');
+        // Firmantes predeterminados del nivel del grupo; cada campo vacío del acta toma el suyo
+        $configuracion = DB::table('configuracionActas')->where('idNivel', $grupo->idNivel)->first();
+        $predeterminados = [];
+
+        foreach (self::FIRMANTES_CONFIG as $rol => $columna) {
+            $predeterminados[$rol] = $configuracion && !empty($configuracion->$columna) ? (int) $configuracion->$columna : null;
+        }
+
+        $predeterminados['presidente'] = $grupo->uidProfesor ? (int) $grupo->uidProfesor : null;
 
         $nombres = $this->nombresPersonas(
-            array_merge([$grupo->uidProfesor], array_values($guardados))
+            array_merge([$grupo->uidProfesor], array_values($guardados), array_values($predeterminados))
         );
 
         $firmantes = [];
 
-        foreach (self::FIRMANTES_CONFIG as $rol => $idCampo) {
+        foreach (['secretario', 'presidente', 'supervisor'] as $rol) {
             $guardado = !empty($guardados[$rol]);
-            $predeterminado = trim((string) ($predeterminados[$idCampo] ?? ''));
+            // Solo se usa el predeterminado si existe en persona; al guardar el acta se valida lo mismo
+            $predeterminado = $predeterminados[$rol] && isset($nombres[$predeterminados[$rol]]) ? $predeterminados[$rol] : null;
+            $uid = $guardado ? $guardados[$rol] : $predeterminado;
 
             $firmantes[$rol] = [
-                'uid' => $guardado ? $guardados[$rol] : null,
-                'nombre' => $guardado ? ($nombres[$guardados[$rol]] ?? null) : ($predeterminado ?: null),
-                'predeterminado' => !$guardado && $predeterminado !== '',
+                'uid' => $uid,
+                'nombre' => $uid ? ($nombres[$uid] ?? null) : null,
+                'predeterminado' => !$guardado && $predeterminado !== null,
             ];
         }
 

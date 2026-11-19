@@ -206,7 +206,7 @@ class AlumnoController extends Controller
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -294,7 +294,7 @@ public function generateReportConcentrado($idNivel,$idPeriodo,$data, $headers,$c
 
     return response()->json([
         'status' => 200,
-        'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $nameReport
+        'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $nameReport
     ]);
 }
 
@@ -372,7 +372,7 @@ public function alumnosInscritosDetalladoExc($idNivel,$idPeriodo) {
         if (file_exists($path))  {
             return response()->json([
                 'status' => 200,
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$name
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$name
             ]);
         }
 
@@ -456,7 +456,7 @@ public function exportExcelCocentrado($idNivel,$idPeriodo)
     if (file_exists($path)) {
         return response()->json([
             'status' => 200,
-            'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/' . $fileName
+            'message' => 'https://reportes.siaweb.com.mx/storage/app/public/' . $fileName
             
         ]);
     } else {

@@ -33,9 +33,17 @@ function ofertaCatalogo($endpoint, $clave)
     return $json[$clave] ?? [];
 }
 
-$niveles  = ofertaCatalogo($apiUrl . '/niveles', 'niveles');
+// Solo niveles activos: la oferta no se captura en niveles dados de baja
+$niveles  = array_values(array_filter(ofertaCatalogo($apiUrl . '/niveles', 'niveles'), function ($nivel) {
+    return (int) ($nivel['activo'] ?? 0) === 1;
+}));
 $carreras = ofertaCatalogo($apiUrl . '/carreras', 'carreras');
 $formatos = ofertaCatalogo($apiUrl . '/formatos', 'formatos');
+// Horario de cada turno por día y por nivel (dtlTurno.idNivel), para dibujar la cuadrícula del horario
+$turnosDetalle = [];
+foreach ($niveles as $nivel) {
+    $turnosDetalle[$nivel['idNivel']] = ofertaCatalogo($apiUrl . '/turnos/detalles?idNivel=' . (int) $nivel['idNivel'], 'turnos');
+}
 
 function reporte2($endpoint)
 {
@@ -129,7 +137,7 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
     .ofa .ofa-rlabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ofa-text-muted); margin-right: 8px; }
     .ofa .ofa-link { background: none; border: 0; padding: 2px 0; color: var(--ofa-accent-strong); font-size: 13px; font-weight: 600; }
     .ofa .ofa-link:hover { text-decoration: underline; }
-    .ofa .ofa-ayuda { font-size: 12.5px; color: var(--ofa-text-muted); }
+    .ofa .ofa-ayuda, .ofa-modal .ofa-ayuda { font-size: 12.5px; color: var(--ofa-text-muted); }
     .ofa .ofa-acciones { display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ofa-muted); }
     .ofa .ofa-guardado { margin-right: auto; color: var(--ofa-accent-strong); font-size: 14px; font-weight: 600; }
     .ofa .ofa-alerta, .ofa-modal .ofa-alerta { display: flex; gap: 8px; align-items: flex-start; background: var(--ofa-bad-bg); color: var(--ofa-bad-text); border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 500; }
@@ -138,21 +146,34 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
     .ofa .ofa-btn.primario, .ofa-modal .ofa-btn.primario { background: var(--ofa-accent); color: var(--ofa-on-accent); }
     .ofa .ofa-btn.secundario, .ofa-modal .ofa-btn.secundario { background: var(--ofa-surface); border-color: var(--ofa-border); color: var(--ofa-text); }
     .ofa .ofa-btn.peligro, .ofa-modal .ofa-btn.peligro { background: var(--ofa-danger); color: #ffffff; }
-    .ofa .ofa-btn.texto-peligro { background: none; color: var(--ofa-danger); padding-left: 4px; padding-right: 4px; }
+    .ofa .ofa-btn.texto-peligro, .ofa-modal .ofa-btn.texto-peligro { background: none; color: var(--ofa-danger); padding-left: 4px; padding-right: 4px; }
     .ofa .ofa-persona { position: relative; }
     .ofa .ofa-persona input { padding-right: 36px; }
     .ofa .ofa-persona > i { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--ofa-text-muted); pointer-events: none; }
     .ofa .ofa-resultados { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); max-height: 260px; overflow: auto; background: var(--ofa-surface); border: 1px solid var(--ofa-border); border-radius: 10px; box-shadow: 0 10px 30px var(--ofa-shadow); }
     .ofa .ofa-resultados button, .ofa .ofa-resultados div { display: block; width: 100%; text-align: left; padding: 8px 12px; border: 0; background: none; color: var(--ofa-text); font-size: 14px; }
     .ofa .ofa-resultados button:hover { background: var(--ofa-muted); }
-    .ofa .ofa-dias td { padding: 7px 12px; }
-    .ofa .ofa-dias table { min-width: 620px; }
-    .ofa .ofa-dias tbody tr:hover td { background: transparent; }
-    .ofa .ofa-dias tr.inactivo .form-control, .ofa .ofa-dias tr.inactivo .form-select { opacity: .45; }
-    .ofa .ofa-dias input[readonly] { background: transparent; color: var(--ofa-text-muted); }
-    .ofa .ofa-dia { min-width: 44px; padding: 7px 6px; border: 1.5px solid var(--ofa-border); border-radius: 999px; background: var(--ofa-surface); color: var(--ofa-text-muted); font-size: 12px; font-weight: 600; }
-    .ofa .ofa-dia.on { background: var(--ofa-accent); border-color: var(--ofa-accent); color: var(--ofa-on-accent); }
-    .ofa .ofa-dia:hover:not(.on) { border-color: var(--ofa-accent); color: var(--ofa-accent-strong); }
+    /* Cuadrícula semanal, mismo diseño que Horario del profesor */
+    .ofa .ofa-grid-wrap { overflow-x: auto; border: 1px solid var(--ofa-border); border-radius: 10px; }
+    .ofa .ofa-hgrid { display: grid; min-width: 640px; background: var(--ofa-surface); position: relative; }
+    .ofa .ofa-hhead { display: flex; align-items: center; justify-content: center; background: var(--ofa-muted); border-bottom: 1px solid var(--ofa-border); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ofa-text-muted); }
+    .ofa .ofa-hhour { display: flex; align-items: flex-start; justify-content: center; padding-top: 6px; border-bottom: 1px solid var(--ofa-muted); border-right: 1px solid var(--ofa-border); font-size: 11px; color: var(--ofa-text-muted); white-space: nowrap; }
+    .ofa .ofa-hcell { border: 0; border-bottom: 1px solid var(--ofa-muted); border-right: 1px solid var(--ofa-muted); background: transparent; padding: 0; }
+    .ofa .ofa-hcell.fuera { background: var(--ofa-muted); cursor: not-allowed; }
+    .ofa-modal .ofa-calculado { background: var(--ofa-muted); color: var(--ofa-text-muted); cursor: default; }
+    .ofa-modal .ofa-calculado:focus { border-color: var(--ofa-border); box-shadow: none; }
+    .ofa button.ofa-hcell:hover, .ofa button.ofa-hcell:focus-visible { background: var(--ofa-accent-soft); outline: none; }
+    .ofa .ofa-hblk { z-index: 1; margin: 2px 4px; display: flex; flex-direction: column; justify-content: flex-start; gap: 2px; padding: 6px 8px; border: 1.5px solid var(--ofa-accent); border-radius: 8px; background: var(--ofa-accent-soft); color: var(--ofa-text); font-size: 11px; text-align: left; overflow: hidden; cursor: pointer; }
+    .ofa .ofa-hblk strong { font-size: 12px; letter-spacing: .02em; }
+    .ofa .ofa-hblk > * { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+    /* El nombre de la materia usa hasta dos renglones; si no cabe, el completo está en el title del bloque */
+    .ofa .ofa-hblk > .ofa-hblk-nombre { white-space: normal; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .ofa .ofa-hblk.otro { border-style: dashed; border-color: var(--ofa-text-muted); background: var(--ofa-muted); color: var(--ofa-text-muted); cursor: default; }
+    .ofa .ofa-hblk.otro:hover { box-shadow: none; border-color: var(--ofa-text-muted); }
+    .ofa .ofa-hbanda { z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; border-top: 1.5px solid; border-bottom: 1.5px solid; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--ofa-text); overflow: hidden; }
+    .ofa .ofa-hblk:hover, .ofa .ofa-hblk:focus-visible { box-shadow: 0 0 0 3px var(--ofa-accent-soft); outline: none; border-color: var(--ofa-accent-strong); }
+    .ofa .ofa-leyenda { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ofa-text-muted); }
+    .ofa .ofa-leyenda i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid; vertical-align: -2px; margin-right: 6px; }
     .ofa-menu { position: fixed; z-index: 1060; min-width: 180px; padding: 6px; background: var(--ofa-surface); border: 1px solid var(--ofa-border); border-radius: 10px; box-shadow: 0 10px 30px var(--ofa-shadow); }
     .ofa-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px; background: none; color: var(--ofa-text); font-size: 14px; text-align: left; }
     .ofa-menu button:hover:not(:disabled) { background: var(--ofa-muted); }
@@ -165,8 +186,17 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
     .ofa-modal .modal-footer { border-top: 1px solid var(--ofa-muted); padding: 14px 22px; gap: 10px; }
     .ofa-modal .ofa-resumen { background: var(--ofa-accent-soft); color: var(--ofa-accent-strong); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 600; display: flex; flex-direction: column; gap: 2px; }
     .ofa-modal .ofa-resumen.peligro { background: var(--ofa-bad-bg); color: var(--ofa-bad-text); }
-    .ofa-modal .ofa-logo { padding: 12px 14px; border: 1.5px solid var(--ofa-border); border-radius: 10px; background: var(--ofa-surface); color: var(--ofa-text); font-size: 13px; font-weight: 600; }
-    .ofa-modal .ofa-logo.on { border-color: var(--ofa-accent); background: var(--ofa-accent-soft); }
+    .ofa-modal .ofa-logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+    .ofa-modal .ofa-logo { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1.5px solid var(--ofa-border); border-radius: 10px; background: var(--ofa-surface); color: var(--ofa-text); font-size: 13px; font-weight: 600; text-align: center; }
+    .ofa-modal .ofa-logo:hover { border-color: var(--ofa-accent); }
+    .ofa-modal .ofa-logo.on { border-color: var(--ofa-accent); background: var(--ofa-accent-soft); box-shadow: 0 0 0 3px var(--ofa-accent-soft); }
+    .ofa-modal .ofa-logo.on::after { content: "\2713"; position: absolute; top: 6px; right: 8px; width: 22px; height: 22px; border-radius: 999px; background: var(--ofa-accent); color: var(--ofa-on-accent); font-size: 13px; line-height: 22px; }
+    /* Fondo blanco fijo: los logotipos son para impresión aunque la pantalla esté en modo oscuro */
+    .ofa-logo-img { display: flex; align-items: center; justify-content: center; height: 90px; padding: 6px; border-radius: 6px; background: #ffffff; overflow: hidden; }
+    .ofa-logo-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .ofa-logo-img.sin-imagen { background: var(--ofa-muted); color: var(--ofa-text-muted); font-size: 12px; font-weight: 500; }
+    .ofa .ofa-logo-actual { display: inline-flex; align-items: center; gap: 10px; vertical-align: middle; }
+    .ofa .ofa-logo-actual .ofa-logo-img { width: 120px; height: 44px; padding: 4px; border: 1px solid var(--ofa-border); }
   </style>
 
   <div class="list_btn_header" style="margin-bottom: 20px;">
@@ -194,7 +224,7 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       </div>
       <div class="col-md-4">
         <label class="ofa-label" for="ofa-turno">Turno</label>
-        <select class="form-select" id="ofa-turno" disabled><option value="">Todos</option></select>
+        <select class="form-select" id="ofa-turno" required aria-required="true" disabled><option value="">Selecciona un turno</option></select>
       </div>
       <div class="col-md-4">
         <label class="ofa-label" for="ofa-semestre">Semestre</label>
@@ -273,19 +303,56 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
   </div>
 
   <div class="modal fade ofa-modal" id="ofa-modal-logotipo" tabindex="-1" aria-labelledby="ofa-titulo-logotipo" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <form class="modal-content" id="ofa-form-logotipo" novalidate>
         <div class="modal-header">
           <h2 class="modal-title" id="ofa-titulo-logotipo"><span class="ofa-icono"><i class="bi bi-image"></i></span>Cambiar logotipo del acta</h2>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
         <div class="modal-body">
-          <div class="d-flex flex-wrap gap-2" id="ofa-logos"></div>
+          <div class="ofa-ayuda">Elige el logotipo de la SEP que se imprime en el acta.</div>
+          <div class="ofa-logos" id="ofa-logos" role="radiogroup" aria-label="Logotipos"></div>
           <div class="ofa-error"></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="ofa-btn secundario" data-bs-dismiss="modal">Cancelar</button>
           <button type="submit" class="ofa-btn primario">Usar este logotipo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Clase de un día del horario (nuevo o editar, mismo modal) -->
+  <div class="modal fade ofa-modal" id="ofa-modal-dia" tabindex="-1" aria-labelledby="ofa-titulo-dia" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" id="ofa-form-dia" novalidate>
+        <div class="modal-header">
+          <h2 class="modal-title" id="ofa-titulo-dia"><span class="ofa-icono"><i class="bi bi-calendar-week"></i></span><span id="ofa-dia-titulo"></span></h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="ofa-resumen"><span>Grupo</span><span id="ofa-dia-grupo" style="font-weight:500"></span></div>
+          <div class="row g-3">
+            <div class="col-12 col-sm-4">
+              <label class="ofa-label" for="ofa-dia-ini">Hora de inicio</label>
+              <input class="form-control" id="ofa-dia-ini" type="time" step="300">
+            </div>
+            <div class="col-12 col-sm-5">
+              <label class="ofa-label" for="ofa-dia-sesiones">Duración</label>
+              <select class="form-control" id="ofa-dia-sesiones"></select>
+            </div>
+            <div class="col-12 col-sm-3">
+              <label class="ofa-label" for="ofa-dia-fin">Hora de fin</label>
+              <input class="form-control ofa-calculado" id="ofa-dia-fin" type="text" readonly tabindex="-1" aria-describedby="ofa-dia-turno">
+            </div>
+          </div>
+          <div class="ofa-ayuda" id="ofa-dia-turno"></div>
+          <div class="ofa-error"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="ofa-btn texto-peligro me-auto d-none" id="ofa-dia-quitar">Quitar día</button>
+          <button type="button" class="ofa-btn secundario" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="ofa-btn primario">Aplicar</button>
         </div>
       </form>
     </div>
@@ -325,20 +392,24 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
     var API = <?= json_encode($apiUrl, $jsonOpciones) ?>;
     var CARRERAS = <?= json_encode($carreras, $jsonOpciones) ?>;
     var FORMATOS = <?= json_encode($formatos, $jsonOpciones) ?>;
+    var TURNOS_DETALLE = <?= json_encode((object) $turnosDetalle, $jsonOpciones) ?>; // { idNivel: [turnos con sus días] }
 
     var ORDEN_DIAS = [2, 3, 4, 5, 6, 7, 1]; // Lunes a domingo; 1 es domingo igual que en apirest
     var DIAS = { 1: 'domingo', 2: 'lunes', 3: 'martes', 4: 'miércoles', 5: 'jueves', 6: 'viernes', 7: 'sábado' };
     var DIAS_CORTOS = { 1: 'Dom', 2: 'Lun', 3: 'Mar', 4: 'Mié', 5: 'Jue', 6: 'Vie', 7: 'Sáb' };
     var FIRMANTES = ['secretario', 'presidente', 'supervisor'];
     var MAX_SESIONES = 4;
-    var LOGOS_SEP = ['logoSEP05.png', 'logoSEP1617.png'];
+    // Logotipos de la SEP en /secciones/img/logos; grupos.logoSep guarda solo el nombre del archivo
+    var RUTA_LOGOS = 'img/logos/';
+    var LOGOS_SEP = ['01', '02', '03', '04', '05', '06', '07'].map(function (n) { return 'logo-sep-ajustado-' + n + '.png'; });
 
-    var estado = { filas: [], seleccion: null, tab: 'acta', acta: null, horario: null, borrador: {}, previa: null, menuFila: null, logo: null, pedido: 0, confirmar: null };
+    var estado = { filas: [], seleccion: null, tab: 'acta', acta: null, horario: null, borrador: {}, turnoPrevio: null, periodos: [], menuFila: null, logo: null, pedido: 0, confirmar: null };
     var $detalle = $('#ofa-detalle');
     var temporizador = null;
 
     // Los modales van al body para que el layout no los recorte
-    $('#ofa-modal-capacidad, #ofa-modal-logotipo, #ofa-modal-confirmar, #ofa-menu').appendTo('body');
+    $('#ofa-modal-capacidad, #ofa-modal-logotipo, #ofa-modal-dia, #ofa-modal-confirmar, #ofa-menu').appendTo('body');
+    var modalDia = new bootstrap.Modal('#ofa-modal-dia');
     var modalCapacidad = new bootstrap.Modal('#ofa-modal-capacidad');
     var modalLogotipo = new bootstrap.Modal('#ofa-modal-logotipo');
     var modalConfirmar = new bootstrap.Modal('#ofa-modal-confirmar');
@@ -394,14 +465,35 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
         diferido.resolve(respuesta);
       }).fail(function (xhr) {
         var r = xhr.responseJSON, mensaje = '';
-        if (r && r.error && typeof r.error === 'object') {
-          $.each(r.error, function (_, lista) { mensaje += [].concat(lista).join(' ') + ' '; });
+        // apirest manda los errores en "error"; la validación de Laravel (422), en "errors"
+        var errores = r && (r.error || r.errors);
+        if (errores && typeof errores === 'object') {
+          $.each(errores, function (_, lista) { mensaje += [].concat(lista).join(' ') + ' '; });
         }
-        mensaje = limpio(mensaje) || (r && r.message)
+        mensaje = limpio(mensaje) || mensajeServidor(xhr.status, r && r.message)
           || (xhr.status === 0 ? 'No hay conexión con la API.' : 'Ocurrió un error inesperado (' + xhr.status + ').');
         diferido.reject(mensaje, xhr);
       });
       return diferido.promise();
+    }
+
+    // Los errores que Laravel arma por su cuenta (ruta inexistente, método no permitido, error del servidor)
+    // llegan en inglés; se cambian por un texto en español que diga qué hacer
+    function mensajeServidor(status, mensaje) {
+      mensaje = limpio(mensaje || '');
+      if (status >= 500 || /^Server Error$/i.test(mensaje)) {
+        return 'Ocurrió un error en el servidor (' + status + '). Intenta de nuevo; si continúa, avisa a sistemas.';
+      }
+      if (/^The route .* could not be found\.?$/i.test(mensaje) || /method is not supported/i.test(mensaje)) {
+        return 'La API no tiene esta función en el servidor; puede faltar subir la versión más reciente (' + status + ').';
+      }
+      if (status === 429 || /^Too Many (Attempts|Requests)/i.test(mensaje)) {
+        return 'Se hicieron demasiadas peticiones seguidas; espera un momento e intenta de nuevo.';
+      }
+      if (status === 401 || status === 403 || /^Unauthenticated|^This action is unauthorized/i.test(mensaje)) {
+        return 'No tienes permiso para esta acción o tu sesión terminó.';
+      }
+      return mensaje;
     }
 
     function bloquear($boton, si) {
@@ -435,6 +527,7 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
 
     function alCambiarNivel() {
       var idNivel = $('#ofa-nivel').val();
+      recordarTurno();
       estado.filas = [];
       seleccionar(null);
       llenarSelect($('#ofa-periodo'), [], 'Selecciona un periodo');
@@ -452,20 +545,31 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       $('#ofa-carrera').prop('disabled', false);
 
       api('GET', '/periodos/' + encodeURIComponent(idNivel)).done(function (r) {
-        var periodos = ((r && (r.periodos || r.$periodos)) || []).slice().sort(function (a, b) { return b.idPeriodo - a.idPeriodo; });
-        var activo = periodos.find(function (p) { return Number(p.activo) === 1; });
+        // Solo periodos activos; si el nivel cambió mientras llegaba la respuesta, se descarta
+        if ($('#ofa-nivel').val() !== idNivel) return;
+        var periodos = ((r && (r.periodos || r.$periodos)) || []).filter(function (p) {
+          return Number(p.activo) === 1;
+        }).sort(function (a, b) { return b.idPeriodo - a.idPeriodo; });
+        // Se guardan con sus fechas: el acta debe quedar dentro del periodo
+        estado.periodos = periodos;
         llenarSelect($('#ofa-periodo'), $.map(periodos, function (p) {
           return { valor: p.idPeriodo, texto: p.idPeriodo + ' - ' + limpio(p.descripcion) };
-        }), 'Selecciona un periodo', activo ? activo.idPeriodo : '');
-        $('#ofa-periodo').prop('disabled', false);
+        }), periodos.length ? 'Selecciona un periodo' : 'Sin periodo activo', periodos.length ? periodos[0].idPeriodo : '');
+        // Con un solo periodo activo se muestra seleccionado pero no se puede cambiar; con varios se elige
+        $('#ofa-periodo').prop('disabled', periodos.length <= 1);
         cargarOferta();
       }).fail(function (mensaje) {
         $('#ofa-alerta-general').html(alerta(mensaje));
       });
     }
 
+    // Guarda el turno elegido antes de recargar la oferta, para no obligar a elegirlo otra vez
+    function recordarTurno() {
+      if ($('#ofa-turno').val()) estado.turnoPrevio = $('#ofa-turno').val();
+    }
+
     function reiniciarLocales() {
-      llenarSelect($('#ofa-turno'), [], 'Todos');
+      llenarSelect($('#ofa-turno'), [], 'Selecciona un turno');
       llenarSelect($('#ofa-semestre'), [], 'Todos');
       llenarSelect($('#ofa-grupo'), [], 'Todos');
       $('#ofa-turno, #ofa-semestre, #ofa-grupo').prop('disabled', true);
@@ -495,7 +599,8 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       });
     }
 
-    function distintos(filas, clave, texto) {
+    // porValor ordena por la clave numérica (idTurno) en lugar del texto
+    function distintos(filas, clave, texto, porValor) {
       var vistos = {}, salida = [];
       $.each(filas, function (_, f) {
         var v = f[clave];
@@ -503,30 +608,43 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
         vistos[v] = true;
         salida.push({ valor: v, texto: texto ? texto(f) : v });
       });
-      return salida.sort(function (a, b) { return String(a.texto).localeCompare(String(b.texto), 'es', { numeric: true }); });
+      return salida.sort(function (a, b) {
+        if (porValor) return Number(a.valor) - Number(b.valor);
+        return String(a.texto).localeCompare(String(b.texto), 'es', { numeric: true });
+      });
     }
 
     // Turno, semestre y grupo salen de los renglones de la oferta, en cascada
     function actualizarLocales() {
       var turno = $('#ofa-turno').val(), semestre = $('#ofa-semestre').val(), grupo = $('#ofa-grupo').val();
 
-      llenarSelect($('#ofa-turno'), distintos(estado.filas, 'idTurno', function (f) { return f.turno || f.idTurno; }), 'Todos', turno);
+      // El turno es obligatorio (sin "Todos"). Al cambiar de nivel o carrera se conserva el que se tenía si
+      // la nueva oferta lo trae; si la oferta solo tiene un turno, se elige solo
+      var turnos = distintos(estado.filas, 'idTurno', function (f) { return f.turno || f.idTurno; }, true);
+      if (!turno && estado.turnoPrevio && turnos.some(function (t) { return String(t.valor) === estado.turnoPrevio; })) turno = estado.turnoPrevio;
+      if (estado.filas.length) estado.turnoPrevio = null;
+      if (!turno && turnos.length === 1) turno = String(turnos[0].valor);
+      llenarSelect($('#ofa-turno'), turnos, 'Selecciona un turno', turno);
       turno = $('#ofa-turno').val();
-      var porTurno = estado.filas.filter(function (f) { return !turno || String(f.idTurno) === turno; });
+      var porTurno = turno ? estado.filas.filter(function (f) { return String(f.idTurno) === turno; }) : [];
 
       llenarSelect($('#ofa-semestre'), distintos(porTurno, 'semestre'), 'Todos', semestre);
       semestre = $('#ofa-semestre').val();
       var porSemestre = porTurno.filter(function (f) { return !semestre || String(f.semestre) === semestre; });
 
       llenarSelect($('#ofa-grupo'), distintos(porSemestre, 'grupo'), 'Todos', grupo);
-      $('#ofa-turno, #ofa-semestre, #ofa-grupo').prop('disabled', !estado.filas.length);
+      $('#ofa-turno').prop('disabled', !estado.filas.length);
+      // Semestre y grupo dependen del turno
+      $('#ofa-semestre, #ofa-grupo').prop('disabled', !turno);
     }
 
     function filasVisibles() {
       var turno = $('#ofa-turno').val(), semestre = $('#ofa-semestre').val(), grupo = $('#ofa-grupo').val();
       var texto = limpio($('#ofa-buscar').val()).toUpperCase();
+      // Sin turno elegido no se muestra nada: el turno es obligatorio
+      if (!turno) return [];
       return estado.filas.filter(function (f) {
-        return (!turno || String(f.idTurno) === turno)
+        return String(f.idTurno) === turno
           && (!semestre || String(f.semestre) === semestre)
           && (!grupo || f.grupo === grupo)
           && (!texto || String(f.idAsignatura).toUpperCase().indexOf(texto) !== -1 || String(f.asignatura || '').toUpperCase().indexOf(texto) !== -1);
@@ -545,9 +663,15 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
 
       if (!filas.length) {
         var listo = $('#ofa-nivel').val() && $('#ofa-periodo').val() && $('#ofa-carrera').val();
-        $('#ofa-cuerpo').html('<tr><td colspan="9">' + (listo
+        var sinPeriodo = $('#ofa-nivel').val() && $('#ofa-periodo').prop('disabled') && $('#ofa-periodo option').length === 1 && $('#ofa-periodo option').text() === 'Sin periodo activo';
+        var faltaTurno = listo && estado.filas.length && !$('#ofa-turno').val();
+        $('#ofa-cuerpo').html('<tr><td colspan="9">' + (faltaTurno
+          ? vacio('Elige el turno', 'El turno es obligatorio: al elegirlo aparecen sus asignaturas, semestres y grupos.')
+          : listo
           ? vacio('No hay asignaturas para estos filtros', 'Cambia los filtros. Si el periodo es nuevo, revisa primero la oferta de grupos.')
-          : vacio('Elige nivel, periodo y carrera', 'Con esos tres filtros aparece la oferta de asignaturas.')) + '</td></tr>');
+          : sinPeriodo
+            ? vacio('Este nivel no tiene periodo activo', 'Activa un periodo del nivel en el catálogo de periodos para capturar su oferta.')
+            : vacio('Elige nivel, periodo y carrera', 'Con esos tres filtros aparece la oferta de asignaturas.')) + '</td></tr>');
         $('#ofa-total').text('');
         return;
       }
@@ -575,7 +699,6 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       estado.acta = null;
       estado.horario = null;
       estado.borrador = {};
-      estado.previa = null;
       cargarDetalle();
     }
 
@@ -623,16 +746,24 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
 
     // ---------- Acta ----------
 
-    // El nombre de configuracion se convierte en uid solo si coincide con un único empleado
+    // El profesor sale de los empleados activos; secretario, presidente y supervisor, de todo el catálogo de personas
+    function buscarCatalogo(rol, texto) {
+      var esProfesor = rol === 'profesor';
+      return api('GET', (esProfesor ? '/profesores/nuevo/' : '/personas/buscar/') + encodeURIComponent(texto)).then(function (r) {
+        return (r && (esProfesor ? r.profesores : r.personas)) || [];
+      });
+    }
+
+    // Los predeterminados llegan con uid (configuracionActas); si una API anterior manda solo el nombre,
+    // se convierte en uid únicamente cuando coincide con una sola persona
     // Solo depende de que siga cargada la misma acta, no de la pestaña visible
     function resolverPredeterminados() {
       $.each(FIRMANTES, function (_, rol) {
         var firmante = estado.acta[rol];
         if (!firmante.predeterminado || firmante.uid || !firmante.nombre) return;
-        api('GET', '/profesores/nuevo/' + encodeURIComponent(firmante.nombre)).done(function (r) {
+        buscarCatalogo(rol, firmante.nombre).done(function (lista) {
           // Si el usuario ya cambió este firmante, el resultado se ignora
           if (!estado.acta || estado.acta[rol] !== firmante || !firmante.predeterminado) return;
-          var lista = (r && r.profesores) || [];
           if (lista.length === 1) firmante.uid = lista[0].uid;
         });
       });
@@ -649,6 +780,8 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
     function pintarActa(fila) {
       var a = estado.acta;
       var hayMarcas = FIRMANTES.some(function (r) { return a[r].predeterminado; });
+      var periodo = fechasPeriodo();
+      var limitesFecha = periodo ? ' min="' + periodo.inicio + '" max="' + periodo.fin + '"' : '';
       var opcionesFormato = '<option value="">Selecciona...</option>' + $.map(FORMATOS, function (f) {
         return '<option value="' + escapar(f.idFormato) + '"' + (String(f.idFormato) === String(a.idFormato) ? ' selected' : '') + '>' + escapar(limpio(f.nombre)) + '</option>';
       }).join('');
@@ -656,14 +789,14 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       $detalle.html(cabecera(fila, 'bi-file-earmark-text', 'Acta del grupo')
         + '<div class="row g-3">' + campoPersona('profesor', 'Profesor') + campoPersona('secretario', 'Secretario')
         + campoPersona('presidente', 'Presidente') + campoPersona('supervisor', 'Supervisor escolar') + '</div>'
-        + (hayMarcas ? '<div class="ofa-ayuda mt-2" id="ofa-ayuda-predeterminado">Los campos marcados vienen de la configuración. Se guardan en el acta al pulsar Guardar acta.</div>' : '')
+        + (hayMarcas ? '<div class="ofa-ayuda mt-2" id="ofa-ayuda-predeterminado">Los campos marcados son predeterminados: el presidente es el profesor de la asignatura; el secretario y el supervisor vienen de la configuración de actas del nivel. Se guardan en el acta al pulsar Guardar acta.</div>' : '')
         + '<div class="row g-3 mt-1">'
-        + '<div class="col-12 col-md"><label class="ofa-label" for="ofa-fecha">Fecha</label><input class="form-control" id="ofa-fecha" data-a="fechaIni" type="date" value="' + escapar(String(a.fechaIni || '').substr(0, 10)) + '"></div>'
+        + '<div class="col-12 col-md"><label class="ofa-label" for="ofa-fecha">Fecha</label><input class="form-control" id="ofa-fecha" data-a="fechaIni" type="date"' + limitesFecha + ' value="' + escapar(String(a.fechaIni || '').substr(0, 10)) + '"></div>'
         + '<div class="col-6 col-md"><label class="ofa-label" for="ofa-ini">Hora de inicio</label><input class="form-control" id="ofa-ini" data-a="horaIni" type="time" value="' + escapar(hora(a.horaIni)) + '"></div>'
         + '<div class="col-6 col-md"><label class="ofa-label" for="ofa-fin">Hora de fin</label><input class="form-control" id="ofa-fin" data-a="horaFin" type="time" value="' + escapar(hora(a.horaFin)) + '"></div>'
         + (FORMATOS.length ? '<div class="col-12 col-md"><label class="ofa-label" for="ofa-formato">Formato</label><select class="form-select" id="ofa-formato" data-a="idFormato">' + opcionesFormato + '</select></div>' : '')
         + '</div>'
-        + '<div class="ofa-fila-dato mt-3"><span><span class="ofa-rlabel">Logotipo</span><span id="ofa-logo-actual">' + escapar(a.logoSep || 'Sin logotipo') + '</span></span><button type="button" class="ofa-link" id="ofa-btn-logo">Cambiar logotipo</button></div>'
+        + '<div class="ofa-fila-dato mt-3"><span><span class="ofa-rlabel">Logotipo</span><span id="ofa-logo-actual">' + logoActual(a.logoSep) + '</span></span><button type="button" class="ofa-link" id="ofa-btn-logo">Cambiar logotipo</button></div>'
         + '<div class="ofa-error mt-3"></div>'
         + '<div class="ofa-acciones"><span class="ofa-guardado" aria-live="polite"></span><button type="button" class="ofa-btn secundario" id="ofa-descartar">Descartar cambios</button>'
         + '<button type="button" class="ofa-btn primario" id="ofa-guardar-acta">Guardar acta</button></div>');
@@ -680,9 +813,8 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       }
 
       temporizador = setTimeout(function () {
-        api('GET', '/profesores/nuevo/' + encodeURIComponent(texto)).done(function (r) {
+        buscarCatalogo($input.data('rol'), texto).done(function (lista) {
           if (limpio($input.val()) !== texto) return;
-          var lista = (r && r.profesores) || [];
           $resultados.html(lista.length ? $.map(lista, function (p) {
             var nombre = limpio([p.primerApellido, p.segundoApellido, p.nombre].filter(Boolean).join(' '));
             return '<button type="button" class="ofa-opcion" data-uid="' + escapar(p.uid) + '" data-secuencia="' + escapar(p.secuencia) + '" data-nombre="' + escapar(nombre) + '">'
@@ -699,16 +831,50 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       if (!FIRMANTES.some(function (r) { return estado.acta[r].predeterminado; })) $('#ofa-ayuda-predeterminado').remove();
     }
 
+    // Fechas (AAAA-MM-DD) del periodo elegido en el filtro, o null si no se conocen
+    function fechasPeriodo() {
+      var p = (estado.periodos || []).find(function (x) { return String(x.idPeriodo) === $('#ofa-periodo').val(); });
+      return p && p.fechaInicio && p.fechaTermino ? { inicio: String(p.fechaInicio).substr(0, 10), fin: String(p.fechaTermino).substr(0, 10) } : null;
+    }
+
+    // Secretario, presidente y supervisor: personas distintas entre sí y distintas del profesor (igual que la API)
+    // El presidente sí puede ser el profesor (es su predeterminado); secretario y supervisor no
+    function firmantesRepetidos(a) {
+      var vistos = {};
+      for (var i = 0; i < FIRMANTES.length; i++) {
+        var rol = FIRMANTES[i], uid = a[rol].uid;
+        if (!uid) continue; // vacío: no se compara
+        if (rol !== 'presidente' && a.profesor.uid && String(uid) === String(a.profesor.uid)) {
+          return 'El ' + rol + ' no puede ser el profesor de la asignatura.';
+        }
+        if (vistos[uid]) {
+          return 'El ' + rol + ' no puede ser la misma persona que el ' + vistos[uid] + '.';
+        }
+        vistos[uid] = rol;
+      }
+      return '';
+    }
+
     function guardarActa() {
       var a = estado.acta, id = estado.seleccion;
-      var faltan = $.map(['profesor'].concat(FIRMANTES), function (rol) { return a[rol].uid ? null : rol; });
-
       errorDetalle('');
-      if (faltan.length) return errorDetalle('Elige del catálogo de empleados a: ' + faltan.join(', ') + '.');
-      if (!a.fechaIni || !a.horaIni || !a.horaFin) return errorDetalle('Completa la fecha y las horas del acta.');
-      if (hora(a.horaFin) <= hora(a.horaIni)) return errorDetalle('La hora de fin debe ser posterior a la de inicio.');
+      // Lo único obligatorio es el profesor; firmantes, fecha y horas pueden quedar vacíos
+      if (!a.profesor.uid) return errorDetalle('Elige al profesor de la lista de empleados; es lo único obligatorio para guardar el acta.');
+      // Un firmante escrito pero no elegido de la lista no tiene uid: se pide elegirlo o dejarlo vacío
+      var sinElegir = FIRMANTES.filter(function (rol) { return !a[rol].uid && limpio(a[rol].nombre || ''); });
+      if (sinElegir.length) return errorDetalle('Elige de la lista de personas (o deja vacío) a: ' + sinElegir.join(', ') + '.');
+      var repetido = firmantesRepetidos(a);
+      if (repetido) return errorDetalle(repetido);
+      var periodo = fechasPeriodo(), fechaActa = a.fechaIni ? String(a.fechaIni).substr(0, 10) : '';
+      if (fechaActa && periodo && (fechaActa < periodo.inicio || fechaActa > periodo.fin)) {
+        return errorDetalle('La fecha del acta debe quedar dentro del periodo (' + fecha(periodo.inicio) + ' al ' + fecha(periodo.fin) + ').');
+      }
+      if (a.horaIni && a.horaFin && hora(a.horaFin) <= hora(a.horaIni)) return errorDetalle('La hora de fin debe ser posterior a la de inicio.');
 
-      var datos = { uidSecretario: a.secretario.uid, uidPresidente: a.presidente.uid, uidSupervisor: a.supervisor.uid, fechaIni: String(a.fechaIni).substr(0, 10), horaIni: hora(a.horaIni), horaFin: hora(a.horaFin) };
+      var datos = {
+        uidSecretario: a.secretario.uid || null, uidPresidente: a.presidente.uid || null, uidSupervisor: a.supervisor.uid || null,
+        fechaIni: fechaActa || null, horaIni: a.horaIni ? hora(a.horaIni) : null, horaFin: a.horaFin ? hora(a.horaFin) : null
+      };
       if (FORMATOS.length) datos.idFormato = a.idFormato || null;
 
       var $boton = $('#ofa-guardar-acta');
@@ -733,10 +899,28 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       });
     }
 
+    // Nombre corto para mostrar: logo-sep-ajustado-03.png -> Logotipo 03
+    function nombreLogo(logo) {
+      var m = /logo-sep-ajustado-(\d+)\.png$/i.exec(logo || '');
+      return m ? 'Logotipo ' + m[1] : (logo || 'Sin logotipo');
+    }
+
+    // Vista previa; si la imagen no carga (logotipos anteriores) queda el aviso y el nombre se ve a un lado
+    function imagenLogo(logo) {
+      if (!logo) return '<span class="ofa-logo-img sin-imagen">Sin logotipo</span>';
+      return '<span class="ofa-logo-img"><img src="' + escapar(RUTA_LOGOS + logo) + '" alt="' + escapar(nombreLogo(logo)) + '" loading="lazy"'
+        + ' onerror="this.parentNode.classList.add(\'sin-imagen\');this.parentNode.textContent=\'Sin vista previa\'"></span>';
+    }
+
+    function logoActual(logo) {
+      return '<span class="ofa-logo-actual">' + imagenLogo(logo) + '<span>' + escapar(nombreLogo(logo)) + '</span></span>';
+    }
+
     function pintarLogos() {
       $('#ofa-logos').html($.map(LOGOS_SEP, function (logo) {
         var on = logo === estado.logo;
-        return '<button type="button" class="ofa-logo' + (on ? ' on' : '') + '" data-logo="' + escapar(logo) + '" aria-pressed="' + on + '">' + escapar(logo) + '</button>';
+        return '<button type="button" class="ofa-logo' + (on ? ' on' : '') + '" data-logo="' + escapar(logo) + '" role="radio" aria-checked="' + on + '">'
+          + imagenLogo(logo) + '<span>' + escapar(nombreLogo(logo)) + '</span></button>';
       }).join(''));
     }
 
@@ -744,7 +928,6 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
 
     function recibirHorario(horario) {
       estado.horario = horario;
-      estado.previa = null;
       estado.borrador = {};
       $.each(horario.dias || [], function (_, d) {
         estado.borrador[d.day] = { horaIni: d.horaIni, sesiones: d.sesiones && d.sesiones <= MAX_SESIONES ? d.sesiones : 1 };
@@ -765,58 +948,264 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
         return;
       }
 
-      var filas = $.map(ORDEN_DIAS, function (n) {
-        var d = estado.borrador[n], on = !!d, off = on ? '' : ' disabled', opciones = '';
-        for (var s = 1; s <= MAX_SESIONES; s++) {
-          opciones += '<option value="' + s + '"' + (on && d.sesiones === s ? ' selected' : '') + '>' + (s === 1 ? '1 sesión' : s + ' sesiones seguidas') + ' (' + (s * duracion) + ' min)</option>';
-        }
-        return '<tr' + (on ? '' : ' class="inactivo"') + '>'
-          + '<td><button type="button" class="ofa-dia' + (on ? ' on' : '') + '" data-dia="' + n + '" aria-pressed="' + on + '" aria-label="Clase el ' + DIAS[n] + '">' + DIAS_CORTOS[n] + '</button></td>'
-          + '<td><input class="form-control" type="time" id="ofa-h-ini-' + n + '" data-h="horaIni" data-d="' + n + '" aria-label="Hora de inicio del ' + DIAS[n] + '" value="' + (on ? escapar(d.horaIni) : '') + '"' + off + '></td>'
-          + '<td><select class="form-select" id="ofa-h-ses-' + n + '" data-h="sesiones" data-d="' + n + '" aria-label="Duración del ' + DIAS[n] + '"' + off + '>' + opciones + '</select></td>'
-          + '<td><input class="form-control" type="text" id="ofa-h-fin-' + n + '" readonly tabindex="-1" aria-label="Hora de fin del ' + DIAS[n] + '" value="' + escapar((on && horaFin(d, duracion)) || '—') + '"></td>'
-          + '</tr>';
-      }).join('');
-
       var h = estado.horario;
       $detalle.html(inicio
         + '<div class="ofa-fila-dato mb-3"><span><span class="ofa-rlabel">Duración por sesión</span>' + duracion + ' minutos · ' + escapar(fila.turno || '') + '</span>'
-        + (h.total ? '<span>' + h.total + ' sesiones guardadas' + (h.impartidas ? ', ' + h.impartidas + ' impartidas (no se modifican)' : '') + '</span>' : '') + '</div>'
-        + '<div class="table-responsive ofa-dias"><table class="ofa-tabla"><thead><tr><th>Día</th><th>Hora de inicio</th><th>Duración</th><th>Hora de fin</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
-        + '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3"><span class="ofa-ayuda">Activa cada día con clase. Las sesiones cubren el periodo y omiten los días festivos.</span>'
-        + '<button type="button" class="ofa-btn secundario" id="ofa-generar">Generar sesiones</button></div>'
-        + '<div class="mt-3" id="ofa-previa">' + htmlPrevia() + '</div>'
-        + '<div class="ofa-error mt-3"></div>'
-        + '<div class="ofa-acciones"><span class="ofa-guardado" aria-live="polite"></span>'
-        + (h.total ? '<button type="button" class="ofa-btn texto-peligro" id="ofa-eliminar-horario">Eliminar horario</button>' : '')
-        + '<button type="button" class="ofa-btn secundario" id="ofa-descartar">Descartar cambios</button>'
-        + '<button type="button" class="ofa-btn primario" id="ofa-guardar-horario">Guardar horario</button></div>');
+        + '<span class="d-inline-flex align-items-center gap-3"><span class="ofa-guardado" aria-live="polite"></span>'
+        + (h.total ? '<span>' + h.total + ' sesiones guardadas' + (h.impartidas ? ', ' + h.impartidas + ' impartidas (no se modifican)' : '') + '</span>' : '<span>Sin horario guardado</span>') + '</span></div>'
+        + cuadricula(fila, duracion)
+        + leyendaHorario()
+        + '<div class="ofa-ayuda mt-3">Pulsa una celda libre para agregar la clase de ese día o la clase de esta materia para cambiarla o quitarla; solo hay un horario por día y cada cambio se guarda al momento. '
+        + 'Las clases de otras materias del grupo se cambian seleccionando esa materia en la tabla. Las sesiones cubren el periodo y omiten los días festivos; las impartidas se conservan.</div>'
+        + '<div class="ofa-error mt-3"></div>');
     }
 
-    function htmlPrevia() {
-      if (!estado.previa) return '';
-      return '<div class="ofa-ayuda mb-2">' + estado.previa.length + ' clases en el periodo. Se guardan al pulsar Guardar horario; aquí se muestran las primeras 6.</div>'
-        + '<div class="table-responsive"><table class="ofa-tabla"><thead><tr><th>Fecha</th><th>Día</th><th>Horario</th></tr></thead><tbody>'
-        + $.map(estado.previa.slice(0, 6), function (s) {
-          return '<tr><td>' + fecha(s.fechaIni) + '</td><td>' + DIAS_CORTOS[s.day] + '</td><td>' + hora(String(s.fechaIni).substr(11)) + '–' + hora(String(s.fechaFin).substr(11)) + '</td></tr>';
-        }).join('') + '</tbody></table></div>';
+    // Días y horas del turno del grupo (1 domingo ... 7 sábado), desde /turnos/detalles
+    var NOMBRES_DIA = { DOMINGO: 1, LUNES: 2, MARTES: 3, MIERCOLES: 4, JUEVES: 5, VIERNES: 6, SABADO: 7 };
+
+    function diaNumero(valor) {
+      var texto = limpio(valor).toUpperCase().replace('É', 'E').replace('Á', 'A');
+      if (/^\d+$/.test(texto)) return Number(texto) >= 1 && Number(texto) <= 7 ? Number(texto) : null;
+      return NOMBRES_DIA[texto] || null;
     }
 
-    function validarHorario() {
-      var duracion = filaSeleccionada().duracionSesion;
-      var dias = ORDEN_DIAS.filter(function (n) { return estado.borrador[n]; });
-      if (!dias.length) return 'Activa al menos un día.';
-      for (var i = 0; i < dias.length; i++) {
-        var d = estado.borrador[dias[i]];
-        if (!d.horaIni) return 'Captura la hora de inicio del ' + DIAS[dias[i]] + '.';
-        if (!horaFin(d, duracion)) return 'La clase del ' + DIAS[dias[i]] + ' debe terminar antes de medianoche.';
+    // Días del turno para el nivel elegido en el filtro (la API ya aplica: los del nivel o, si no tiene, los generales)
+    function rangosTurno(idTurno) {
+      var delNivel = TURNOS_DETALLE[$('#ofa-nivel').val()] || [];
+      var turno = delNivel.find(function (t) { return String(t.idTurno) === String(idTurno); });
+      var rangos = {};
+      $.each((turno && turno.diasTurno) || [], function (_, d) {
+        var n = diaNumero(d.diaSemana);
+        if (n) rangos[n] = { ini: minutos(d.horaInicio), fin: minutos(d.horaFin) };
+      });
+      return rangos;
+    }
+
+    // Color de tipoBloque si es un hexadecimal válido (en la base hay valores como "#FF0000;")
+    function colorBloque(valor) {
+      var m = /^#([0-9a-f]{6}|[0-9a-f]{3})\b/i.exec(limpio(valor));
+      return m ? m[0] : '#9aa79c';
+    }
+
+    // Bloques del turno (defaultTurno) en minutos
+    function bloquesTurno() {
+      return $.map((estado.horario && estado.horario.bloquesTurno) || [], function (b) {
+        return { ini: minutos(b.horaIni), fin: minutos(b.horaFin), descripcion: limpio(b.descripcion), color: colorBloque(b.color), texto: limpio(b.descripcion) + ' del turno' };
+      }).sort(function (a, b) { return a.ini - b.ini; });
+    }
+
+    // Lo que una clase no puede ocupar el día n: bloques del turno y clases de otras materias del grupo o del profesor
+    // La cuadrícula solo se relaciona con las otras asignaturas del mismo grupo; los traslapes del profesor
+    // con otros grupos no se dibujan, los rechaza la API al guardar y su mensaje sale en el modal
+    function ocupadosGrupo() {
+      return ((estado.horario && estado.horario.ocupados) || []).filter(function (o) { return o.tipo === 'grupo'; });
+    }
+
+    function ocupadosDia(n) {
+      var lista = bloquesTurno();
+      $.each(ocupadosGrupo(), function (_, o) {
+        if (Number(o.day) !== n) return;
+        lista.push({ ini: minutos(o.horaIni), fin: minutos(o.horaFin), texto: o.idAsignatura + ' del mismo grupo' });
+      });
+      return lista;
+    }
+
+    function choque(n, ini, fin) {
+      return ocupadosDia(n).find(function (o) { return o.ini < fin && o.fin > ini; }) || null;
+    }
+
+    /*
+     * Cuadrícula semanal como en Horario del profesor: una columna por día, una fila por sesión y una franja por cada
+     * bloque del turno (receso). Internamente cada fila de la rejilla son 5 minutos, para ubicar clases que no empiezan
+     * en el borde de una sesión. Las clases de otras materias del grupo y del profesor se ven, pero no se pueden mover aquí.
+     */
+    function cuadricula(fila, duracion) {
+      var rangos = rangosTurno(fila.idTurno);
+      var conTurno = Object.keys(rangos).length > 0;
+      var cortes = bloquesTurno();
+      var bloques = ORDEN_DIAS.filter(function (n) { return estado.borrador[n] && estado.borrador[n].horaIni; }).map(function (n) {
+        var ini = minutos(estado.borrador[n].horaIni);
+        return { dia: n, ini: ini, fin: Math.min(ini + estado.borrador[n].sesiones * duracion, 1440) };
+      });
+
+      // Días: los del turno y los que ya tienen clase (para poder quitarla); sin turno configurado, lunes a sábado
+      var dias = ORDEN_DIAS.filter(function (n) {
+        return rangos[n] || estado.borrador[n] || (!conTurno && n !== 1);
+      });
+
+      // Las filas parten del inicio del turno y se extienden por sesiones completas hasta cubrir todas las clases
+      var base = conTurno ? Math.min.apply(null, $.map(rangos, function (r) { return r.ini; })) : 7 * 60;
+      var tope = conTurno ? Math.max.apply(null, $.map(rangos, function (r) { return r.fin; })) : 22 * 60;
+      $.each(bloques, function (_, b) {
+        while (b.ini < base) base -= duracion;
+        while (b.fin > tope) tope += duracion;
+      });
+      base = Math.max(base, 0);
+
+      // Una fila por sesión; al llegar a un bloque del turno se pone su franja y las sesiones siguen después de él
+      var renglones = [];
+      for (var t = base; t < tope || !renglones.length;) {
+        var corte = cortes.find(function (c) { return c.ini <= t && t < c.fin; });
+        if (corte) {
+          renglones.push({ tipo: 'turno', ini: t, fin: corte.fin, bloque: corte });
+          t = corte.fin;
+          continue;
+        }
+        var siguiente = cortes.filter(function (c) { return c.ini > t; })[0];
+        var fin = Math.min(t + duracion, siguiente ? siguiente.ini : 1440, 1440);
+        renglones.push({ tipo: 'sesion', ini: t, fin: fin });
+        t = fin;
+        if (t >= 1440) break;
       }
-      return '';
+
+      // Cada sesión mide 80px: alcanza para clave, nombre en dos renglones y horario aunque la clase sea de una sola sesión
+      var paso = 5, unidad = 80 * paso / duracion;
+      var inicioGrid = base, finGrid = renglones[renglones.length - 1].fin;
+      var renglon = function (minuto) { return Math.round((Math.min(Math.max(minuto, inicioGrid), finGrid) - base) / paso) + 2; };
+      var columna = function (n) { return dias.indexOf(n) + 2; };
+      var total = renglon(finGrid) - 2;
+
+      var html = '<div class="ofa-hgrid" style="grid-template-columns:96px repeat(' + dias.length + ', minmax(110px, 1fr));grid-template-rows:36px repeat(' + total + ', ' + unidad.toFixed(2) + 'px)">'
+        + '<div class="ofa-hhead" style="grid-column:1;grid-row:1">Hora</div>';
+      $.each(dias, function (_, n) {
+        html += '<div class="ofa-hhead" style="grid-column:' + columna(n) + ';grid-row:1">' + DIAS_CORTOS[n] + '</div>';
+      });
+
+      $.each(renglones, function (_, ren) {
+        var filas = 'grid-row:' + renglon(ren.ini) + ' / ' + renglon(ren.fin);
+        html += '<div class="ofa-hhour" style="grid-column:1;' + filas + '">' + horaDesdeMinutos(ren.ini) + ' – ' + horaDesdeMinutos(ren.fin % 1440) + '</div>';
+
+        if (ren.tipo === 'turno') {
+          var b = ren.bloque;
+          html += '<div class="ofa-hbanda" style="grid-column:2 / -1;' + filas + ';border-color:' + b.color + ';background:' + b.color + '33" title="' + escapar(b.texto) + '">'
+            + '<i class="bi bi-lock" aria-hidden="true"></i>' + escapar(b.descripcion) + ' del turno</div>';
+          return;
+        }
+
+        $.each(dias, function (_, n) {
+          var r = rangos[n], lugar = 'grid-column:' + columna(n) + ';' + filas;
+          // Se puede capturar si desde el inicio de la fila cabe una sesión completa dentro del turno (dtlTurno)
+          // y sin pisar un bloque del turno ni otra clase del grupo o del profesor
+          var dentro = !conTurno || (r && ren.ini >= r.ini && ren.ini + duracion <= r.fin);
+          var ocupado = dentro && choque(n, ren.ini, ren.ini + duracion);
+          if (!dentro || ocupado || ren.ini + duracion > 1440) {
+            html += '<div class="ofa-hcell fuera" style="' + lugar + '" title="' + escapar(ocupado ? 'Ocupado: ' + ocupado.texto : 'Fuera del horario del turno') + '"></div>';
+            return;
+          }
+          html += '<button type="button" class="ofa-hcell" style="' + lugar + '" data-dia="' + n + '" data-ini="' + horaDesdeMinutos(ren.ini) + '"'
+            + ' aria-label="' + (estado.borrador[n] ? 'Cambiar la clase del ' : 'Agregar clase el ') + DIAS[n] + ' a las ' + horaDesdeMinutos(ren.ini) + '"></button>';
+        });
+      });
+
+      // Otras asignaturas del mismo grupo: solo lectura; se cambian seleccionando esa asignatura
+      $.each(ocupadosGrupo(), function (_, o) {
+        var n = Number(o.day), ini = minutos(o.horaIni), fin = minutos(o.horaFin);
+        if (dias.indexOf(n) === -1 || fin <= inicioGrid || ini >= finGrid) return;
+        html += '<div class="ofa-hblk otro" style="grid-column:' + columna(n) + ';grid-row:' + renglon(ini) + ' / ' + Math.max(renglon(fin), renglon(ini) + 1) + '"'
+          + ' title="' + escapar(o.idAsignatura + ' · ' + limpio(o.asignatura) + '\nSelecciona esta materia en la tabla para cambiar su horario') + '">'
+          + '<strong>' + escapar(o.idAsignatura) + '</strong>'
+          + '<span class="ofa-hblk-nombre">' + escapar(limpio(o.asignatura)) + '</span>'
+          + '<span>' + escapar(o.horaIni + ' – ' + o.horaFin) + '</span></div>';
+      });
+
+      // Clase de esta materia: clave, nombre y horario; el texto completo también queda en el title
+      $.each(bloques, function (_, b) {
+        var sesiones = estado.borrador[b.dia].sesiones;
+        var horas = horaDesdeMinutos(b.ini) + ' – ' + horaDesdeMinutos(b.fin % 1440) + ' · ' + (sesiones === 1 ? '1 sesión' : sesiones + ' sesiones');
+        html += '<button type="button" class="ofa-hblk" data-dia="' + b.dia + '" style="grid-column:' + columna(b.dia) + ';grid-row:' + renglon(b.ini) + ' / ' + Math.max(renglon(b.fin), renglon(b.ini) + 1) + '"'
+          + ' title="' + escapar(fila.idAsignatura + ' · ' + limpio(fila.asignatura) + '\n' + horas) + '"'
+          + ' aria-label="Cambiar la clase del ' + DIAS[b.dia] + ', ' + horaDesdeMinutos(b.ini) + ' a ' + horaDesdeMinutos(b.fin % 1440) + '">'
+          + '<strong>' + escapar(fila.idAsignatura) + '</strong><span class="ofa-hblk-nombre">' + escapar(limpio(fila.asignatura)) + '</span><span>' + horas + '</span></button>';
+      });
+
+      return '<div class="ofa-grid-wrap">' + html + '</div></div>';
     }
 
-    function diasParaApi() {
-      return ORDEN_DIAS.filter(function (n) { return estado.borrador[n]; }).map(function (n) {
-        return { day: n, horaIni: estado.borrador[n].horaIni, sesiones: estado.borrador[n].sesiones };
+    // Leyenda: clase propia, lo de otros y cada tipo de bloque del turno con su color
+    function leyendaHorario() {
+      var tipos = {};
+      $.each(bloquesTurno(), function (_, b) { tipos[b.descripcion] = b.color; });
+      return '<div class="ofa-leyenda mt-2"><span><i style="border-color:var(--ofa-accent);background:var(--ofa-accent-soft)"></i>Esta materia</span>'
+        + '<span><i style="border-color:var(--ofa-text-muted);border-style:dashed;background:var(--ofa-muted)"></i>Otra materia del grupo</span>'
+        + $.map(tipos, function (color, descripcion) {
+          return '<span><i style="border-color:' + color + ';background:' + color + '33"></i>' + escapar(descripcion) + ' del turno</span>';
+        }).join('')
+        + '<span><i style="border-color:var(--ofa-border);background:var(--ofa-muted)"></i>No disponible</span></div>';
+    }
+
+    // Rango del turno para el día que se edita: null si el turno no tiene detalle (sin restricción),
+    // false si el turno existe pero no tiene clases ese día
+    function rangoDia(n) {
+      var rangos = rangosTurno(filaSeleccionada().idTurno);
+      if (!Object.keys(rangos).length) return null;
+      return rangos[n] || false;
+    }
+
+    function abrirDia(n, horaIni) {
+      var fila = filaSeleccionada(), duracion = fila.duracionSesion, actual = estado.borrador[n], rango = rangoDia(n);
+      estado.diaEditado = n;
+      $('#ofa-dia-titulo').text((actual ? 'Clase del ' : 'Agregar clase el ') + DIAS[n]);
+      $('#ofa-dia-grupo').text(fila.grupo + ' · ' + fila.idAsignatura + ' · ' + limpio(fila.asignatura));
+      $('#ofa-dia-ini').val(actual && actual.horaIni ? actual.horaIni : horaIni)
+        .attr({ min: rango ? horaDesdeMinutos(rango.ini) : null, max: rango ? horaDesdeMinutos(rango.fin - duracion) : null })
+        .prop('disabled', rango === false);
+      $('#ofa-dia-turno').text(rango === false
+        ? 'El turno ' + limpio(fila.turno) + ' no tiene clases el ' + DIAS[n] + '. Solo puedes quitar esta clase.'
+        : rango ? 'Horario del turno el ' + DIAS[n] + ': ' + horaDesdeMinutos(rango.ini) + ' – ' + horaDesdeMinutos(rango.fin) + '. La hora de fin se calcula con la duración de ' + duracion + ' min por sesión.'
+          : 'La hora de fin se calcula con la duración de ' + duracion + ' min por sesión.');
+      $('#ofa-form-dia [type="submit"]').prop('disabled', rango === false);
+      $('#ofa-dia-quitar').toggleClass('d-none', !actual);
+      $('#ofa-modal-dia .ofa-error').empty();
+      llenarSesiones(actual ? actual.sesiones : 1);
+      modalDia.show();
+    }
+
+    // Solo ofrece las duraciones que terminan dentro del turno a partir de la hora de inicio
+    function llenarSesiones(preferida) {
+      var duracion = filaSeleccionada().duracionSesion, rango = rangoDia(estado.diaEditado);
+      var ini = $('#ofa-dia-ini').val() ? minutos($('#ofa-dia-ini').val()) : null;
+      var opciones = '', validas = [], estorbo = null;
+      for (var s = 1; s <= MAX_SESIONES; s++) {
+        if (rango && ini !== null && ini + s * duracion > rango.fin) break;
+        // Sesiones seguidas: si la siguiente pisa un receso u otra clase, ya no se ofrecen más
+        estorbo = ini !== null ? choque(estado.diaEditado, ini, ini + s * duracion) : null;
+        if (estorbo) break;
+        validas.push(s);
+        opciones += '<option value="' + s + '">' + (s === 1 ? '1 sesión' : s + ' sesiones seguidas') + ' (' + (s * duracion) + ' min)</option>';
+      }
+      if (!validas.length) opciones = '<option value="">' + escapar(estorbo ? 'Ocupado: ' + estorbo.texto : 'No cabe en el horario del turno') + '</option>';
+      var elegida = validas.indexOf(preferida) !== -1 ? preferida : validas[validas.length - 1];
+      $('#ofa-dia-sesiones').html(opciones).val(elegida ? String(elegida) : '').prop('disabled', !validas.length || rango === false);
+      pintarFinDia();
+    }
+
+    function pintarFinDia() {
+      var sesiones = Number($('#ofa-dia-sesiones').val());
+      var fin = sesiones ? horaFin({ horaIni: $('#ofa-dia-ini').val(), sesiones: sesiones }, filaSeleccionada().duracionSesion) : '';
+      $('#ofa-dia-fin').val(fin || '—');
+    }
+
+    /*
+     * Cada cambio de la cuadrícula se guarda en ese momento: se manda el horario completo (un día por clase)
+     * y la API regenera las sesiones no impartidas del periodo. Sin días con clase, se elimina el horario.
+     * El estado solo cambia si la API acepta, para no mostrar algo que no quedó guardado.
+     */
+    function guardarHorario(borrador) {
+      var id = estado.seleccion;
+      var dias = ORDEN_DIAS.filter(function (n) { return borrador[n]; }).map(function (n) {
+        return { day: n, horaIni: borrador[n].horaIni, sesiones: borrador[n].sesiones };
+      });
+      var peticion = dias.length
+        ? api('PUT', '/horarios/' + id, { dias: dias })
+        : api('DELETE', '/horarios/' + id).then(function () { return api('GET', '/horarios/' + id); });
+
+      return peticion.then(function (r) {
+        if (estado.seleccion === id) {
+          recibirHorario(r.horario);
+          pintarDetalle();
+          guardado();
+        }
+        cargarOferta(true);
       });
     }
 
@@ -833,6 +1222,7 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
 
     $('#ofa-nivel').on('change', alCambiarNivel);
     $('#ofa-periodo, #ofa-carrera').on('change', function () {
+      recordarTurno();
       estado.filas = [];
       seleccionar(null);
       reiniciarLocales();
@@ -975,7 +1365,7 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       bloquear($boton, true);
       api('PUT', '/grupos/logotipo/' + estado.seleccion, { logoSep: estado.logo }).done(function () {
         estado.acta.logoSep = estado.logo;
-        $('#ofa-logo-actual').text(estado.logo);
+        $('#ofa-logo-actual').html(logoActual(estado.logo));
         modalLogotipo.hide();
       }).fail(function (mensaje) {
         $error.html(alerta(mensaje));
@@ -998,11 +1388,21 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
     $detalle.on('click', '.ofa-opcion', function () {
       var $input = $(this).closest('.ofa-persona').find('.ofa-persona-input');
       var persona = estado.acta[$input.data('rol')];
+      var profesorAnterior = estado.acta.profesor.uid;
       persona.uid = $(this).data('uid');
       persona.nombre = String($(this).data('nombre'));
       if ($input.data('rol') === 'profesor') {
         persona.secuencia = $(this).data('secuencia');
         persona.cambio = true;
+        // El presidente predeterminado es el profesor: se actualiza si era el predeterminado, estaba vacío
+        // o era el profesor anterior; si se eligió a mano, se respeta
+        var presidente = estado.acta.presidente;
+        if (presidente.predeterminado || !presidente.uid || String(presidente.uid) === String(profesorAnterior)) {
+          estado.acta.presidente = { uid: persona.uid, nombre: persona.nombre, predeterminado: true };
+          $(this).parent().addClass('d-none').empty();
+          errorDetalle('');
+          return pintarDetalle();
+        }
       }
       $input.val(persona.nombre);
       $(this).parent().addClass('d-none').empty();
@@ -1023,74 +1423,62 @@ $jsonOpciones = JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_
       modalLogotipo.show();
     });
 
-    $detalle.on('click', '.ofa-dia', function () {
-      var n = Number($(this).data('dia'));
-      if (estado.borrador[n]) {
-        delete estado.borrador[n];
-      } else {
-        // Un día nuevo parte del horario del primer día activo para no recapturarlo
-        var previo = ORDEN_DIAS.filter(function (x) { return estado.borrador[x]; })[0];
-        estado.borrador[n] = previo ? { horaIni: estado.borrador[previo].horaIni, sesiones: estado.borrador[previo].sesiones } : { horaIni: '', sesiones: 1 };
+    // Celda vacía: agrega la clase de ese día a esa hora; si el día ya tiene clase, la abre para cambiarla
+    // Solo celdas libres y la clase de esta materia; lo de otras materias y del profesor no responde
+    $detalle.on('click', 'button.ofa-hcell, button.ofa-hblk', function () {
+      abrirDia(Number($(this).data('dia')), $(this).data('ini'));
+    });
+
+    // Al cambiar la hora de inicio se recalculan las duraciones que caben; la hora de fin nunca se captura
+    $('#ofa-dia-ini').on('input change', function () {
+      llenarSesiones(Number($('#ofa-dia-sesiones').val()));
+    });
+    $('#ofa-dia-sesiones').on('change', pintarFinDia);
+
+    $('#ofa-form-dia').on('submit', function (e) {
+      e.preventDefault();
+      var n = estado.diaEditado, ini = $('#ofa-dia-ini').val(), sesiones = Number($('#ofa-dia-sesiones').val());
+      var duracion = filaSeleccionada().duracionSesion, rango = rangoDia(n);
+      var $error = $('#ofa-modal-dia .ofa-error');
+      if (rango === false) return $error.html(alerta('El turno no tiene clases este día.'));
+      if (!ini) return $error.html(alerta('Captura la hora de inicio.'));
+      if (rango && (minutos(ini) < rango.ini || !sesiones || minutos(ini) + sesiones * duracion > rango.fin)) {
+        return $error.html(alerta('La clase debe quedar entre ' + horaDesdeMinutos(rango.ini) + ' y ' + horaDesdeMinutos(rango.fin) + ', el horario del turno.'));
       }
-      estado.previa = null;
-      pintarDetalle();
-      $detalle.find('.ofa-dia[data-dia="' + n + '"]').trigger('focus');
-    });
+      if (!horaFin({ horaIni: ini, sesiones: sesiones }, duracion)) return $error.html(alerta('La clase debe terminar antes de medianoche.'));
+      var estorbo = choque(n, minutos(ini), minutos(ini) + sesiones * duracion);
+      if (estorbo) return $error.html(alerta('Se traslapa con ' + estorbo.texto + ' (' + horaDesdeMinutos(estorbo.ini) + ' – ' + horaDesdeMinutos(estorbo.fin) + ').'));
 
-    $detalle.on('input change', '[data-h]', function () {
-      var n = Number($(this).data('d')), campo = $(this).data('h');
-      estado.borrador[n][campo] = campo === 'sesiones' ? Number($(this).val()) : $(this).val();
-      $('#ofa-h-fin-' + n).val(horaFin(estado.borrador[n], filaSeleccionada().duracionSesion) || '—');
-      estado.previa = null;
-      $('#ofa-previa').empty();
-    });
-
-    $detalle.on('click', '#ofa-generar', function () {
-      var error = validarHorario(), $boton = $(this);
-      errorDetalle('');
-      if (error) return errorDetalle(error);
-
+      // Se guarda al aplicar; si la API rechaza, el modal sigue abierto con su mensaje
+      var nuevo = $.extend({}, estado.borrador);
+      nuevo[n] = { horaIni: hora(ini), sesiones: sesiones };
+      var $boton = $(this).find('[type="submit"]');
       bloquear($boton, true);
-      api('POST', '/horarios/vista-previa', { grupoSec: estado.seleccion, dias: diasParaApi() }).done(function (r) {
-        estado.previa = r.sesiones || [];
-        $('#ofa-previa').html(htmlPrevia());
-      }).fail(errorDetalle).always(function () {
-        bloquear($boton, false);
-      });
-    });
-
-    $detalle.on('click', '#ofa-guardar-horario', function () {
-      var error = validarHorario(), $boton = $(this);
-      errorDetalle('');
-      if (error) return errorDetalle(error);
-
-      bloquear($boton, true);
-      api('PUT', '/horarios/' + estado.seleccion, { dias: diasParaApi() }).done(function (r) {
-        recibirHorario(r.horario);
-        pintarDetalle();
-        guardado();
-        cargarOferta(true);
+      $error.empty();
+      guardarHorario(nuevo).done(function () {
+        modalDia.hide();
       }).fail(function (mensaje) {
+        $error.html(alerta(mensaje));
+      }).always(function () {
         bloquear($boton, false);
-        errorDetalle(mensaje);
       });
     });
 
-    $detalle.on('click', '#ofa-eliminar-horario', function () {
-      var id = estado.seleccion;
-      confirmar('Eliminar horario', 'Se borrarán las sesiones pendientes de este grupo. Esta acción no se puede deshacer.',
-        '<span>Se conserva</span><span style="font-weight:500">Las sesiones ya impartidas no se borran</span>',
-        function () {
-          return api('DELETE', '/horarios/' + id).then(function () {
-            return api('GET', '/horarios/' + id);
-          }).then(function (r) {
-            if (estado.seleccion === id) {
-              recibirHorario(r.horario);
-              pintarDetalle();
-            }
-            return cargarOferta(true);
-          });
-        });
+    // Quitar un día borra sus sesiones, así que pide confirmación; el modal del día se cierra antes de abrir la confirmación
+    $('#ofa-dia-quitar').on('click', function () {
+      var n = estado.diaEditado, fila = filaSeleccionada();
+      var nuevo = $.extend({}, estado.borrador);
+      delete nuevo[n];
+      var ultimo = !ORDEN_DIAS.some(function (x) { return nuevo[x]; });
+
+      $('#ofa-modal-dia').one('hidden.bs.modal', function () {
+        confirmar('Quitar la clase del ' + DIAS[n],
+          'Se borrarán las sesiones no impartidas del ' + DIAS[n] + ' de ' + fila.idAsignatura + ' (' + fila.grupo + ') dentro del periodo. Esta acción no se puede deshacer.',
+          '<span>' + (ultimo ? 'Era el único día con clase' : 'Se conserva') + '</span><span style="font-weight:500">'
+            + (ultimo ? 'La materia se queda sin horario; las sesiones impartidas se conservan' : 'Las demás clases, las sesiones impartidas y las que estén fuera del periodo') + '</span>',
+          function () { return guardarHorario(nuevo); });
+      });
+      modalDia.hide();
     });
 
     pintarTabla();

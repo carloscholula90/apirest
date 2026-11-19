@@ -306,7 +306,7 @@ return $final;
             return (array) $item;
          })->toArray();  
      
-         return $this->pdfController->generateReport($datosArray,$columnWidths,$keys , 'REPORTE DE SERVICIOS POR CARRERA', $headers,'L','letter','rptReporteServiciosXCarrera.pdf');
+         return $this->pdfController->generateReport($datosArray,$columnWidths,$keys , 'REPORTE DE SERVICIOS POR CARRERA', $headers,'L','letter',$this->nombreReporte('rptReporteServiciosXCarrera', 'pdf'));
      }  
 
       public function getDatos(){
@@ -332,10 +332,8 @@ return $final;
                                 ->on('p.idPeriodo', '=', 'sp.idPeriodo');
                         })
                         ->join('turno as t', 't.idTurno', '=', 'sp.idTurno')
-                        ->where(function ($q) {
-                            $q->where('p.activo', 1)
-                            ->orWhere('p.inscripciones', 1);
-                        })
+                        // Solo periodos activos (igual que el Excel)
+                        ->where('p.activo', 1)
                         ->orderBy('p.idPeriodo')
                         ->orderBy('n.idNivel')
                         ->orderBy('c.idCarrera')
@@ -348,8 +346,9 @@ return $final;
 
 
     public function exportaExcel() {  
-        // Ruta del archivo a almacenar en el disco público
-        $path = storage_path('app/public/serviciosCarrerasRpt.xlsx');
+        // Nombre único por generación, para que el visor de Office y el navegador no muestren una copia en caché
+        $nombre = $this->nombreReporte('serviciosCarrerasRpt', 'xlsx');
+        $path = storage_path('app/public/'.$nombre);
         $selectColumns = [  'periodo.descripcion as periodo','nivel.descripcion as nivel',
                             'carrera.descripcion as carrera',
                             'servicio.descripcion as servicio',
@@ -386,24 +385,27 @@ return $final;
                      'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                 ],
                 [ 'table' => 'carrera', // Tabla a unir
+                // La carrera se une por nivel y carrera; antes usaba las columnas de periodo y cada renglón
+                // se repetía por cada carrera del nivel (39 mil filas, minutos en generarse)
                 'conditions' => [
-                         ['first' => 'periodo.idNivel', 'second' => 'servicioCarrera.idNivel'],
-                         ['first' => 'periodo.idPeriodo', 'second' => 'servicioCarrera.idPeriodo']
+                         ['first' => 'carrera.idNivel', 'second' => 'servicioCarrera.idNivel'],
+                         ['first' => 'carrera.idCarrera', 'second' => 'servicioCarrera.idCarrera']
                    ],
                    'type' => 'inner' // Tipo de JOIN (en este caso LEFT JOIN)
                 ]
                 ];
 
-        $export = new GenericTableExportEsp('servicioCarrera', '', [], ['periodo.idPeriodo','nivel.idNivel'], ['desc','asc'], $selectColumns, $joins,$namesColumns);
+        // Solo periodos activos (igual que el PDF)
+        $export = new GenericTableExportEsp('servicioCarrera', '', ['periodo.activo' => 1], ['periodo.idPeriodo','nivel.idNivel'], ['desc','asc'], $selectColumns, $joins,$namesColumns);
 
         // Guardar el archivo en el disco público
-        Excel::store($export, 'serviciosCarrerasRpt.xlsx', 'public');
+        Excel::store($export, $nombre, 'public');
        
         // Verifica si el archivo existe usando Storage de Laravel
         if (file_exists($path))  {  
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/serviciosCarrerasRpt.xlsx' // URL pública para descargar el archivo
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nombre // URL pública para descargar el archivo
             ]);
         } else {
             return response()->json([
@@ -411,6 +413,27 @@ return $final;
                 'message' => 'Error al generar el reporte '
             ]);
         }  
+    }
+
+    /*
+     * Nombre del archivo del reporte con fecha, hora y un secuencial al azar (p. ej.
+     * serviciosCarrerasRpt_20261117_041530_7f3a9c.xlsx): cada generación es un archivo nuevo y el visor de Office
+     * o el navegador no muestran una copia vieja en caché. De paso borra las copias de ese reporte con más
+     * de un día, para que no se acumulen en storage/app/public.
+     */
+    private function nombreReporte($base, $extension)
+    {
+        foreach (glob(storage_path('app/public/'.$base.'_*.'.$extension)) ?: [] as $anterior) {
+            if (filemtime($anterior) < time() - 86400) {
+                @unlink($anterior);
+            }
+        }
+
+        // Hora de México fija: la librería del PDF cambia la zona horaria de PHP
+        $fecha = (new \DateTime('now', new \DateTimeZone('America/Mexico_City')))->format('Ymd_His');
+
+        // Secuencial aleatorio: cambia en cada impresión aunque sea en el mismo segundo
+        return $base.'_'.$fecha.'_'.bin2hex(random_bytes(3)).'.'.$extension;
     }
 
     public function copiarServicios(Request $request){

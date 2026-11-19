@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\escolar;
 
 use App\Http\Controllers\Api\escolar\Concerns\ManejaHorarios;
 use App\Http\Controllers\Controller;
+use App\Models\escolar\DetalleTurno;
 use App\Models\escolar\DuracionSesion;
 use App\Models\escolar\Horario;
 use Carbon\Carbon;
@@ -73,14 +74,23 @@ class HorarioController extends Controller
         return $this->guardaSesiones($plan);
     }
 
+    // Borra solo las sesiones del periodo que no se han impartido
     public function destroy($grupoSec)
     {
-        if (!$this->buscaGrupo($grupoSec)) {
+        $grupo = $this->buscaGrupo($grupoSec);
+
+        if (!$grupo) {
             return $this->returnEstatus('Grupo no encontrado', 404, null);
         }
 
+        $periodo = $this->periodoDe($grupo);
+
+        if (!$periodo || !$periodo->fechaInicio || !$periodo->fechaTermino) {
+            return $this->returnEstatus('El periodo del grupo no tiene fechas de inicio y termino', 400, null);
+        }
+
         try {
-            $this->sesionesPendientes($grupoSec)->delete();
+            $this->sesionesPendientes($grupoSec, $periodo)->delete();
         } catch (QueryException $e) {
             return $this->returnEstatus('Error al eliminar el horario', 500, null);
         }
@@ -120,16 +130,15 @@ class HorarioController extends Controller
             return 'No hay duracion de sesion configurada para el nivel y turno del grupo';
         }
 
-        $periodo = DB::table('periodo')
-            ->where('idNivel', $grupo->idNivel)
-            ->where('idPeriodo', $grupo->idPeriodo)
-            ->first();
+        $periodo = $this->periodoDe($grupo);
 
         if (!$periodo || !$periodo->fechaInicio || !$periodo->fechaTermino) {
             return 'El periodo del grupo no tiene fechas de inicio y termino';
         }
 
         $horarios = [];
+        $rangos = $this->rangosTurno($grupo->idTurno, $grupo->idNivel);
+        $bloquesTurno = $this->bloquesTurno($grupo->idTurno);
 
         foreach ($request->dias as $dia) {
             $numero = $this->diaNumero($dia['day']);
@@ -147,6 +156,28 @@ class HorarioController extends Controller
 
             if ($inicio->copy()->addMinutes($minutos)->format('Y-m-d') !== $inicio->format('Y-m-d')) {
                 return 'La clase del '.$this->diaNombre($numero).' debe terminar antes de medianoche';
+            }
+
+            // Con el turno configurado en dtlTurno, la clase debe caer en sus dias y dentro de su horario
+            if ($rangos) {
+                if (!isset($rangos[$numero])) {
+                    return 'El turno del grupo no tiene clases el '.$this->diaNombre($numero);
+                }
+
+                $fin = $inicio->copy()->addMinutes($minutos)->format('H:i');
+
+                if (!$this->horaDentroDe($dia['horaIni'], $fin, $rangos[$numero][0], $rangos[$numero][1])) {
+                    return 'La clase del '.$this->diaNombre($numero).' debe quedar entre '.substr($rangos[$numero][0], 0, 5).' y '.substr($rangos[$numero][1], 0, 5).', el horario del turno';
+                }
+            }
+
+            // Los bloques del turno (defaultTurno, como el receso) no se pueden ocupar con clase
+            $fin = $inicio->copy()->addMinutes($minutos)->format('H:i');
+
+            foreach ($bloquesTurno as $bloque) {
+                if ($dia['horaIni'] < $bloque['horaFin'] && $fin > $bloque['horaIni']) {
+                    return 'La clase del '.$this->diaNombre($numero).' se traslapa con '.$bloque['descripcion'].' del turno ('.$bloque['horaIni'].' - '.$bloque['horaFin'].')';
+                }
             }
 
             $horarios[$numero] = ['horaIni' => $dia['horaIni'], 'minutos' => $minutos];
@@ -185,7 +216,13 @@ class HorarioController extends Controller
             return 'Ninguna fecha habil del periodo coincide con los dias capturados';
         }
 
-        return ['grupo' => $grupo, 'sesiones' => $sesiones];
+        $traslape = $this->buscaTraslape($grupo, $sesiones);
+
+        if ($traslape) {
+            return $traslape;
+        }
+
+        return ['grupo' => $grupo, 'periodo' => $periodo, 'sesiones' => $sesiones];
     }
 
     private function guardaSesiones(array $plan)
@@ -201,7 +238,7 @@ class HorarioController extends Controller
                     })
                     ->all();
 
-                $this->sesionesPendientes($grupoSec)->delete();
+                $this->sesionesPendientes($grupoSec, $plan['periodo'])->delete();
 
                 $nuevas = array_filter($plan['sesiones'], function ($sesion) use ($fechasImpartidas) {
                     return !in_array(substr($sesion['fechaIni'], 0, 10), $fechasImpartidas);
@@ -252,7 +289,136 @@ class HorarioController extends Controller
             'total' => $sesiones->count(),
             'impartidas' => $sesiones->where('impartido', 1)->count(),
             'sesiones' => $sesiones,
+            'bloquesTurno' => $this->bloquesTurno($grupo->idTurno),
+            'ocupados' => $this->ocupados($grupo),
         ];
+    }
+
+    // Bloques activos del turno (defaultTurno) con la descripcion y color de su tipo de bloque
+    private function bloquesTurno($idTurno)
+    {
+        return DB::table('defaultTurno as d')
+            ->leftJoin('tipoBloque as t', 't.idTipoBloque', '=', 'd.idTipoBloque')
+            ->where('d.idTurno', $idTurno)
+            ->where('d.activo', 1)
+            ->orderBy('d.horaInicio')
+            ->get(['d.horaInicio', 'd.horaFin', 'd.idTipoBloque', 't.descripcion', 't.color'])
+            ->map(function ($bloque) {
+                return [
+                    'horaIni' => substr($bloque->horaInicio, 0, 5),
+                    'horaFin' => substr($bloque->horaFin, 0, 5),
+                    'idTipoBloque' => (int) $bloque->idTipoBloque,
+                    'descripcion' => trim((string) $bloque->descripcion) ?: 'BLOQUE',
+                    'color' => trim((string) $bloque->color),
+                ];
+            })
+            ->all();
+    }
+
+    /*
+     * Otros grupos con los que no se puede traslapar: las demas asignaturas del mismo grupo
+     * (nivel, periodo y clave de grupo) y los grupos del mismo profesor, de cualquier nivel o periodo.
+     * Indexados por gruposec, con tipo "grupo" o "profesor".
+     */
+    private function relacionados($grupo)
+    {
+        $grupoSec = $grupo->gruposec ?? $grupo->grupoSec;
+
+        $filas = DB::table('grupos as g')
+            ->leftJoin('asignatura as a', 'a.idAsignatura', '=', 'g.idAsignatura')
+            ->where('g.gruposec', '<>', $grupoSec)
+            ->where(function ($query) use ($grupo) {
+                $query->where(function ($mismo) use ($grupo) {
+                    $mismo->where('g.idNivel', $grupo->idNivel)
+                        ->where('g.idPeriodo', $grupo->idPeriodo)
+                        ->where('g.grupo', $grupo->grupo);
+                });
+
+                if ($grupo->uidProfesor) {
+                    $query->orWhere('g.uidProfesor', $grupo->uidProfesor);
+                }
+            })
+            ->get(['g.gruposec as gs', 'g.idNivel', 'g.idPeriodo', 'g.grupo', 'g.idAsignatura', 'a.descripcion as asignatura']);
+
+        $relacionados = [];
+
+        foreach ($filas as $fila) {
+            $mismoGrupo = $fila->idNivel == $grupo->idNivel && $fila->idPeriodo == $grupo->idPeriodo && $fila->grupo === $grupo->grupo;
+            $relacionados[$fila->gs] = [
+                'tipo' => $mismoGrupo ? 'grupo' : 'profesor',
+                'grupoSec' => (int) $fila->gs,
+                'grupo' => trim($fila->grupo),
+                'idAsignatura' => trim($fila->idAsignatura),
+                'asignatura' => trim((string) $fila->asignatura),
+            ];
+        }
+
+        return $relacionados;
+    }
+
+    // Horario por dia de los grupos relacionados dentro del periodo, para mostrarlo en la cuadricula
+    private function ocupados($grupo)
+    {
+        $periodo = $this->periodoDe($grupo);
+        $relacionados = $this->relacionados($grupo);
+
+        if (!$periodo || !$periodo->fechaInicio || !$periodo->fechaTermino || !$relacionados) {
+            return [];
+        }
+
+        $sesiones = Horario::whereIn('grupoSec', array_keys($relacionados))
+            ->where('fechaIni', '<=', substr($periodo->fechaTermino, 0, 10).' 23:59:59')
+            ->where('fechaFin', '>=', substr($periodo->fechaInicio, 0, 10).' 00:00:00')
+            ->orderBy('fechaIni')
+            ->get(['grupoSec', 'fechaIni', 'fechaFin', 'day']);
+
+        // Como en el resumen propio, cada grupo y dia conserva el horario de su sesion mas reciente
+        $ocupados = [];
+
+        foreach ($sesiones as $sesion) {
+            $ocupados[$sesion->grupoSec.'-'.$sesion->day] = $relacionados[$sesion->grupoSec] + [
+                'day' => (int) $sesion->day,
+                'horaIni' => Carbon::parse($sesion->fechaIni)->format('H:i'),
+                'horaFin' => Carbon::parse($sesion->fechaFin)->format('H:i'),
+            ];
+        }
+
+        return array_values($ocupados);
+    }
+
+    // Compara fecha por fecha las sesiones planeadas contra las de los grupos relacionados
+    private function buscaTraslape($grupo, array $sesiones)
+    {
+        $relacionados = $this->relacionados($grupo);
+
+        if (!$relacionados) {
+            return null;
+        }
+
+        $existentes = Horario::whereIn('grupoSec', array_keys($relacionados))
+            ->where('fechaIni', '<', max(array_column($sesiones, 'fechaFin')))
+            ->where('fechaFin', '>', min(array_column($sesiones, 'fechaIni')))
+            ->get(['grupoSec', 'fechaIni', 'fechaFin'])
+            ->groupBy(function ($sesion) {
+                return substr($sesion->fechaIni, 0, 10);
+            });
+
+        foreach ($sesiones as $sesion) {
+            foreach ($existentes->get(substr($sesion['fechaIni'], 0, 10), []) as $otra) {
+                if ($otra->fechaIni < $sesion['fechaFin'] && $otra->fechaFin > $sesion['fechaIni']) {
+                    $inicio = Carbon::parse($sesion['fechaIni']);
+                    $cuando = 'el '.$this->diaNombre($sesion['day']).' '.$inicio->format('d/m/Y')
+                        .' ('.$inicio->format('H:i').' - '.Carbon::parse($sesion['fechaFin'])->format('H:i').')';
+                    $r = $relacionados[$otra->grupoSec];
+
+                    return $r['tipo'] === 'grupo'
+                        ? 'La clase '.$cuando.' se traslapa con '.$r['idAsignatura'].' del mismo grupo '.$r['grupo']
+                        : 'El profesor ya tiene clase '.$cuando.' en el grupo '.$r['grupo'].' ('.$r['idAsignatura'].')';
+                }
+            }
+        }
+
+        return null;
     }
 
     private function buscaGrupo($grupoSec)
@@ -265,10 +431,41 @@ class HorarioController extends Controller
         return Horario::where('grupoSec', $grupoSec)->where('impartido', 1);
     }
 
-    private function sesionesPendientes($grupoSec)
+    // Hora de inicio y fin del turno por dia (1 domingo ... 7 sabado) para el nivel del grupo;
+    // vacio si ni el nivel ni los dias generales del turno estan configurados
+    private function rangosTurno($idTurno, $idNivel)
     {
-        return Horario::where('grupoSec', $grupoSec)->where(function ($query) {
-            $query->whereNull('impartido')->orWhere('impartido', '<>', 1);
-        });
+        $rangos = [];
+
+        foreach (DetalleTurno::paraNivel($idTurno, $idNivel) as $detalle) {
+            $numero = $this->diaNumero($detalle->diaSemana);
+
+            if ($numero) {
+                $rangos[$numero] = [$detalle->horaInicio, $detalle->horaFin];
+            }
+        }
+
+        return $rangos;
+    }
+
+    private function periodoDe($grupo)
+    {
+        return DB::table('periodo')
+            ->where('idNivel', $grupo->idNivel)
+            ->where('idPeriodo', $grupo->idPeriodo)
+            ->first();
+    }
+
+    // Sesiones que se pueden borrar: no impartidas y dentro de las fechas del periodo
+    private function sesionesPendientes($grupoSec, $periodo)
+    {
+        return Horario::where('grupoSec', $grupoSec)
+            ->whereBetween('fechaIni', [
+                substr($periodo->fechaInicio, 0, 10).' 00:00:00',
+                substr($periodo->fechaTermino, 0, 10).' 23:59:59',
+            ])
+            ->where(function ($query) {
+                $query->whereNull('impartido')->orWhere('impartido', '<>', 1);
+            });
     }
 }

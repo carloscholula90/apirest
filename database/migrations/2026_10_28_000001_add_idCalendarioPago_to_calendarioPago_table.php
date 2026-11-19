@@ -19,20 +19,24 @@ return new class extends Migration
             return;
         }
 
+        // La llave foranea a turno usa la llave primaria como indice; necesita el suyo antes de quitarla
+        Schema::table('calendarioPago', function (Blueprint $table) {
+            $table->index('idTurno');
+        });
+
         Schema::table('calendarioPago', function (Blueprint $table) {
             $table->dropPrimary();
         });
 
         Schema::table('calendarioPago', function (Blueprint $table) {
             $table->increments('idCalendarioPago')->first();
-            $table->index('idTurno');
         });
     }
 
     /**
      * Reverse the migrations.
      *
-     * Falla si ya existe mas de un calendario para el mismo turno.
+     * Regresa la llave original (idTurno, fechaInicio); falla si hay dos calendarios del mismo turno y fecha.
      */
     public function down(): void
     {
@@ -41,12 +45,16 @@ return new class extends Migration
         }
 
         Schema::table('calendarioPago', function (Blueprint $table) {
-            $table->dropIndex(['idTurno']);
             $table->dropColumn('idCalendarioPago');
         });
 
+        // Primero la llave primaria, para que la llave foranea a turno no se quede sin indice
         Schema::table('calendarioPago', function (Blueprint $table) {
-            $table->primary('idTurno');
+            $table->primary(['idTurno', 'fechaInicio']);
+        });
+
+        Schema::table('calendarioPago', function (Blueprint $table) {
+            $table->dropIndex(['idTurno']);
         });
     }
 };

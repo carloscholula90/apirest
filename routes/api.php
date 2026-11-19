@@ -119,6 +119,10 @@ Route::prefix('condonacion')->group(function () {
     require base_path('routes/tesoreria/condonacion.php');
 });
 
+Route::prefix('configuracionactas')->group(function () {
+    require base_path('routes/escolar/configuracionactas.php');
+});
+
 Route::prefix('configuraciones')->group(function () {
     require base_path('routes/tesoreria/configuraciones.php');
 }); 

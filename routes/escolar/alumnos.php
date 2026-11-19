@@ -12,6 +12,9 @@ Route::get('/alumnosInscritos/{idNivel}/{idPeriodo}', [AlumnoController::class, 
 Route::get('/alumnosInscritosExc/{idNivel}/{idPeriodo}', [AlumnoController::class, 'exportExcelCocentrado']);
 Route::get('/alumnosInscritosDtl/{idNivel}/{idPeriodo}', [AlumnoController::class, 'alumnosInscritosDetallado']);
 Route::get('/alumnosInscritosDtlExc/{idNivel}/{idPeriodo}', [AlumnoController::class, 'alumnosInscritosDetalladoExc']);  
+// Reporte de alumnos inscritos por rango de fechas (alumno.fechaAlta), en PDF y Excel
+Route::get('/inscritosFechas/{fechaInicio}/{fechaFin}', [\App\Http\Controllers\Api\escolar\ReporteAlumnosInscritosController::class, 'pdf']);
+Route::get('/inscritosFechasExc/{fechaInicio}/{fechaFin}', [\App\Http\Controllers\Api\escolar\ReporteAlumnosInscritosController::class, 'excel']);
 Route::get('/{uid}', [AlumnoController::class, 'getAlumno']);
 Route::get('/{uid}/reincorporacion', [\App\Http\Controllers\Api\escolar\ReincorporacionController::class, 'show']);
 Route::post('/reincorporacion', [\App\Http\Controllers\Api\escolar\ReincorporacionRegistroController::class, 'store']);

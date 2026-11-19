@@ -18,6 +18,8 @@ class Impuesto extends Model
                         'idImpuesto',
                         'descripcion',
                         'porcentaje',
+                        'isPorcentaje',
+                        'valor',
                         'esRetencion'
     ];
 }

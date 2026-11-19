@@ -457,7 +457,7 @@ class EstadoCuentaController extends Controller{
         if (file_exists($filePath)) {
             return response()->json([
                 'status' => 200,  
-                'message' => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
+                'message' => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport // Puedes devolver la ruta para fines de depuración
             ]);
         } else {
             return response()->json([
@@ -888,7 +888,7 @@ class EstadoCuentaController extends Controller{
             if (file_exists($filePath)) 
                         return response()->json([
                             'message' => 'Registros guardados ('.$noRegistros.' de '.collect($movimientos)->count().') con un importe total de ( $ '.number_format($importe, 2, '.', ',').' de $'.number_format($importeTotal, 2, '.', ',').')',
-                            'error'   => 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'.$nameReport ,
+                            'error'   => 'https://reportes.siaweb.com.mx/storage/app/public/'.$nameReport ,
                             'status'  => 200
                         ], 200);
 
@@ -1063,7 +1063,17 @@ class EstadoCuentaController extends Controller{
          return $this->returnData('Registros eliminados',null,200);  
     }
 
-    public function getAbonos($uid, $secuencia,$idPeriodo){
+    // Abonos del estado de cuenta tipo 2 (ruta /pagosEdo)
+    public function getAbonosEdo($uid, $secuencia, $idPeriodo){
+        return $this->getAbonos($uid, $secuencia, $idPeriodo, 2);
+    }
+
+    // Abonos del alumno en el periodo; con tipoEdoCta (1 o 2) solo los servicios de ese estado de cuenta
+    public function getAbonos($uid, $secuencia,$idPeriodo, $tipoEdoCta = null){
+
+     if ($tipoEdoCta !== null && !in_array((string) $tipoEdoCta, ['1', '2'], true)) {
+         return $this->returnEstatus('El tipo de estado de cuenta debe ser 1 o 2', 400, ['tipoEdoCta' => ['El tipo de estado de cuenta debe ser 1 o 2.']]);
+     }
 
      $servicios = $this->obtenerServiciosTesoreria($uid, $secuencia, $idPeriodo);
 
@@ -1112,6 +1122,9 @@ class EstadoCuentaController extends Controller{
                             ->where('edo.secuencia', $secuencia)
                             ->where('edo.idPeriodo', $servicios->idPeriodo)
                             ->where('edo.tipomovto', 'A')
+                            ->when($tipoEdoCta !== null, function ($query) use ($tipoEdoCta) {
+                                $query->where('s.tipoEdoCta', (int) $tipoEdoCta);
+                            })
                             ->orderBy('edo.consecutivo', 'asc')
                             ->get();
 
@@ -2324,7 +2337,7 @@ class EstadoCuentaController extends Controller{
                 $importeTotal, 2, '.', ',' )
         );
         $urlReporte = $reporte
-            ? 'https://reportes.pruebas.siaweb.com.mx/storage/app/public/'
+            ? 'https://reportes.siaweb.com.mx/storage/app/public/'
                 .basename($reporte)
             : null;
 

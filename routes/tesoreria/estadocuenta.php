@@ -35,14 +35,25 @@ Route::group([], function () {
     ->whereNumber('matricula')
     ->whereNumber('tipoEdoCta');
 
+    // Abonos del estado de cuenta tipo 2 (apuntaba a getAbonos2, que no existe)
     Route::get(
         '/pagosEdo/{uid}/{secuencia}/{idPeriodo}',
-        [EstadoCuentaController::class, 'getAbonos2']
+        [EstadoCuentaController::class, 'getAbonosEdo']
     )
     ->whereNumber('uid')
     ->whereNumber('secuencia')
     ->whereNumber('idPeriodo');
 
+    // Abonos de un tipo de estado de cuenta (1 o 2); tipoEdoCta se valida en el controlador
+    Route::get(
+        '/pagos/{uid}/{secuencia}/{idPeriodo}/{tipoEdoCta}',
+        [EstadoCuentaController::class, 'getAbonos']
+    )
+    ->whereNumber('uid')
+    ->whereNumber('secuencia')
+    ->whereNumber('idPeriodo');
+
+    // Sin tipo: todos los abonos (se conserva mientras las pantallas pasan a la ruta con tipo)
     Route::get(
         '/pagos/{uid}/{secuencia}/{idPeriodo}',
         [EstadoCuentaController::class, 'getAbonos']

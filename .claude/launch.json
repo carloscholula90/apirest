@@ -1,17 +1,47 @@
 {
-  "version": "0.0.1",
-  "configurations": [
-    {
-      "name": "demo-esquema-pago",
-      "runtimeExecutable": "C:/php8.4/php",
-      "runtimeArgs": ["-S", "127.0.0.1:8090", "-t", "frontend/esquema-pago"],
-      "port": 8090
-    },
-    {
-      "name": "demo-paquete-escritorio",
-      "runtimeExecutable": "C:/php8.4/php",
-      "runtimeArgs": ["-S", "127.0.0.1:8091", "-t", "C:/Users/hdzpi/OneDrive/Escritorio/esquema-pago-demo"],
-      "port": 8091
-    }
-  ]
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "demo-esquema-pago",
+            "runtimeExecutable": "C:/php8.4/php",
+            "runtimeArgs": [
+                "-S",
+                "127.0.0.1:8090",
+                "-t",
+                "frontend/esquema-pago"
+            ],
+            "port": 8090
+        },
+        {
+            "name": "demo-paquete-escritorio",
+            "runtimeExecutable": "C:/php8.4/php",
+            "runtimeArgs": [
+                "-S",
+                "127.0.0.1:8091",
+                "-t",
+                "C:/Users/hdzpi/OneDrive/Escritorio/esquema-pago-demo"
+            ],
+            "port": 8091
+        },
+        {
+            "name": "siaweb-local-api",
+            "runtimeExecutable": "C:/xampp/php/php.exe",
+            "runtimeArgs": [
+                "-S",
+                "127.0.0.1:8000",
+                "C:/xampp/htdocs/apirest/entorno-local/router-api.php"
+            ],
+            "port": 8000
+        },
+        {
+            "name": "siaweb-local-pantallas",
+            "runtimeExecutable": "C:/xampp/php/php.exe",
+            "runtimeArgs": [
+                "-S",
+                "127.0.0.1:8001",
+                "C:/xampp/htdocs/apirest/entorno-local/router-pagina.php"
+            ],
+            "port": 8001
+        }
+    ]
 }
